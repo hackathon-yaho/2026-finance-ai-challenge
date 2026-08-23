@@ -5,8 +5,9 @@
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
     "Noto Sans KR", sans-serif;
 
-  --color-bg: oklch(0.978 0.003 247);
+  --color-bg: oklch(1 0 0);
   --color-surface: oklch(0.957 0.005 247);
+  --color-subtle: oklch(0.978 0.003 247);
   --color-ink: oklch(0.234 0.03 254);
   --color-muted: oklch(0.452 0.028 253);
   --color-border: oklch(0.913 0.008 247);
@@ -20,22 +21,38 @@
   --color-danger-subtle: oklch(0.94 0.04 18);
 
   --color-warning: oklch(0.748 0.183 56);
+  --color-warning-subtle: oklch(0.96 0.06 80);
 
   --color-success: oklch(0.493 0.143 154);
   --color-success-subtle: oklch(0.95 0.045 154);
 
-  --animate-fade-up: fade-up 0.4s ease-out forwards;
-  --animate-stamp-in: stamp-in 0.5s ease-out;
-  --animate-shake-x: shake-x 0.4s ease;
+  --animate-fade-up: fade-up 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-stamp-in: stamp-in 0.44s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-ring-out: ring-out 0.6s ease-out;
+  --animate-nudge: nudge 0.32s ease;
   --animate-dot-pulse: dot-pulse 1.1s ease-in-out infinite;
-  --animate-banner-drop: banner-drop 0.3s ease-out forwards;
+  --animate-drop-in: drop-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-deadline-in: deadline-in 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-sheet-up: sheet-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-scrim-in: scrim-in 0.2s ease-out;
   --animate-toast-in: toast-in 0.2s ease-out;
+  --animate-char-in: char-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes char-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -45,27 +62,37 @@
 @keyframes stamp-in {
   0% {
     opacity: 0;
-    transform: scale(2.4) rotate(-20deg);
+    transform: scale(1.9) rotate(-16deg);
   }
-  55% {
+  60% {
     opacity: 1;
-    transform: scale(0.9) rotate(-6deg);
+    transform: scale(0.94) rotate(-5deg);
   }
   100% {
     opacity: 1;
-    transform: scale(1) rotate(-7deg);
+    transform: scale(1) rotate(-6deg);
   }
 }
-@keyframes shake-x {
+@keyframes ring-out {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+@keyframes nudge {
   0%,
   100% {
     transform: translateX(0);
   }
-  25% {
-    transform: translateX(-5px);
+  30% {
+    transform: translateX(-4px);
   }
-  75% {
-    transform: translateX(5px);
+  70% {
+    transform: translateX(4px);
   }
 }
 @keyframes dot-pulse {
@@ -78,14 +105,46 @@
     opacity: 1;
   }
 }
-@keyframes banner-drop {
+@keyframes drop-in {
   from {
     opacity: 0;
-    transform: translateY(-14px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+@keyframes deadline-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-8px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 @keyframes toast-in {
@@ -103,12 +162,8 @@ body {
   background: var(--color-bg);
 }
 
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+button:not(:disabled) {
+  cursor: pointer;
 }
 
 @media (prefers-reduced-motion: reduce) {

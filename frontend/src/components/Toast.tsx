@@ -8,7 +8,7 @@ export function Toast({ message }: ToastProps) {
   return (
     <div
       role="status"
-      className="animate-toast-in pointer-events-none absolute bottom-24 left-1/2 z-10 -translate-x-1/2 rounded-2xl bg-ink px-[18px] py-2.5 text-sm font-semibold whitespace-nowrap text-white shadow-lg"
+      className="animate-toast-in fixed bottom-[104px] left-1/2 z-40 -translate-x-1/2 rounded-2xl bg-ink px-[18px] py-3 text-[15px] font-semibold whitespace-nowrap text-white shadow-lg"
     >
       {message}
     </div>

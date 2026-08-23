@@ -1,44 +1,55 @@
 import { ROUTES } from "../../data"
 
 interface RoutesStageProps {
-  threatAdded: boolean
+  showBizNotice: boolean
 }
 
-const BADGE_STYLE: Record<"recommended" | "conditional", string> = {
-  recommended: "bg-brand-subtle text-brand",
-  conditional: "bg-surface text-muted",
-}
-
-const BADGE_LABEL: Record<"recommended" | "conditional", string> = {
-  recommended: "권장",
-  conditional: "조건부",
-}
-
-export function RoutesStage({ threatAdded }: RoutesStageProps) {
+export function RoutesStage({ showBizNotice }: RoutesStageProps) {
   return (
-    <div className="flex flex-col gap-4">
-      {threatAdded && (
-        <div className="flex flex-col gap-1.5 rounded-2xl bg-danger-subtle p-4">
-          <div className="text-sm font-bold text-danger">협박 문자를 받았다면</div>
-          <p className="text-[13px] leading-relaxed text-ink">지우지 마세요 · 답장하지 마세요 · 캡처해서 별첨으로 추가하세요</p>
+    <div className="flex flex-col gap-6">
+      <div>
+        <div className="text-[28px] leading-[1.3] font-bold tracking-tight">어디에 내면 되나요</div>
+        <p className="mt-1.5 text-[15px] leading-normal text-muted">이의제기는 그 계좌를 관리하는 금융회사에 내는 절차예요.</p>
+      </div>
+
+      <div className="overflow-hidden rounded-[20px] border border-border">
+        {ROUTES.map((route, i) => (
+          <div key={route.title} className={`flex items-center gap-4 px-5 py-4 ${i > 0 ? "border-t border-border" : ""}`}>
+            <div className="min-w-0 flex-1">
+              <div className="text-[15px] font-semibold tracking-tight">{route.title}</div>
+              <div className="mt-0.5 text-[13px] leading-normal text-muted">{route.desc}</div>
+            </div>
+            <div
+              className={`flex-none rounded-md px-2 text-[11px] font-semibold leading-[22px] ${
+                route.badge === "official" ? "bg-brand-subtle text-brand" : "bg-surface text-muted"
+              }`}
+            >
+              {route.badge === "official" ? "공식" : "보조"}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-start gap-3 rounded-2xl bg-danger-subtle p-4">
+        <div className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md bg-danger text-[13px] font-bold text-white">
+          !
+        </div>
+        <p className="text-[13px] leading-normal">
+          <b>협박 연락을 받고 있다면</b>
+          <br />
+          돈을 보내지 마세요 · 메시지를 지우지 마세요 · 답장하지 마세요
+        </p>
+      </div>
+
+      {showBizNotice && (
+        <div className="rounded-2xl bg-surface p-4">
+          <div className="text-[15px] font-semibold">사업 계좌라면 미리 준비해요</div>
+          <p className="mt-1 text-[13px] leading-normal text-muted">거래처에 결제 수단을 먼저 알리고, 카드 대금 입금 계좌와 자동이체 출금 계좌를 옮겨두세요.</p>
         </div>
       )}
 
-      <div className="text-sm font-semibold text-ink">접수 경로</div>
-      {ROUTES.map((route) => (
-        <div key={route.title} className="flex items-center gap-2.5 rounded-2xl border border-border px-4 py-3.5">
-          <div className="flex-1">
-            <div className="text-sm font-semibold text-ink">{route.title}</div>
-            <div className="mt-0.5 text-xs text-muted">{route.desc}</div>
-          </div>
-          <div className={`flex-none rounded-full px-2.5 py-1 text-[11px] font-semibold ${BADGE_STYLE[route.badge]}`}>
-            {BADGE_LABEL[route.badge]}
-          </div>
-        </div>
-      ))}
-
-      <p className="mt-2 max-w-[320px] rounded-2xl bg-brand-subtle px-4 py-2.5 text-xs leading-relaxed text-brand">
-        이 화면은 제출 자료를 정리하는 도구입니다. 지급정지 해제 여부는 은행 심사로 결정돼요.
+      <p className="rounded-2xl bg-brand-subtle p-3.5 text-[13px] leading-normal text-brand">
+        이 화면은 제출 자료를 정리하는 도구예요. 지급정지 해제 여부는 은행 심사로 결정돼요.
       </p>
     </div>
   )
