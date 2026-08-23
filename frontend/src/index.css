@@ -37,8 +37,6 @@
   --animate-scrim-in: scrim-in 0.2s ease-out;
   --animate-toast-in: toast-in 0.2s ease-out;
   --animate-char-in: char-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-  --animate-page-next: page-next 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-page-prev: page-prev 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes page-next {
@@ -180,6 +178,60 @@
   }
 }
 
+/**
+ * 화면 진입 스태거.
+ *
+ * 부모 한 곳에만 `.stagger`를 걸면 직계 자식이 위에서부터 순서대로 나타난다.
+ * 요소마다 클래스와 지연값을 손으로 달지 않아도 되고, 조건부 자식이 늘거나
+ * 줄어도 nth-child가 알아서 다시 계산한다.
+ *
+ * `components` 레이어에 둔 이유: Tailwind 유틸리티가 나중 레이어라, 자식이
+ * 자기만의 `animate-*`(예: 기한 배너의 animate-deadline-in)를 갖고 있으면
+ * 그쪽이 이긴다. 스태거는 어디까지나 기본값이다.
+ */
+@layer components {
+  .stagger > * {
+    animation-name: fade-up;
+    animation-duration: 0.32s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: both;
+  }
+
+  /* 같은 스태거를 쓰되 진행 방향을 가로 슬라이드로 바꾼다 (문진 쪽 이동). */
+  .stagger-next > * {
+    animation-name: page-next;
+  }
+  .stagger-prev > * {
+    animation-name: page-prev;
+  }
+
+  .stagger > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 50ms;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 100ms;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 150ms;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 200ms;
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: 250ms;
+  }
+  .stagger > *:nth-child(7) {
+    animation-delay: 300ms;
+  }
+  /* 그 아래는 더 늘리지 않는다 — 마지막 항목까지 기다리는 시간이 길어진다. */
+  .stagger > *:nth-child(n + 8) {
+    animation-delay: 350ms;
+  }
+}
+
 body {
   background: var(--color-bg);
 }
@@ -193,6 +245,9 @@ button:not(:disabled) {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* 지연을 지우지 않으면 duration만 0이 되고 요소는 지연 시간 동안
+       fill-mode: both의 시작 상태(투명)로 남아 뚝뚝 끊겨 나타난다. */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }

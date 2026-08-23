@@ -98,7 +98,7 @@ export function EvidenceStage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="stagger flex flex-col gap-6">
       <div>
         <div className="text-[28px] leading-[1.3] font-bold tracking-tight">올린 자료를 읽었어요</div>
         <p className="mt-1.5 text-[15px] leading-normal text-muted">계좌번호 같은 정보는 보내기 전에 가렸어요. 원본은 눌러서 확인할 수 있어요.</p>

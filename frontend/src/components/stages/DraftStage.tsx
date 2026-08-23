@@ -40,7 +40,7 @@ export function DraftStage({
   onExportPackage,
 }: DraftStageProps) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="stagger flex flex-col gap-6">
       <div>
         <div className="text-[28px] leading-[1.3] font-bold tracking-tight">사실관계 진술서</div>
         <p className="mt-1.5 text-[15px] leading-normal text-muted">문장을 누르면 근거가 된 원본이 열려요. 근거 없는 문장은 만들지 않아요.</p>

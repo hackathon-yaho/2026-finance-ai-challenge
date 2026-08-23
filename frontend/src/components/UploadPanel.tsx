@@ -33,7 +33,7 @@ export function UploadPanel({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <div>
         <div className="text-[28px] leading-[1.3] font-bold tracking-tight">자료를 올려주세요</div>
         <p className="mt-1.5 text-[15px] leading-normal text-muted">

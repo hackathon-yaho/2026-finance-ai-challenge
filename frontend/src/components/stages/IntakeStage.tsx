@@ -24,7 +24,7 @@ export function IntakeStage({ page, dir, intake, deadlineNotice, deadlineUrgent,
   )
 
   return (
-    <div key={page} className={`flex flex-col gap-7 ${dir === 1 ? "animate-page-next" : "animate-page-prev"}`}>
+    <div key={page} className={`stagger flex flex-col gap-7 ${dir === 1 ? "stagger-next" : "stagger-prev"}`}>
       <div>
         <div className="flex items-center gap-2">
           {INTAKE_PAGES.map((item, i) => (

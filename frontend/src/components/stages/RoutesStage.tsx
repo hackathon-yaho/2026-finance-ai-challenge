@@ -6,7 +6,7 @@ interface RoutesStageProps {
 
 export function RoutesStage({ showBizNotice }: RoutesStageProps) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="stagger flex flex-col gap-6">
       <div>
         <div className="text-[28px] leading-[1.3] font-bold tracking-tight">어디에 내면 되나요</div>
         <p className="mt-1.5 text-[15px] leading-normal text-muted">이의제기는 그 계좌를 관리하는 금융회사에 내는 절차예요.</p>
