@@ -39,20 +39,30 @@
   --animate-char-in: char-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes page-next {
+@keyframes stagger-up {
   from {
     opacity: 0;
-    transform: translateX(16px);
+    transform: translateY(var(--stagger-rise));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes stagger-next {
+  from {
+    opacity: 0;
+    transform: translateX(var(--stagger-slide));
   }
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
-@keyframes page-prev {
+@keyframes stagger-prev {
   from {
     opacity: 0;
-    transform: translateX(-16px);
+    transform: translateX(calc(-1 * var(--stagger-slide)));
   }
   to {
     opacity: 1;
@@ -191,9 +201,9 @@
  */
 @layer components {
   .stagger > * {
-    animation-name: fade-up;
-    animation-duration: 0.32s;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-name: stagger-up;
+    animation-duration: var(--stagger-duration);
+    animation-timing-function: var(--stagger-ease);
     animation-fill-mode: both;
   }
 
@@ -203,37 +213,50 @@
    * 최초 진입·재시작은 방향이 없어 기본값(세로 상승)이 그대로 쓰인다.
    */
   .nav-next .stagger > * {
-    animation-name: page-next;
+    animation-name: stagger-next;
   }
   .nav-prev .stagger > * {
-    animation-name: page-prev;
+    animation-name: stagger-prev;
   }
 
   .stagger > *:nth-child(1) {
-    animation-delay: 0ms;
+    animation-delay: calc(var(--stagger-step) * 0);
   }
   .stagger > *:nth-child(2) {
-    animation-delay: 50ms;
+    animation-delay: calc(var(--stagger-step) * 1);
   }
   .stagger > *:nth-child(3) {
-    animation-delay: 100ms;
+    animation-delay: calc(var(--stagger-step) * 2);
   }
   .stagger > *:nth-child(4) {
-    animation-delay: 150ms;
+    animation-delay: calc(var(--stagger-step) * 3);
   }
   .stagger > *:nth-child(5) {
-    animation-delay: 200ms;
+    animation-delay: calc(var(--stagger-step) * 4);
   }
   .stagger > *:nth-child(6) {
-    animation-delay: 250ms;
-  }
-  .stagger > *:nth-child(7) {
-    animation-delay: 300ms;
+    animation-delay: calc(var(--stagger-step) * 5);
   }
   /* 그 아래는 더 늘리지 않는다 — 마지막 항목까지 기다리는 시간이 길어진다. */
-  .stagger > *:nth-child(n + 8) {
-    animation-delay: 350ms;
+  .stagger > *:nth-child(n + 7) {
+    animation-delay: calc(var(--stagger-step) * 5);
   }
+}
+
+:root {
+  /*
+   * 진입 스태거 조절값 — 리듬을 바꾸려면 여기만 만진다.
+   *
+   * 이징이 체감 속도를 가장 크게 좌우한다. 코드베이스 기본 곡선
+   * cubic-bezier(0.16, 1, 0.3, 1)은 expo-out 계열이라 이동 거리 대부분을
+   * 앞 20%에서 소진해, 시간을 늘려도 여전히 "휙" 지나간 것처럼 보인다.
+   * 진입에는 속도가 고르게 퍼지는 ease-out-cubic을 쓴다.
+   */
+  --stagger-duration: 0.48s;
+  --stagger-step: 70ms;
+  --stagger-rise: 18px;
+  --stagger-slide: 32px;
+  --stagger-ease: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 body {
