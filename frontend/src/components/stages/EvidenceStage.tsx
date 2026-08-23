@@ -1,127 +1,254 @@
+import { useEffect, useRef } from "react"
 import { EVIDENCE_META } from "../../data"
-import type { EvidenceId, EvidenceState, TimelineEvent } from "../../types"
+import { getAmountInfo } from "../../lib/amount"
+import { UploadPanel } from "../UploadPanel"
+import type { EvidenceId, EvidenceState, TimelineEvent, UploadedFile, ViewerId } from "../../types"
+
+const STICKY_HEADER_OFFSET = 72 // 56px top bar + a little breathing room
 
 interface EvidenceStageProps {
   evidence: EvidenceState
-  onToggle: (id: EvidenceId) => void
-  onAddThreat: () => void
+  bankConfirmed: boolean
+  wide: boolean
   analyzing: boolean
   analyzed: boolean
-  onAnalyze: () => void
+  timelineRunId: number
   timeline: TimelineEvent[]
+  amount: string | null
+  onToggle: (id: EvidenceId) => void
+  onAddThreat: () => void
+  onConfirmBank: () => void
+  onAnalyze: () => void
+  onOpenViewer: (id: ViewerId) => void
+  filesReady: boolean
+  uploadedFiles: UploadedFile[]
+  onSelectFiles: (files: FileList) => void
+  onRemoveUpload: (id: string) => void
+  onPreviewUpload: (id: string) => void
+  onEditUpload: (id: string) => void
+  onProceedFromUpload: () => void
+  onBackToUpload: () => void
 }
 
 function LoadingDots() {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="h-1.5 w-1.5 animate-dot-pulse rounded-full bg-white" />
-      <span className="h-1.5 w-1.5 animate-dot-pulse rounded-full bg-white [animation-delay:150ms]" />
-      <span className="h-1.5 w-1.5 animate-dot-pulse rounded-full bg-white [animation-delay:300ms]" />
+    <span className="inline-flex items-center gap-1">
+      <span className="h-[5px] w-[5px] animate-dot-pulse rounded-full bg-white" />
+      <span className="h-[5px] w-[5px] animate-dot-pulse rounded-full bg-white [animation-delay:150ms]" />
+      <span className="h-[5px] w-[5px] animate-dot-pulse rounded-full bg-white [animation-delay:300ms]" />
     </span>
   )
 }
 
 export function EvidenceStage({
   evidence,
-  onToggle,
-  onAddThreat,
+  bankConfirmed,
+  wide,
   analyzing,
   analyzed,
-  onAnalyze,
+  timelineRunId,
   timeline,
+  amount,
+  onToggle,
+  onAddThreat,
+  onConfirmBank,
+  onAnalyze,
+  onOpenViewer,
+  filesReady,
+  uploadedFiles,
+  onSelectFiles,
+  onRemoveUpload,
+  onPreviewUpload,
+  onEditUpload,
+  onProceedFromUpload,
+  onBackToUpload,
 }: EvidenceStageProps) {
+  const amountInfo = getAmountInfo(amount)
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const wasAnalyzing = useRef(false)
+
+  // Scroll the newly (re-)assembled timeline into view — both the first "자료 조립하기"
+  // and any later "다시 조립하기" should visibly land on the fresh result, not leave the
+  // user wondering whether anything happened below the fold.
+  useEffect(() => {
+    if (wasAnalyzing.current && !analyzing && timelineRef.current) {
+      const top = timelineRef.current.getBoundingClientRect().top + window.scrollY - STICKY_HEADER_OFFSET
+      window.scrollTo({ top, behavior: "smooth" })
+    }
+    wasAnalyzing.current = analyzing
+  }, [analyzing])
+
+  if (!filesReady) {
+    return (
+      <UploadPanel
+        uploadedFiles={uploadedFiles}
+        onSelectFiles={onSelectFiles}
+        onEditFile={onEditUpload}
+        onRemoveFile={onRemoveUpload}
+        onPreviewFile={onPreviewUpload}
+        onContinue={onProceedFromUpload}
+      />
+    )
+  }
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
+      <div>
+        <div className="text-[28px] leading-[1.3] font-bold tracking-tight">올린 자료를 읽었어요</div>
+        <p className="mt-1.5 text-[15px] leading-normal text-muted">계좌번호 같은 정보는 보내기 전에 가렸어요. 원본은 눌러서 확인할 수 있어요.</p>
+      </div>
+
+      {uploadedFiles.length > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3">
+          <div className="flex -space-x-2">
+            {uploadedFiles.slice(0, 4).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => onPreviewUpload(f.id)}
+                className="h-9 w-9 flex-none overflow-hidden rounded-full border-2 border-bg"
+              >
+                <img src={f.dataUrl} alt={f.name} className="h-full w-full object-cover" />
+              </button>
+            ))}
+          </div>
+          <div className="min-w-0 flex-1 text-[13px] text-muted">직접 올린 자료 {uploadedFiles.length}건</div>
+          <button type="button" onClick={onBackToUpload} className="flex-none text-[13px] font-semibold text-brand underline">
+            자료 더 올리기
+          </button>
+        </div>
+      )}
+
       {evidence.threat && (
-        <div className="animate-banner-drop flex items-start gap-2.5 rounded-2xl bg-danger-subtle p-3.5 opacity-0">
-          <div className="flex h-5 w-5 flex-none items-center justify-center rounded-md bg-danger text-[13px] font-bold text-white">
+        <div className="animate-drop-in flex items-start gap-3 rounded-2xl bg-danger-subtle p-4">
+          <div className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md bg-danger text-[13px] font-bold text-white">
             !
           </div>
-          <p className="text-[13px] leading-relaxed text-ink">
-            <b>이 문자를 지우지 마세요.</b> 답장하지 말고 그대로 보존해서 소명자료로 첨부해요.
+          <p className="text-[13px] leading-normal">
+            <b>협박으로 보이는 메시지를 찾았어요.</b> 지우지 말고 답장하지 마세요. 수신한 사실만 소명서에 적고 원본을
+            별첨으로 내요.
           </p>
         </div>
       )}
 
-      <p className="text-sm leading-relaxed text-muted">
-        가진 자료를 최대한 포함해주세요. 체크를 해제하면 타임라인에서 빠져요.
-      </p>
-
-      <div className="flex flex-col gap-2.5">
+      <div className={wide ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
         {EVIDENCE_META.map((card) => {
-          const included = evidence[card.id]
+          const on = evidence[card.id]
+          const needsConfirm = card.id === "bank" && on && !bankConfirmed
+          const badgeLabel = needsConfirm ? "확인 필요" : card.badge
+
           return (
-            <button
+            <div
               key={card.id}
-              type="button"
-              onClick={() => onToggle(card.id)}
-              className={`flex items-center gap-3 rounded-2xl border p-3.5 text-left ${
-                included ? "border-brand-subtle bg-brand-subtle" : "border-border bg-white"
+              className={`rounded-2xl border p-4 transition-all duration-200 ${
+                on ? "border-brand-subtle bg-brand-subtle" : "border-border bg-bg"
               }`}
             >
-              <div
-                className={`flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md border-[1.5px] text-[13px] font-bold text-white ${
-                  included ? "border-brand bg-brand opacity-100" : "border-neutral bg-neutral opacity-0"
-                }`}
-              >
-                ✓
+              <div onClick={() => onToggle(card.id)} className="flex cursor-pointer items-center gap-3">
+                <div
+                  className={`flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md border-[1.5px] text-[13px] font-bold text-white ${
+                    on ? "border-brand bg-brand" : "border-neutral bg-bg opacity-0"
+                  }`}
+                >
+                  ✓
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[15px] font-semibold tracking-tight">{card.title}</div>
+                  <div className="mt-0.5 text-xs tabular-nums text-muted">{card.meta}</div>
+                </div>
+                <div
+                  className={`flex-none rounded-md px-2 text-[11px] font-semibold leading-[22px] ${
+                    needsConfirm ? "bg-warning-subtle text-warning" : "bg-surface text-muted"
+                  }`}
+                >
+                  {badgeLabel}
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-semibold text-ink">{card.title}</div>
-                <div className="mt-0.5 text-xs text-muted">{card.time}</div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenViewer(card.viewer)}
+                  className="h-11 rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink"
+                >
+                  원본 보기
+                </button>
+                {needsConfirm && (
+                  <button type="button" onClick={onConfirmBank} className="h-11 rounded-xl bg-ink px-4 text-[15px] font-semibold text-white">
+                    {amountInfo.formatted} 맞아요
+                  </button>
+                )}
               </div>
-              <div className="flex-none rounded-full bg-surface px-2 py-1 text-[11px] font-semibold text-muted">
-                {card.kindLabel}
-              </div>
-            </button>
+              {needsConfirm && <p className="mt-2.5 text-xs leading-normal text-warning">금액 인식 신뢰도가 낮아요. 확인하지 않으면 소명서에 넣지 않아요.</p>}
+            </div>
           )
         })}
       </div>
 
       {!evidence.threat && (
-        <button
-          type="button"
-          onClick={onAddThreat}
-          className="self-start rounded-full border border-danger px-3.5 py-2 text-[13px] font-semibold text-danger"
-        >
-          협박성 문자를 받았다면 추가하기
+        <button type="button" onClick={onAddThreat} className="h-10 self-start rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink">
+          협박 문자 캡처 추가하기
         </button>
       )}
 
-      <button type="button" onClick={onAnalyze} className="h-12 rounded-2xl bg-ink text-[15px] font-semibold text-white">
-        {analyzing ? <LoadingDots /> : <span>{analyzed ? "다시 분석하기" : "증거 분석하기"}</span>}
-      </button>
+      <div className="h-px bg-border" />
 
-      {analyzed && (
-        <div className="mt-1 flex flex-col gap-0.5">
-          <div className="mb-2.5 text-sm font-semibold text-ink">타임라인으로 재구성했어요</div>
-          {timeline.map((event, index) => (
-            <div
-              key={`${event.time}-${index}`}
-              className="animate-fade-up flex gap-3 opacity-0"
-              style={{ animationDelay: `${index * 0.12}s` }}
-            >
+      <div ref={timelineRef}>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="text-[17px] font-semibold tracking-tight">시간순 타임라인</div>
+          <button type="button" onClick={onAnalyze} className="h-10 flex-none rounded-xl bg-ink px-4 text-[15px] font-semibold text-white">
+            {analyzing ? <LoadingDots /> : <span>{analyzed ? "다시 조립하기" : "자료 조립하기"}</span>}
+          </button>
+        </div>
+
+        {!analyzed && (
+          <div className="rounded-2xl border border-dashed border-neutral px-5 py-8 text-center text-[15px] leading-normal text-muted">
+            자료를 조립하면 여기에 시간순으로 정리돼요
+          </div>
+        )}
+
+        {analyzed && (
+          <div key={timelineRunId}>
+            {timeline.map((ev, i) => (
               <div
-                className={`mt-1 h-2.5 w-2.5 flex-none rounded-full ${
-                  event.gap ? "bg-danger" : event.threat ? "bg-warning" : "bg-brand"
-                }`}
-              />
-              <div className="flex-1 pb-4">
-                <div className="text-[11px] tabular-nums text-muted">{event.time}</div>
-                <div
-                  className={`mt-0.5 text-sm leading-snug ${
-                    event.gap
-                      ? "animate-shake-x rounded-[10px] border-[1.5px] border-dashed border-danger bg-danger-subtle px-2.5 py-2 font-semibold text-danger"
-                      : "text-ink"
-                  }`}
-                >
-                  {event.text}
+                key={`${ev.time}-${i}`}
+                className="flex animate-fade-up gap-3 opacity-0"
+                style={{ animationDelay: `${i * 0.16}s`, animationDuration: "0.55s" }}
+              >
+                <div className="flex w-5 flex-none flex-col items-center">
+                  <div
+                    className={`mt-[5px] h-2.5 w-2.5 flex-none rounded-full ${
+                      ev.gap ? "bg-danger" : ev.threat ? "bg-warning" : "bg-brand"
+                    }`}
+                  />
+                  {i < timeline.length - 1 && <div className="mt-1 w-px flex-1 bg-border" />}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-2 pb-5">
+                  <div className="text-xs tabular-nums text-muted">{ev.time}</div>
+                  <div
+                    className={
+                      ev.gap
+                        ? "animate-nudge rounded-xl bg-danger-subtle px-3 py-2 text-[15px] leading-normal font-semibold text-danger"
+                        : "text-[15px] leading-normal"
+                    }
+                  >
+                    {ev.text}
+                  </div>
+                  {ev.action && ev.srcToggle && (
+                    <button
+                      type="button"
+                      onClick={() => onToggle(ev.srcToggle as EvidenceId)}
+                      className="h-11 rounded-xl border border-danger px-4 text-[15px] font-semibold text-danger"
+                    >
+                      {ev.action}
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

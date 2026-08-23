@@ -1,19 +1,22 @@
-import { useEffect } from "react"
 import { BottomCta } from "./components/BottomCta"
+import { ImageLightbox } from "./components/ImageLightbox"
+import { MaskingSheet } from "./components/MaskingSheet"
 import { DraftStage } from "./components/stages/DraftStage"
 import { EvidenceStage } from "./components/stages/EvidenceStage"
 import { IntakeStage } from "./components/stages/IntakeStage"
 import { IntroStage } from "./components/stages/IntroStage"
+import { ReadinessStage } from "./components/stages/ReadinessStage"
 import { RoutesStage } from "./components/stages/RoutesStage"
-import { VerdictStage } from "./components/stages/VerdictStage"
-import { TopBar } from "./components/TopBar"
 import { Toast } from "./components/Toast"
-import { STAGE_NAMES } from "./data"
+import { TopBar } from "./components/TopBar"
+import { ViewerSheet } from "./components/ViewerSheet"
 import { useHaebingFlow } from "./hooks/useHaebingFlow"
+import { useViewportWidth } from "./hooks/useViewportWidth"
 
 const CTA_LABEL: Record<number, string> = {
+  0: "시작하기",
   1: "다음",
-  2: "판정 보기",
+  2: "준비도 보기",
   3: "소명서 만들기",
   4: "접수 안내 보기",
   5: "처음으로",
@@ -21,72 +24,130 @@ const CTA_LABEL: Record<number, string> = {
 
 function App() {
   const flow = useHaebingFlow()
+  const width = useViewportWidth()
   const { stage } = flow
-
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [stage])
+  const wide = width >= 720
+  const pad = width >= 640 ? 24 : 20
 
   const ctaDisabled =
-    (stage === 1 && !flow.allAnswered) || (stage === 2 && !flow.analyzed) || (stage === 4 && !flow.draftRevealed)
+    (stage === 1 && !flow.allAnswered) || (stage === 2 && !flow.analyzed) || (stage === 4 && !flow.draftShown)
 
   const handleCta = () => {
     if (stage === 5) {
       flow.restart()
       return
     }
-    flow.goStage(stage + 1)
+    flow.go(stage + 1)
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-bg px-3.5 py-7 font-sans text-ink antialiased">
-      <div className="relative flex w-full max-w-[480px] flex-col overflow-hidden rounded-3xl bg-white shadow-xl">
-        {stage > 0 && <TopBar stage={stage} stageName={STAGE_NAMES[stage]} onBack={() => flow.goStage(stage - 1)} />}
+    <div className="flex min-h-dvh flex-col font-sans text-ink antialiased" style={{ letterSpacing: "-0.005em" }}>
+      <TopBar stage={stage} width={width} onBack={() => flow.go(stage - 1)} onStepClick={flow.go} />
 
-        <div className={`no-scrollbar flex-1 overflow-y-auto ${stage === 0 ? "px-5" : "px-5 pt-[22px] pb-6"}`}>
-          {stage === 0 && <IntroStage onStart={() => flow.goStage(1)} />}
+      <div className="flex-1">
+        <div className="mx-auto max-w-[720px]" style={{ padding: `${pad}px ${pad}px 132px` }}>
+          {stage === 0 && <IntroStage wide={width >= 640} />}
 
-          {stage === 1 && <IntakeStage intake={flow.intake} onSelect={flow.selectIntake} />}
+          {stage === 1 && (
+            <IntakeStage
+              intake={flow.intake}
+              deadlineNotice={flow.deadlineNotice}
+              deadlineUrgent={flow.deadlineUrgent}
+              onPick={flow.pick}
+            />
+          )}
 
           {stage === 2 && (
             <EvidenceStage
               evidence={flow.evidence}
-              onToggle={flow.toggleEvidence}
-              onAddThreat={flow.addThreat}
+              bankConfirmed={flow.bankConfirmed}
+              wide={wide}
               analyzing={flow.analyzing}
               analyzed={flow.analyzed}
-              onAnalyze={flow.analyze}
+              timelineRunId={flow.timelineRunId}
               timeline={flow.timeline}
+              amount={flow.intake.amount}
+              onToggle={flow.toggle}
+              onAddThreat={flow.addThreat}
+              onConfirmBank={flow.confirmBank}
+              onAnalyze={flow.analyze}
+              onOpenViewer={flow.openViewer}
+              filesReady={flow.filesReady}
+              uploadedFiles={flow.uploadedFiles}
+              onSelectFiles={flow.addFiles}
+              onRemoveUpload={flow.removeUploadedFile}
+              onPreviewUpload={flow.openLightbox}
+              onEditUpload={flow.startEditFile}
+              onProceedFromUpload={flow.proceedFromUpload}
+              onBackToUpload={flow.backToUpload}
             />
           )}
 
           {stage === 3 && (
-            <VerdictStage
-              verdict={flow.verdict}
-              historyOverride={flow.historyOverride}
-              intakeHistory={flow.intake.history}
-              onToggleHistoryDemo={flow.toggleHistoryDemo}
+            <ReadinessStage
+              readiness={flow.readiness}
+              wide={wide}
+              hasHistory={flow.hasHistory}
+              onToggleHistory={flow.toggleHistory}
             />
           )}
 
           {stage === 4 && (
             <DraftStage
-              draftGenerating={flow.draftGenerating}
-              draftRevealed={flow.draftRevealed}
-              draftParagraphs={flow.draftParagraphs}
+              drafting={flow.drafting}
+              draftShown={flow.draftShown}
+              draftLines={flow.draftLines}
               checklist={flow.checklist}
-              onGenerate={flow.generateDraft}
-              onExportPdf={() => flow.showToast("PDF 준비 중이에요")}
+              confirmedCount={flow.confirmedCount}
+              droppedCount={flow.droppedCount}
+              onGenerate={flow.makeDraft}
+              onOpenViewer={flow.openViewer}
+              onExportPackage={() => flow.showToast("패키지를 준비하고 있어요")}
             />
           )}
 
-          {stage === 5 && <RoutesStage threatAdded={flow.evidence.threat} />}
+          {stage === 5 && <RoutesStage showBizNotice={flow.intake.usage === "주 거래 계좌예요"} />}
         </div>
-
-        {stage > 0 && <BottomCta label={CTA_LABEL[stage]} disabled={ctaDisabled} onClick={handleCta} />}
-
-        <Toast message={flow.toast} />
       </div>
+
+      <BottomCta label={CTA_LABEL[stage]} disabled={ctaDisabled} width={width} onClick={handleCta} />
+
+      <ViewerSheet
+        viewer={flow.viewer}
+        note={flow.viewerNote}
+        width={width}
+        amountInfo={flow.amountInfo}
+        onClose={flow.closeViewer}
+      />
+
+      {flow.activeUpload && (
+        <MaskingSheet
+          key={flow.activeUpload.id}
+          fileName={flow.activeUpload.name}
+          dataUrl={flow.activeUpload.dataUrl}
+          width={width}
+          queueLabel={flow.queueLength > 1 ? `총 ${flow.queueLength}장 중 1번째` : null}
+          onConfirm={flow.confirmMasking}
+          onCancel={flow.cancelActiveUpload}
+        />
+      )}
+
+      {flow.editingFile && (
+        <MaskingSheet
+          key={flow.editingFile.id}
+          mode="edit"
+          fileName={flow.editingFile.name}
+          dataUrl={flow.editingFile.dataUrl}
+          width={width}
+          queueLabel={null}
+          onConfirm={flow.confirmEditFile}
+          onCancel={flow.cancelEditFile}
+        />
+      )}
+
+      <ImageLightbox file={flow.lightboxFile} width={width} onClose={flow.closeLightbox} />
+
+      <Toast message={flow.toast} />
     </div>
   )
 }

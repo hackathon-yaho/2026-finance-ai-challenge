@@ -1,43 +1,56 @@
+import { INTRO_STATS } from "../../data"
+import { TypewriterValue } from "../TypewriterValue"
+
 interface IntroStageProps {
-  onStart: () => void
+  wide: boolean
 }
 
-const STAT_PILLS = ["계좌 지급정지 149,176건 · 최근 1년", "보이스피싱은 ▼35.5% 감소", "표준 심사기간 5영업일"]
+const STAT_ROW_STAGGER_MS = 350
 
-export function IntroStage({ onStart }: IntroStageProps) {
+export function IntroStage({ wide }: IntroStageProps) {
   return (
-    <div className="flex flex-col items-center gap-7 px-1 py-10 text-center">
+    <div className="flex flex-col gap-8 pt-6">
       <div>
-        <div className="mb-2.5 text-[13px] font-semibold tracking-wide text-brand">解氷 · 지급정지 계좌 소명 지원</div>
-        <div className="text-[44px] font-bold tracking-tight text-ink">해빙</div>
-        <p className="mx-auto mt-3.5 max-w-[320px] text-[17px] leading-relaxed text-muted">
-          지급정지된 계좌, 은행 심사역이
+        <div className="mb-3 text-[13px] font-semibold text-brand">解氷 · 지급정지 계좌 소명 지원</div>
+        <div className={`font-bold tracking-tight ${wide ? "text-[40px] leading-[1.25]" : "text-[28px] leading-[1.25]"}`}>
+          지급정지된 계좌,
           <br />
-          5영업일 안에 판단할 수 있는
+          은행이 5영업일 안에
           <br />
-          형태로 정리해드려요
+          판단할 수 있게 정리해요
+        </div>
+        <p className="mt-4 max-w-[520px] text-[17px] leading-relaxed tracking-tight text-muted">
+          문진에 답하고 가진 자료를 올리면, 시간순 타임라인과 사실 진술서 초안까지 만들어드려요. 문장마다 어떤 자료에서
+          나왔는지 눌러서 확인할 수 있어요.
         </p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-2">
-        {STAT_PILLS.map((pill) => (
-          <div key={pill} className="rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-muted">
-            {pill}
+      <div className="overflow-hidden rounded-[20px] border border-border">
+        {INTRO_STATS.map((row, i) => (
+          <div key={row.title} className={`flex items-center gap-4 px-5 py-4 ${i > 0 ? "border-t border-border" : ""}`}>
+            <div className="min-w-0 flex-1">
+              <div className="text-[15px] font-semibold tracking-tight">{row.title}</div>
+              <div className="mt-0.5 text-[13px] leading-normal text-muted">{row.desc}</div>
+            </div>
+            <div className="flex-none text-[15px] font-bold tabular-nums">
+              <TypewriterValue text={row.value} delayMs={i * STAT_ROW_STAGGER_MS} />
+            </div>
           </div>
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={onStart}
-        className="h-14 w-full max-w-[280px] rounded-2xl bg-brand text-[17px] font-bold text-white"
-      >
-        시작하기
-      </button>
+      <div className="flex items-start gap-3 rounded-2xl bg-danger-subtle p-4">
+        <div className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md bg-danger text-[13px] font-bold text-white">
+          !
+        </div>
+        <p className="text-[13px] leading-normal">
+          <b>지금 협박 연락을 받고 있다면</b>
+          <br />
+          돈을 보내지 마세요 · 메시지를 지우지 마세요 · 답장하지 마세요
+        </p>
+      </div>
 
-      <p className="max-w-[320px] rounded-2xl bg-brand-subtle px-4 py-2.5 text-xs leading-relaxed text-brand">
-        이 화면은 제출 자료를 정리하는 도구입니다. 지급정지 해제 여부는 은행 심사로 결정돼요.
-      </p>
+      <p className="text-xs leading-normal text-muted">올린 자료는 서버에 저장되지 않아요. 브라우저 안에서만 보관하고 탭을 닫으면 사라져요.</p>
     </div>
   )
 }
