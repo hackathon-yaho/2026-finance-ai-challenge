@@ -8,8 +8,8 @@
 
 | Method | Path | 설명 |
 | --- | --- | --- |
-| POST | `/internal/extract` | 이미지(또는 텍스트) → 구조화된 이벤트 + signals |
-| POST | `/internal/draft` | 타임라인 + 판정 결과 → 소명서 초안 + 사실검증 결과 |
+| POST | `/internal/extract` | 이미지(또는 텍스트) → 구조화된 카드(이벤트) + signals + qualityFlags |
+| POST | `/internal/draft` | 타임라인 + 준비도 결과 → 소명서 초안 + 문장-근거 연결 + 사실검증 결과 |
 | GET | `/internal/health` | AI-server 헬스체크 (킵얼라이브용, 외부 헬스체크 도구가 직접 호출) |
 
 ## 인증 (착수 전 확정 필요)
@@ -24,34 +24,42 @@
 
 이미지 전달 방식은 두 가지 중 하나로 결정합니다(착수 전 백엔드·AI 협의):
 
-- **(A) 멀티파트 포워딩**: 백엔드가 받은 이미지 바이트를 그대로 AI-server에 멀티파트로 전달
+- **(A) 멀티파트 포워딩**: 백엔드가 받은 이미지 바이트를 그대로 AI-server에 멀티파트로 전달 (원본은 클라이언트에서 이미 리사이즈·마스킹이 끝난 상태)
 - **(B) Base64 JSON**: 이미지를 base64로 인코딩해 JSON 본문에 담아 전달
 
 ```
 [결정: TODO — A/B 중 선택 후 이 블록 갱신]
 ```
 
-### 응답 — 추출 이벤트 스키마
+### 응답 — 추출 카드 스키마
 
-`api-contract.md`의 FR-021 스키마와 동일합니다 (외부 API 응답과 내부 API 응답이 같은 형식을 씁니다 — 백엔드는 이 응답을 거의 그대로 프론트에 전달만 합니다).
+`api-contract.md`의 FR-021/FR-028 스키마와 동일합니다 (외부 API 응답과 내부 API 응답이 같은 형식을 씁니다 — 백엔드는 이 응답을 거의 그대로 프론트에 전달만 합니다).
 
 ```json
 {
-  "source_type": "chat | bank | shipping | threat | autopay | unknown",
-  "events": [
+  "cards": [
     {
+      "event_id": "evt_001",
+      "source_image_index": 2,
       "occurred_at": "2026-09-02T14:12:00+09:00",
-      "occurred_at_confidence": "high | medium | low",
       "actor": "self | counterparty | system",
-      "summary": "구매 문의 수신 — 물품 상태 질의",
-      "amount": null,
-      "identifiers": { "tracking_no": null, "account_last4": null }
+      "summary": "물품대금 700,000원 입금",
+      "amount": 700000,
+      "identifiers": { "tracking_no": null, "account_last4": null },
+      "field_confidence": {
+        "occurred_at": "high | medium | low",
+        "actor": "high | medium | low",
+        "amount": "high | medium | low"
+      },
+      "source_region": { "x": 0.18, "y": 0.31, "w": 0.62, "h": 0.12 },
+      "confirmation_status": "pending"
     }
   ],
   "signals": {
     "threat_detected": false,
     "delivery_evidence": true,
-    "life_activity": false
+    "life_activity": false,
+    "quality_flags": { "blurry": false, "missing_date": false, "amount_mismatch": false }
   }
 }
 ```
@@ -64,26 +72,34 @@
 
 ```json
 {
-  "events": [ /* 타임라인 이벤트 배열 */ ],
+  "events": [ /* 타임라인 이벤트 배열, confirmed=true 카드만 */ ],
   "reason": "goods | service | debt | unclear",
-  "criteria": { "amount": "met|unmet|unknown", "history": "met|unmet", "livelihood": "met|unmet|unknown" },
-  "verdict": "partial_release_possible | more_evidence_needed | likely_rejected"
+  "readiness": "SUBMISSION_READY | SUPPLEMENT_NEEDED | BANK_CHECK_REQUIRED"
 }
 ```
 
-`reason`, `criteria`, `verdict`는 백엔드의 `VerdictService`가 이미 결정한 값을 그대로 전달합니다. **AI-server는 이 값을 재해석하거나 다시 판단하지 않습니다** — 문장 생성에만 사용합니다.
+`reason`, `readiness`는 백엔드의 `ReadinessService`가 이미 결정한 값을 그대로 전달합니다. **AI-server는 이 값을 재해석하거나 다시 판단하지 않습니다** — 문장 생성에만 사용합니다.
 
 ### 응답
 
 ```json
 {
   "draftText": "...",
-  "checklist": [ { "item": "거래 대화 캡처", "present": true }, ... ],
+  "sentences": [
+    {
+      "sentenceId": "s1",
+      "text": "2026년 9월 1일 물품대금 450,000원을 입금받았습니다.",
+      "evidenceRefs": [
+        { "type": "evidence", "imageIndex": 2, "bbox": { "x": 0.18, "y": 0.31, "w": 0.62, "h": 0.12 } }
+      ]
+    }
+  ],
+  "checklist": [ { "item": "거래 대화 캡처", "have": true } ],
   "factCheckPassed": true
 }
 ```
 
-`factCheckPassed: false`이면 백엔드는 이 응답을 그대로 프론트에 전달하지 않고 재시도 로직(`../00-context/prd.md` §10.3)을 따릅니다.
+`evidenceRefs`는 이미지 파일이 아니라 **참조(imageIndex, bbox)만** 담습니다 — AI-server도 원본 이미지를 갖고 있지 않으므로(LLM 호출 후 즉시 폐기) 참조만 넘길 수 있습니다. `factCheckPassed: false`이면 백엔드는 이 응답을 그대로 프론트에 전달하지 않고 재시도 로직(`../00-context/prd.md` §10.3)을 따릅니다.
 
 ## 오류 응답 (공개 API와 동일한 형식 재사용)
 
@@ -111,3 +127,4 @@
 - [ ] 이미지 전달 방식(A/B) 확정
 - [ ] AI-server가 `/internal/*` 응답 스키마를 `api-contract.md`와 동일하게 맞췄는지 확인 — 스키마가 둘로 갈라지면 백엔드가 매번 변환 코드를 짜야 합니다
 - [ ] `/internal/health`가 외부 헬스체크 도구에서 접근 가능한지 확인 (킵얼라이브 목적이므로 이 엔드포인트만은 공개되어야 함)
+- [ ] AI-server도 이미지를 처리 완료 즉시 폐기하는지 확인 (원본이 AI-server에도 남지 않아야 함, `../03-infra-ops/privacy-and-safety.md` 참조)
