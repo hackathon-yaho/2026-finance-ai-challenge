@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { exportMasked, getDevicePixelRatio, isInsideBox, loadImage, paintImageWithBoxes } from "../lib/mask"
+import { exportMaskedBlob, getDevicePixelRatio, isInsideBox, loadImage, paintImageWithBoxes } from "../lib/mask"
+import { MAX_IMAGE_EDGE } from "../lib/upload"
 import type { MaskBox } from "../types"
 
 const dpr = getDevicePixelRatio()
 
 interface MaskingSheetProps {
   fileName: string
-  dataUrl: string
+  url: string
   width: number
   queueLabel: string | null
   mode?: "new" | "edit"
-  onConfirm: (maskedDataUrl: string, addedMasking: boolean) => void
+  onConfirm: (masked: Blob, addedMasking: boolean) => void
   onCancel: () => void
 }
 
-export function MaskingSheet({ fileName, dataUrl, width, queueLabel, mode = "new", onConfirm, onCancel }: MaskingSheetProps) {
+export function MaskingSheet({ fileName, url, width, queueLabel, mode = "new", onConfirm, onCancel }: MaskingSheetProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -23,21 +24,29 @@ export function MaskingSheet({ fileName, dataUrl, width, queueLabel, mode = "new
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
   const [confirmingSkip, setConfirmingSkip] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const wide = width >= 720
 
   // Load the image once per mounted instance (the parent remounts this component via
   // `key` for each queued file).
   useEffect(() => {
     let cancelled = false
-    loadImage(dataUrl).then((img) => {
-      if (cancelled) return
-      imageRef.current = img
-      setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
-    })
+    loadImage(url)
+      .then((img) => {
+        if (cancelled) return
+        imageRef.current = img
+        setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight })
+      })
+      .catch(() => {
+        // 시그니처 검증을 통과했어도 파일이 깨져 있을 수 있다. 안내 없이 두면
+        // "불러오는 중…"에서 영구히 멈춘 것처럼 보인다.
+        if (!cancelled) setLoadFailed(true)
+      })
     return () => {
       cancelled = true
     }
-  }, [dataUrl])
+  }, [url])
 
   // Measure the actual space available for the image — via ResizeObserver rather than
   // hand-computed pixel budgets — so it reacts correctly to *anything* that changes how
@@ -116,22 +125,31 @@ export function MaskingSheet({ fileName, dataUrl, width, queueLabel, mode = "new
     }
   }
 
+  // 표시용 캔버스가 아니라 원본에서 다시 그린다 — 내보내기 해상도가 보는 사람의
+  // 화면 크기와 DPR에 좌우되면 안 된다 (lib/mask.ts 주석 참고).
+  const exportWith = async (applied: MaskBox[]) => {
+    const image = imageRef.current
+    if (!image || exporting) return
+    setExporting(true)
+    try {
+      const blob = await exportMaskedBlob(image, applied, size, MAX_IMAGE_EDGE)
+      onConfirm(blob, applied.length > 0)
+    } catch {
+      setExporting(false)
+      setLoadFailed(true)
+    }
+  }
+
   const finish = () => {
     if (boxes.length === 0 && mode === "new") {
       setConfirmingSkip(true)
       return
     }
-    const canvas = canvasRef.current
-    const image = imageRef.current
-    if (!canvas || !image) return
-    onConfirm(exportMasked(canvas, image, boxes, size), boxes.length > 0)
+    void exportWith(boxes)
   }
 
   const confirmSkip = () => {
-    const canvas = canvasRef.current
-    const image = imageRef.current
-    if (!canvas || !image) return
-    onConfirm(exportMasked(canvas, image, [], size), false)
+    void exportWith([])
   }
 
   return (
@@ -178,7 +196,23 @@ export function MaskingSheet({ fileName, dataUrl, width, queueLabel, mode = "new
             ref={wrapperRef}
             className="relative min-h-[140px] w-full flex-1 overflow-hidden rounded-2xl border border-border bg-surface"
           >
-            {!ready && <div className="flex h-full w-full items-center justify-center text-[13px] text-muted">불러오는 중…</div>}
+            {loadFailed ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center">
+                <div className="text-[15px] font-semibold">이 파일은 열 수 없어요</div>
+                <p className="text-[13px] leading-normal text-muted">
+                  이미지가 손상됐거나 지원하지 않는 형식이에요. 다른 파일로 다시 시도해주세요.
+                </p>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="h-11 rounded-xl border border-border px-5 text-[15px] font-semibold text-ink"
+                >
+                  이 파일 건너뛰기
+                </button>
+              </div>
+            ) : (
+              !ready && <div className="flex h-full w-full items-center justify-center text-[13px] text-muted">불러오는 중…</div>
+            )}
             <canvas
               ref={canvasRef}
               width={size.w * dpr}
@@ -207,15 +241,20 @@ export function MaskingSheet({ fileName, dataUrl, width, queueLabel, mode = "new
                 >
                   다시 가리기
                 </button>
-                <button type="button" onClick={confirmSkip} className="h-11 flex-1 rounded-xl bg-danger text-[15px] font-semibold text-white">
-                  그대로 보내기
+                <button
+                  type="button"
+                  onClick={confirmSkip}
+                  disabled={exporting}
+                  className="h-11 flex-1 rounded-xl bg-danger text-[15px] font-semibold text-white transition-opacity duration-200 disabled:opacity-40"
+                >
+                  {exporting ? "저장하는 중…" : "그대로 보내기"}
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {!confirmingSkip && (
+        {!confirmingSkip && !loadFailed && (
           <div className="flex flex-none items-center gap-3 border-t border-border px-5 py-4">
             {mode === "new" && (
               <button type="button" onClick={() => setConfirmingSkip(true)} className="text-[13px] font-semibold text-muted underline">
@@ -223,8 +262,13 @@ export function MaskingSheet({ fileName, dataUrl, width, queueLabel, mode = "new
               </button>
             )}
             <div className="flex-1" />
-            <button type="button" onClick={finish} className="h-12 rounded-2xl bg-brand px-6 text-[15px] font-bold text-white">
-              {mode === "edit" && boxes.length === 0 ? "완료" : "가리기 완료"}
+            <button
+              type="button"
+              onClick={finish}
+              disabled={!ready || exporting}
+              className="h-12 rounded-2xl bg-brand px-6 text-[15px] font-bold text-white transition-opacity duration-200 disabled:opacity-40"
+            >
+              {exporting ? "저장하는 중…" : mode === "edit" && boxes.length === 0 ? "완료" : "가리기 완료"}
             </button>
           </div>
         )}

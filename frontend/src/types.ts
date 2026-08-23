@@ -67,12 +67,14 @@ export interface MaskBox {
 export interface UploadedFile {
   id: string
   name: string
-  dataUrl: string
+  /** Object URL of the masked, resized Blob. Must be revoked when the file goes away. */
+  url: string
   masked: boolean
 }
 
 export interface PendingUpload {
   id: string
   name: string
-  dataUrl: string
+  /** Object URL of the raw picked File, alive only until masking is confirmed or cancelled. */
+  url: string
 }

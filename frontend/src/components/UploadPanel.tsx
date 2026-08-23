@@ -3,6 +3,8 @@ import type { UploadedFile } from "../types"
 
 interface UploadPanelProps {
   uploadedFiles: UploadedFile[]
+  maxUploads: number
+  uploadsLeft: number
   onSelectFiles: (files: FileList) => void
   onRemoveFile: (id: string) => void
   onPreviewFile: (id: string) => void
@@ -10,14 +12,24 @@ interface UploadPanelProps {
   onContinue: () => void
 }
 
-export function UploadPanel({ uploadedFiles, onSelectFiles, onRemoveFile, onPreviewFile, onEditFile, onContinue }: UploadPanelProps) {
+export function UploadPanel({
+  uploadedFiles,
+  maxUploads,
+  uploadsLeft,
+  onSelectFiles,
+  onRemoveFile,
+  onPreviewFile,
+  onEditFile,
+  onContinue,
+}: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
+  const full = uploadsLeft === 0
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setDragOver(false)
-    if (e.dataTransfer.files.length > 0) onSelectFiles(e.dataTransfer.files)
+    if (!full && e.dataTransfer.files.length > 0) onSelectFiles(e.dataTransfer.files)
   }
 
   return (
@@ -32,23 +44,28 @@ export function UploadPanel({ uploadedFiles, onSelectFiles, onRemoveFile, onPrev
       <div
         onDragOver={(e) => {
           e.preventDefault()
-          setDragOver(true)
+          if (!full) setDragOver(true)
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 ${
-          dragOver ? "border-brand bg-brand-subtle" : "border-neutral bg-subtle"
-        }`}
+        onClick={() => !full && inputRef.current?.click()}
+        className={`flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 ${
+          full ? "cursor-not-allowed border-border bg-subtle opacity-60" : "cursor-pointer"
+        } ${dragOver ? "border-brand bg-brand-subtle" : full ? "" : "border-neutral bg-subtle"}`}
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-2xl text-brand">＋</div>
-        <div className="text-[15px] font-semibold">여기로 끌어다 놓거나 눌러서 선택하세요</div>
-        <div className="text-xs text-muted">JPG, PNG · 최대 10장</div>
+        <div className="text-[15px] font-semibold">
+          {full ? `${maxUploads}장을 모두 채웠어요` : "여기로 끌어다 놓거나 눌러서 선택하세요"}
+        </div>
+        <div className="text-xs text-muted">
+          {full ? "더 올리려면 아래에서 자료를 지워주세요" : `JPG, PNG · ${uploadsLeft}장 더 올릴 수 있어요 (최대 ${maxUploads}장)`}
+        </div>
         <input
           ref={inputRef}
           type="file"
           accept="image/jpeg,image/png"
           multiple
+          disabled={full}
           className="hidden"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0) onSelectFiles(e.target.files)
@@ -66,7 +83,7 @@ export function UploadPanel({ uploadedFiles, onSelectFiles, onRemoveFile, onPrev
                 onClick={() => onPreviewFile(file.id)}
                 className="h-12 w-12 flex-none overflow-hidden rounded-lg border border-border bg-surface"
               >
-                <img src={file.dataUrl} alt={file.name} className="h-full w-full object-cover" />
+                <img src={file.url} alt={file.name} className="h-full w-full object-cover" />
               </button>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[14px] font-semibold">{file.name}</div>

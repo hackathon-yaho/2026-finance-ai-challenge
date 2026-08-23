@@ -31,7 +31,7 @@ export function ImageLightbox({ file, width, onClose }: ImageLightboxProps) {
           </button>
         </div>
         <div className="overflow-y-auto p-5">
-          <img src={file.dataUrl} alt={file.name} className="w-full rounded-2xl border border-border" />
+          <img src={file.url} alt={file.name} className="w-full rounded-2xl border border-border" />
           <div className="mt-4 text-xs leading-tight text-muted">이 원본은 브라우저 안에만 있어요. 서버에는 남지 않아요.</div>
         </div>
       </div>

@@ -81,6 +81,8 @@ function App() {
               onOpenViewer={flow.openViewer}
               filesReady={flow.filesReady}
               uploadedFiles={flow.uploadedFiles}
+              maxUploads={flow.maxUploads}
+              uploadsLeft={flow.uploadsLeft}
               onSelectFiles={flow.addFiles}
               onRemoveUpload={flow.removeUploadedFile}
               onPreviewUpload={flow.openLightbox}
@@ -131,7 +133,7 @@ function App() {
         <MaskingSheet
           key={flow.activeUpload.id}
           fileName={flow.activeUpload.name}
-          dataUrl={flow.activeUpload.dataUrl}
+          url={flow.activeUpload.url}
           width={width}
           queueLabel={flow.queueLength > 1 ? `총 ${flow.queueLength}장 중 1번째` : null}
           onConfirm={flow.confirmMasking}
@@ -144,7 +146,7 @@ function App() {
           key={flow.editingFile.id}
           mode="edit"
           fileName={flow.editingFile.name}
-          dataUrl={flow.editingFile.dataUrl}
+          url={flow.editingFile.url}
           width={width}
           queueLabel={null}
           onConfirm={flow.confirmEditFile}
