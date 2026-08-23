@@ -30,11 +30,15 @@ function App() {
   const pad = width >= 640 ? 24 : 20
 
   const ctaDisabled =
-    (stage === 1 && !flow.allAnswered) || (stage === 2 && !flow.analyzed) || (stage === 4 && !flow.draftShown)
+    (stage === 1 && !flow.intakePageAnswered) || (stage === 2 && !flow.analyzed) || (stage === 4 && !flow.draftShown)
 
   const handleCta = () => {
     if (stage === 5) {
       flow.restart()
+      return
+    }
+    if (stage === 1 && !flow.intakeLastPage) {
+      flow.goIntakePage(flow.intakePage + 1)
       return
     }
     flow.go(stage + 1)
@@ -42,7 +46,7 @@ function App() {
 
   return (
     <div className="flex min-h-dvh flex-col font-sans text-ink antialiased" style={{ letterSpacing: "-0.005em" }}>
-      <TopBar stage={stage} width={width} onBack={() => flow.go(stage - 1)} onStepClick={flow.go} />
+      <TopBar stage={stage} width={width} onBack={flow.back} onStepClick={flow.go} />
 
       <div className="flex-1">
         <div className="mx-auto max-w-[720px]" style={{ padding: `${pad}px ${pad}px 132px` }}>
@@ -50,10 +54,13 @@ function App() {
 
           {stage === 1 && (
             <IntakeStage
+              page={flow.intakePage}
+              dir={flow.intakeDir}
               intake={flow.intake}
               deadlineNotice={flow.deadlineNotice}
               deadlineUrgent={flow.deadlineUrgent}
               onPick={flow.pick}
+              onGoPage={flow.goIntakePage}
             />
           )}
 

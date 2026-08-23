@@ -37,8 +37,30 @@
   --animate-scrim-in: scrim-in 0.2s ease-out;
   --animate-toast-in: toast-in 0.2s ease-out;
   --animate-char-in: char-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-page-next: page-next 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-page-prev: page-prev 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@keyframes page-next {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes page-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 @keyframes char-in {
   from {
     opacity: 0;

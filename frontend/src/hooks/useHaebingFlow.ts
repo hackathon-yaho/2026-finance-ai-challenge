@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { INTAKE_PAGES } from "../data"
 import { buildChecklist, buildDraftLines } from "../lib/draft"
 import { getAmountInfo } from "../lib/amount"
 import { getDeadlineNotice, isDeadlineUrgent } from "../lib/deadline"
@@ -11,6 +12,8 @@ const INITIAL_EVIDENCE: EvidenceState = { autopay: true, chat: true, bank: true,
 
 export function useHaebingFlow() {
   const [stage, setStage] = useState(0)
+  const [intakePage, setIntakePage] = useState(0)
+  const [intakeDir, setIntakeDir] = useState<1 | -1>(1)
   const [intake, setIntake] = useState<IntakeAnswers>(INITIAL_INTAKE)
   const [evidence, setEvidence] = useState<EvidenceState>(INITIAL_EVIDENCE)
   const [bankConfirmed, setBankConfirmed] = useState(false)
@@ -39,10 +42,32 @@ export function useHaebingFlow() {
 
   const go = useCallback((n: number) => {
     setStage(Math.max(0, Math.min(5, n)))
+    setIntakePage(0)
+    setIntakeDir(1)
     setViewer(null)
     setViewerNote(null)
     window.scrollTo(0, 0)
   }, [])
+
+  // 상황 접수 안에서만 움직이는 서브스텝 이동. dir은 진입 애니메이션 방향에 쓴다.
+  const goIntakePage = useCallback(
+    (n: number) => {
+      const next = Math.max(0, Math.min(INTAKE_PAGES.length - 1, n))
+      setIntakeDir(next >= intakePage ? 1 : -1)
+      setIntakePage(next)
+      window.scrollTo(0, 0)
+    },
+    [intakePage],
+  )
+
+  // 뒤로가기는 서브스텝을 먼저 소진한 뒤에 이전 단계로 나간다.
+  const back = useCallback(() => {
+    if (stage === 1 && intakePage > 0) {
+      goIntakePage(intakePage - 1)
+      return
+    }
+    go(stage - 1)
+  }, [stage, intakePage, goIntakePage, go])
 
   const pick = useCallback((field: IntakeField, value: string) => {
     setIntake((prev) => ({ ...prev, [field]: value }))
@@ -174,6 +199,8 @@ export function useHaebingFlow() {
 
   const restart = useCallback(() => {
     setStage(0)
+    setIntakePage(0)
+    setIntakeDir(1)
     setIntake(INITIAL_INTAKE)
     setEvidence(INITIAL_EVIDENCE)
     setBankConfirmed(false)
@@ -195,6 +222,11 @@ export function useHaebingFlow() {
 
   const amountInfo = useMemo(() => getAmountInfo(intake.amount), [intake.amount])
   const allAnswered = useMemo(() => Object.values(intake).every((v) => v !== null), [intake])
+  const intakePageAnswered = useMemo(
+    () => INTAKE_PAGES[intakePage].fields.every((field) => intake[field] !== null),
+    [intakePage, intake],
+  )
+  const intakeLastPage = intakePage === INTAKE_PAGES.length - 1
   const hasHistory = historyOverride === null ? intake.history === "있어요" : historyOverride
   const deadlineNotice = useMemo(() => getDeadlineNotice(intake.notice), [intake.notice])
   const deadlineUrgent = useMemo(() => isDeadlineUrgent(intake.notice), [intake.notice])
@@ -237,6 +269,12 @@ export function useHaebingFlow() {
   return {
     stage,
     go,
+    back,
+    intakePage,
+    intakeDir,
+    goIntakePage,
+    intakePageAnswered,
+    intakeLastPage,
     intake,
     pick,
     allAnswered,
