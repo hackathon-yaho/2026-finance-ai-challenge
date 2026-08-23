@@ -17,14 +17,14 @@
 | 경로 | 서비스 | 담당 | 스택 |
 | --- | --- | --- | --- |
 | [`frontend/`](frontend/) | 정적 SPA (5단계 UI) | 프론트엔드 | React + TypeScript + Vite + Tailwind CSS |
-| `backend/` | 세션·판정 API | 백엔드 | Java 17 + Spring Boot 3.x |
+| `backend/` | 세션·준비도 점검 API | 백엔드 | Java 17 + Spring Boot 3.x |
 | `ai-server/` | 멀티모달 판독 · 소명서 생성 | AI 개발자 | AI 담당자 재량 |
 
 세 서비스 간 계약은 [`docs/02-architecture/api-contract.md`](docs/02-architecture/api-contract.md)(프론트↔백엔드)와 [`docs/02-architecture/internal-api-contract.md`](docs/02-architecture/internal-api-contract.md)(백엔드↔AI-server)에 정의되어 있습니다.
 
 ## 핵심 설계 원칙
 
-> **판정(Verdict)은 AI가 하지 않는다.** 금융감독원 기준(소액·이력·생계 3요건)을 그대로 구현한 결정적 규칙 엔진이 판정하며, LLM은 증거 판독과 소명서 문장 생성만 담당합니다.
+> **제출 준비도 점검(Readiness)은 AI가 하지 않는다.** 금융감독원 기준을 그대로 구현한 결정적 규칙 엔진이 확인 완료 여부·필수 증빙 누락·자료 충돌만 점검하며, LLM은 증거 판독과 소명서 문장 생성만 담당합니다. 이 서비스는 은행의 승인·기각을 예측하지 않습니다.
 
 자세한 배경은 [`docs/02-architecture/system-architecture.md`](docs/02-architecture/system-architecture.md) 참조.
 

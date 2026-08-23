@@ -13,5 +13,5 @@
 
 ## 참고
 
-- CI/배포 파이프라인은 서비스별로 담당자가 각자 구성한다 (`03-infra-ops/deployment-and-uptime.md` 참조).
-- API 계약(`02-architecture/api-contract.md`, `02-architecture/internal-api-contract.md`)이 걸린 변경은 머지 전에 문서를 먼저 고치고 상대 역할에게 공유한다 (`05-planning/role-assignment.md`의 "매몰 방지 원칙" 참조).
+- CI/배포 파이프라인은 서비스별로 담당자가 각자 구성한다 (`../03-infra-ops/deployment-and-uptime.md` 참조).
+- API 계약(`../02-architecture/api-contract.md`, `../02-architecture/internal-api-contract.md`)이 걸린 변경은 머지 전에 문서를 먼저 고치고 상대 역할에게 공유한다 (`role-assignment.md`의 "매몰 방지 원칙" 참조).
