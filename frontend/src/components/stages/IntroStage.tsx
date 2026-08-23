@@ -9,7 +9,7 @@ const STAT_ROW_STAGGER_MS = 350
 
 export function IntroStage({ wide }: IntroStageProps) {
   return (
-    <div className="flex flex-col gap-8 pt-6">
+    <div className="stagger flex flex-col gap-8 pt-6">
       <div>
         <div className="mb-3 text-[13px] font-semibold text-brand">解氷 · 지급정지 계좌 소명 지원</div>
         <div className={`font-bold tracking-tight ${wide ? "text-[40px] leading-[1.25]" : "text-[28px] leading-[1.25]"}`}>

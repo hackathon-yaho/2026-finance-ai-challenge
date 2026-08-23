@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { INTAKE_PAGES } from "../data"
 import { buildChecklist, buildDraftLines } from "../lib/draft"
 import { getAmountInfo } from "../lib/amount"
 import { getDeadlineNotice, isDeadlineUrgent } from "../lib/deadline"
 import { computeReadiness } from "../lib/readiness"
 import { buildTimeline } from "../lib/timeline"
+import { MAX_UPLOADS, REJECT_MESSAGE, validateImageFile } from "../lib/upload"
 import type { EvidenceId, EvidenceState, IntakeAnswers, IntakeField, PendingUpload, UploadedFile, ViewerId } from "../types"
 
 const INITIAL_INTAKE: IntakeAnswers = { when: null, notice: null, amount: null, kind: null, history: null, usage: null }
@@ -11,6 +13,9 @@ const INITIAL_EVIDENCE: EvidenceState = { autopay: true, chat: true, bank: true,
 
 export function useHaebingFlow() {
   const [stage, setStage] = useState(0)
+  const [intakePage, setIntakePage] = useState(0)
+  // 0 = 방향 없음(최초 진입·재시작). 진입 애니메이션을 세로 상승으로 둔다.
+  const [navDir, setNavDir] = useState<0 | 1 | -1>(0)
   const [intake, setIntake] = useState<IntakeAnswers>(INITIAL_INTAKE)
   const [evidence, setEvidence] = useState<EvidenceState>(INITIAL_EVIDENCE)
   const [bankConfirmed, setBankConfirmed] = useState(false)
@@ -24,6 +29,8 @@ export function useHaebingFlow() {
   const [viewerNote, setViewerNote] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // 발급한 object URL 장부. revoke하지 않으면 blob이 탭이 닫힐 때까지 메모리에 남는다.
+  const liveUrls = useRef(new Set<string>())
 
   const [filesReady, setFilesReady] = useState(false)
   const [pendingQueue, setPendingQueue] = useState<PendingUpload[]>([])
@@ -32,17 +39,53 @@ export function useHaebingFlow() {
   const [editingFileId, setEditingFileId] = useState<string | null>(null)
 
   useEffect(() => {
+    const urls = liveUrls.current
     return () => {
       if (toastTimer.current) clearTimeout(toastTimer.current)
+      urls.forEach((url) => URL.revokeObjectURL(url))
+      urls.clear()
     }
   }, [])
 
+  const trackUrl = useCallback((url: string) => {
+    liveUrls.current.add(url)
+    return url
+  }, [])
+
+  const revokeUrl = useCallback((url: string | null | undefined) => {
+    if (url && liveUrls.current.delete(url)) URL.revokeObjectURL(url)
+  }, [])
+
   const go = useCallback((n: number) => {
-    setStage(Math.max(0, Math.min(5, n)))
+    const next = Math.max(0, Math.min(5, n))
+    // 같은 단계를 다시 고르는 경우도 문진 쪽이 0으로 되감기므로 후진으로 본다.
+    setNavDir(next > stage ? 1 : -1)
+    setStage(next)
+    setIntakePage(0)
     setViewer(null)
     setViewerNote(null)
     window.scrollTo(0, 0)
-  }, [])
+  }, [stage])
+
+  // 상황 접수 안에서만 움직이는 서브스텝 이동. dir은 진입 애니메이션 방향에 쓴다.
+  const goIntakePage = useCallback(
+    (n: number) => {
+      const next = Math.max(0, Math.min(INTAKE_PAGES.length - 1, n))
+      setNavDir(next >= intakePage ? 1 : -1)
+      setIntakePage(next)
+      window.scrollTo(0, 0)
+    },
+    [intakePage],
+  )
+
+  // 뒤로가기는 서브스텝을 먼저 소진한 뒤에 이전 단계로 나간다.
+  const back = useCallback(() => {
+    if (stage === 1 && intakePage > 0) {
+      goIntakePage(intakePage - 1)
+      return
+    }
+    go(stage - 1)
+  }, [stage, intakePage, goIntakePage, go])
 
   const pick = useCallback((field: IntakeField, value: string) => {
     setIntake((prev) => ({ ...prev, [field]: value }))
@@ -104,35 +147,57 @@ export function useHaebingFlow() {
     toastTimer.current = setTimeout(() => setToast(null), 2000)
   }, [])
 
-  const addFiles = useCallback((fileList: FileList) => {
-    Array.from(fileList).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const dataUrl = reader.result
-        if (typeof dataUrl !== "string") return
-        setPendingQueue((prev) => [...prev, { id: crypto.randomUUID(), name: file.name, dataUrl }])
+  const addFiles = useCallback(
+    async (fileList: FileList) => {
+      const picked = Array.from(fileList)
+      const room = Math.max(0, MAX_UPLOADS - (uploadedFiles.length + pendingQueue.length))
+      const overflowed = picked.length > room
+
+      // F3-02: 위반한 파일만 걸러내고 나머지는 정상 처리한다.
+      const accepted: PendingUpload[] = []
+      let firstReject: string | null = null
+      for (const file of picked.slice(0, room)) {
+        const reason = await validateImageFile(file)
+        if (reason) {
+          firstReject ??= REJECT_MESSAGE[reason]
+          continue
+        }
+        accepted.push({ id: crypto.randomUUID(), name: file.name, url: trackUrl(URL.createObjectURL(file)) })
       }
-      reader.readAsDataURL(file)
-    })
-  }, [])
+
+      if (overflowed) showToast(`이미지는 최대 ${MAX_UPLOADS}장까지 올릴 수 있어요`)
+      else if (firstReject) showToast(firstReject)
+
+      if (accepted.length > 0) setPendingQueue((prev) => [...prev, ...accepted])
+    },
+    [uploadedFiles.length, pendingQueue.length, showToast, trackUrl],
+  )
 
   const confirmMasking = useCallback(
-    (maskedDataUrl: string, wasMasked: boolean) => {
+    (masked: Blob, wasMasked: boolean) => {
       const current = pendingQueue[0]
       if (!current) return
+      // 마스킹 결과만 남기고 원본 blob은 즉시 버린다 (F3-06 — 원본은 전송하지 않는다).
+      revokeUrl(current.url)
+      const url = trackUrl(URL.createObjectURL(masked))
       setPendingQueue((prev) => prev.slice(1))
-      setUploadedFiles((files) => [...files, { id: current.id, name: current.name, dataUrl: maskedDataUrl, masked: wasMasked }])
+      setUploadedFiles((files) => [...files, { id: current.id, name: current.name, url, masked: wasMasked }])
     },
-    [pendingQueue],
+    [pendingQueue, revokeUrl, trackUrl],
   )
 
   const cancelActiveUpload = useCallback(() => {
+    revokeUrl(pendingQueue[0]?.url)
     setPendingQueue((prev) => prev.slice(1))
-  }, [])
+  }, [pendingQueue, revokeUrl])
 
-  const removeUploadedFile = useCallback((id: string) => {
-    setUploadedFiles((prev) => prev.filter((f) => f.id !== id))
-  }, [])
+  const removeUploadedFile = useCallback(
+    (id: string) => {
+      revokeUrl(uploadedFiles.find((f) => f.id === id)?.url)
+      setUploadedFiles((prev) => prev.filter((f) => f.id !== id))
+    },
+    [uploadedFiles, revokeUrl],
+  )
 
   const proceedFromUpload = useCallback(() => {
     setFilesReady(true)
@@ -161,19 +226,22 @@ export function useHaebingFlow() {
   }, [])
 
   const confirmEditFile = useCallback(
-    (maskedDataUrl: string, addedMoreMasking: boolean) => {
+    (masked: Blob, addedMoreMasking: boolean) => {
       const id = editingFileId
-      if (!id) return
+      const previous = uploadedFiles.find((f) => f.id === id)
+      if (!id || !previous) return
       setEditingFileId(null)
-      setUploadedFiles((prev) =>
-        prev.map((f) => (f.id === id ? { ...f, dataUrl: maskedDataUrl, masked: f.masked || addedMoreMasking } : f)),
-      )
+      const url = trackUrl(URL.createObjectURL(masked))
+      revokeUrl(previous.url)
+      setUploadedFiles((prev) => prev.map((f) => (f.id === id ? { ...f, url, masked: f.masked || addedMoreMasking } : f)))
     },
-    [editingFileId],
+    [editingFileId, uploadedFiles, revokeUrl, trackUrl],
   )
 
   const restart = useCallback(() => {
     setStage(0)
+    setIntakePage(0)
+    setNavDir(0)
     setIntake(INITIAL_INTAKE)
     setEvidence(INITIAL_EVIDENCE)
     setBankConfirmed(false)
@@ -186,6 +254,8 @@ export function useHaebingFlow() {
     setViewerNote(null)
     setToast(null)
     setFilesReady(false)
+    liveUrls.current.forEach((url) => URL.revokeObjectURL(url))
+    liveUrls.current.clear()
     setPendingQueue([])
     setUploadedFiles([])
     setLightboxFileId(null)
@@ -195,6 +265,11 @@ export function useHaebingFlow() {
 
   const amountInfo = useMemo(() => getAmountInfo(intake.amount), [intake.amount])
   const allAnswered = useMemo(() => Object.values(intake).every((v) => v !== null), [intake])
+  const intakePageAnswered = useMemo(
+    () => INTAKE_PAGES[intakePage].fields.every((field) => intake[field] !== null),
+    [intakePage, intake],
+  )
+  const intakeLastPage = intakePage === INTAKE_PAGES.length - 1
   const hasHistory = historyOverride === null ? intake.history === "있어요" : historyOverride
   const deadlineNotice = useMemo(() => getDeadlineNotice(intake.notice), [intake.notice])
   const deadlineUrgent = useMemo(() => isDeadlineUrgent(intake.notice), [intake.notice])
@@ -237,6 +312,12 @@ export function useHaebingFlow() {
   return {
     stage,
     go,
+    back,
+    intakePage,
+    navDir,
+    goIntakePage,
+    intakePageAnswered,
+    intakeLastPage,
     intake,
     pick,
     allAnswered,
@@ -273,6 +354,8 @@ export function useHaebingFlow() {
     droppedCount,
     filesReady,
     uploadedFiles,
+    maxUploads: MAX_UPLOADS,
+    uploadsLeft: Math.max(0, MAX_UPLOADS - (uploadedFiles.length + pendingQueue.length)),
     activeUpload,
     queueLength: pendingQueue.length,
     addFiles,

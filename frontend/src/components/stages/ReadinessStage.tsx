@@ -33,7 +33,7 @@ const SHORT_LABEL: Record<ReadinessResult["key"], string> = {
 
 export function ReadinessStage({ readiness, wide, hasHistory, onToggleHistory }: ReadinessStageProps) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="stagger flex flex-col gap-6">
       <div>
         <div className="text-[28px] leading-[1.3] font-bold tracking-tight">제출 준비도</div>
         <p className="mt-1.5 text-[15px] leading-normal text-muted">확인된 자료만으로 점검했어요. 승인 여부는 점치지 않아요.</p>

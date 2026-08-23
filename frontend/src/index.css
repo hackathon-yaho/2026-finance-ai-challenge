@@ -39,6 +39,36 @@
   --animate-char-in: char-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes stagger-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--stagger-rise));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes stagger-next {
+  from {
+    opacity: 0;
+    transform: translateX(var(--stagger-slide));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes stagger-prev {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--stagger-slide)));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 @keyframes char-in {
   from {
     opacity: 0;
@@ -158,6 +188,77 @@
   }
 }
 
+/**
+ * 화면 진입 스태거.
+ *
+ * 부모 한 곳에만 `.stagger`를 걸면 직계 자식이 위에서부터 순서대로 나타난다.
+ * 요소마다 클래스와 지연값을 손으로 달지 않아도 되고, 조건부 자식이 늘거나
+ * 줄어도 nth-child가 알아서 다시 계산한다.
+ *
+ * `components` 레이어에 둔 이유: Tailwind 유틸리티가 나중 레이어라, 자식이
+ * 자기만의 `animate-*`(예: 기한 배너의 animate-deadline-in)를 갖고 있으면
+ * 그쪽이 이긴다. 스태거는 어디까지나 기본값이다.
+ */
+@layer components {
+  .stagger > * {
+    animation-name: stagger-up;
+    animation-duration: var(--stagger-duration);
+    animation-timing-function: var(--stagger-ease);
+    animation-fill-mode: both;
+  }
+
+  /*
+   * 진행 방향은 조상이 공급한다. 단계 이동(App)과 문진 쪽 이동이 같은
+   * navDir를 쓰므로, 화면 안에 .stagger가 몇 겹이든 방향이 어긋나지 않는다.
+   * 최초 진입·재시작은 방향이 없어 기본값(세로 상승)이 그대로 쓰인다.
+   */
+  .nav-next .stagger > * {
+    animation-name: stagger-next;
+  }
+  .nav-prev .stagger > * {
+    animation-name: stagger-prev;
+  }
+
+  .stagger > *:nth-child(1) {
+    animation-delay: calc(var(--stagger-step) * 0);
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: calc(var(--stagger-step) * 1);
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: calc(var(--stagger-step) * 2);
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: calc(var(--stagger-step) * 3);
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: calc(var(--stagger-step) * 4);
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: calc(var(--stagger-step) * 5);
+  }
+  /* 그 아래는 더 늘리지 않는다 — 마지막 항목까지 기다리는 시간이 길어진다. */
+  .stagger > *:nth-child(n + 7) {
+    animation-delay: calc(var(--stagger-step) * 5);
+  }
+}
+
+:root {
+  /*
+   * 진입 스태거 조절값 — 리듬을 바꾸려면 여기만 만진다.
+   *
+   * 이징이 체감 속도를 가장 크게 좌우한다. 코드베이스 기본 곡선
+   * cubic-bezier(0.16, 1, 0.3, 1)은 expo-out 계열이라 이동 거리 대부분을
+   * 앞 20%에서 소진해, 시간을 늘려도 여전히 "휙" 지나간 것처럼 보인다.
+   * 진입에는 속도가 고르게 퍼지는 ease-out-cubic을 쓴다.
+   */
+  --stagger-duration: 0.48s;
+  --stagger-step: 70ms;
+  --stagger-rise: 18px;
+  --stagger-slide: 32px;
+  --stagger-ease: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
 body {
   background: var(--color-bg);
 }
@@ -171,6 +272,9 @@ button:not(:disabled) {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* 지연을 지우지 않으면 duration만 0이 되고 요소는 지연 시간 동안
+       fill-mode: both의 시작 상태(투명)로 남아 뚝뚝 끊겨 나타난다. */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
