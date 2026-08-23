@@ -9,7 +9,6 @@ function findQuestion(id: IntakeField) {
 
 interface IntakeStageProps {
   page: number
-  dir: 1 | -1
   intake: IntakeAnswers
   deadlineNotice: string | null
   deadlineUrgent: boolean
@@ -17,14 +16,14 @@ interface IntakeStageProps {
   onGoPage: (page: number) => void
 }
 
-export function IntakeStage({ page, dir, intake, deadlineNotice, deadlineUrgent, onPick, onGoPage }: IntakeStageProps) {
+export function IntakeStage({ page, intake, deadlineNotice, deadlineUrgent, onPick, onGoPage }: IntakeStageProps) {
   const current = INTAKE_PAGES[page]
   const priorFields = INTAKE_PAGES.slice(0, page).flatMap((prev, prevPage) =>
     prev.fields.map((id) => ({ id, page: prevPage })),
   )
 
   return (
-    <div key={page} className={`stagger flex flex-col gap-7 ${dir === 1 ? "stagger-next" : "stagger-prev"}`}>
+    <div key={page} className="stagger flex flex-col gap-7">
       <div>
         <div className="flex items-center gap-2">
           {INTAKE_PAGES.map((item, i) => (

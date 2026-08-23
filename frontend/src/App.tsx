@@ -13,6 +13,13 @@ import { ViewerSheet } from "./components/ViewerSheet"
 import { useHaebingFlow } from "./hooks/useHaebingFlow"
 import { useViewportWidth } from "./hooks/useViewportWidth"
 
+// 0 = 방향 없음. 클래스를 붙이지 않으면 .stagger 기본값(세로 상승)이 쓰인다.
+const NAV_CLASS: Record<number, string> = {
+  0: "",
+  1: "nav-next",
+  [-1]: "nav-prev",
+}
+
 const CTA_LABEL: Record<number, string> = {
   0: "시작하기",
   1: "다음",
@@ -50,72 +57,74 @@ function App() {
 
       <div className="flex-1">
         <div className="mx-auto max-w-[720px]" style={{ padding: `${pad}px ${pad}px 132px` }}>
-          {stage === 0 && <IntroStage wide={width >= 640} />}
+          {/* 진행 방향을 자손 .stagger에 공급한다. key로 단계마다 다시 재생시킨다. */}
+          <div key={stage} className={NAV_CLASS[flow.navDir]}>
+            {stage === 0 && <IntroStage wide={width >= 640} />}
 
-          {stage === 1 && (
-            <IntakeStage
-              page={flow.intakePage}
-              dir={flow.intakeDir}
-              intake={flow.intake}
-              deadlineNotice={flow.deadlineNotice}
-              deadlineUrgent={flow.deadlineUrgent}
-              onPick={flow.pick}
-              onGoPage={flow.goIntakePage}
-            />
-          )}
+            {stage === 1 && (
+              <IntakeStage
+                page={flow.intakePage}
+                intake={flow.intake}
+                deadlineNotice={flow.deadlineNotice}
+                deadlineUrgent={flow.deadlineUrgent}
+                onPick={flow.pick}
+                onGoPage={flow.goIntakePage}
+              />
+            )}
 
-          {stage === 2 && (
-            <EvidenceStage
-              evidence={flow.evidence}
-              bankConfirmed={flow.bankConfirmed}
-              wide={wide}
-              analyzing={flow.analyzing}
-              analyzed={flow.analyzed}
-              timelineRunId={flow.timelineRunId}
-              timeline={flow.timeline}
-              amount={flow.intake.amount}
-              onToggle={flow.toggle}
-              onAddThreat={flow.addThreat}
-              onConfirmBank={flow.confirmBank}
-              onAnalyze={flow.analyze}
-              onOpenViewer={flow.openViewer}
-              filesReady={flow.filesReady}
-              uploadedFiles={flow.uploadedFiles}
-              maxUploads={flow.maxUploads}
-              uploadsLeft={flow.uploadsLeft}
-              onSelectFiles={flow.addFiles}
-              onRemoveUpload={flow.removeUploadedFile}
-              onPreviewUpload={flow.openLightbox}
-              onEditUpload={flow.startEditFile}
-              onProceedFromUpload={flow.proceedFromUpload}
-              onBackToUpload={flow.backToUpload}
-            />
-          )}
+            {stage === 2 && (
+              <EvidenceStage
+                evidence={flow.evidence}
+                bankConfirmed={flow.bankConfirmed}
+                wide={wide}
+                analyzing={flow.analyzing}
+                analyzed={flow.analyzed}
+                timelineRunId={flow.timelineRunId}
+                timeline={flow.timeline}
+                amount={flow.intake.amount}
+                onToggle={flow.toggle}
+                onAddThreat={flow.addThreat}
+                onConfirmBank={flow.confirmBank}
+                onAnalyze={flow.analyze}
+                onOpenViewer={flow.openViewer}
+                filesReady={flow.filesReady}
+                uploadedFiles={flow.uploadedFiles}
+                maxUploads={flow.maxUploads}
+                uploadsLeft={flow.uploadsLeft}
+                onSelectFiles={flow.addFiles}
+                onRemoveUpload={flow.removeUploadedFile}
+                onPreviewUpload={flow.openLightbox}
+                onEditUpload={flow.startEditFile}
+                onProceedFromUpload={flow.proceedFromUpload}
+                onBackToUpload={flow.backToUpload}
+              />
+            )}
 
-          {stage === 3 && (
-            <ReadinessStage
-              readiness={flow.readiness}
-              wide={wide}
-              hasHistory={flow.hasHistory}
-              onToggleHistory={flow.toggleHistory}
-            />
-          )}
+            {stage === 3 && (
+              <ReadinessStage
+                readiness={flow.readiness}
+                wide={wide}
+                hasHistory={flow.hasHistory}
+                onToggleHistory={flow.toggleHistory}
+              />
+            )}
 
-          {stage === 4 && (
-            <DraftStage
-              drafting={flow.drafting}
-              draftShown={flow.draftShown}
-              draftLines={flow.draftLines}
-              checklist={flow.checklist}
-              confirmedCount={flow.confirmedCount}
-              droppedCount={flow.droppedCount}
-              onGenerate={flow.makeDraft}
-              onOpenViewer={flow.openViewer}
-              onExportPackage={() => flow.showToast("패키지를 준비하고 있어요")}
-            />
-          )}
+            {stage === 4 && (
+              <DraftStage
+                drafting={flow.drafting}
+                draftShown={flow.draftShown}
+                draftLines={flow.draftLines}
+                checklist={flow.checklist}
+                confirmedCount={flow.confirmedCount}
+                droppedCount={flow.droppedCount}
+                onGenerate={flow.makeDraft}
+                onOpenViewer={flow.openViewer}
+                onExportPackage={() => flow.showToast("패키지를 준비하고 있어요")}
+              />
+            )}
 
-          {stage === 5 && <RoutesStage showBizNotice={flow.intake.usage === "주 거래 계좌예요"} />}
+              {stage === 5 && <RoutesStage showBizNotice={flow.intake.usage === "주 거래 계좌예요"} />}
+          </div>
         </div>
       </div>
 

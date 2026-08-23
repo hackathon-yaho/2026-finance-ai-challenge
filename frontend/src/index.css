@@ -197,11 +197,15 @@
     animation-fill-mode: both;
   }
 
-  /* 같은 스태거를 쓰되 진행 방향을 가로 슬라이드로 바꾼다 (문진 쪽 이동). */
-  .stagger-next > * {
+  /*
+   * 진행 방향은 조상이 공급한다. 단계 이동(App)과 문진 쪽 이동이 같은
+   * navDir를 쓰므로, 화면 안에 .stagger가 몇 겹이든 방향이 어긋나지 않는다.
+   * 최초 진입·재시작은 방향이 없어 기본값(세로 상승)이 그대로 쓰인다.
+   */
+  .nav-next .stagger > * {
     animation-name: page-next;
   }
-  .stagger-prev > * {
+  .nav-prev .stagger > * {
     animation-name: page-prev;
   }
 

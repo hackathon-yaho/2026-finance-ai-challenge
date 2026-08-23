@@ -14,7 +14,8 @@ const INITIAL_EVIDENCE: EvidenceState = { autopay: true, chat: true, bank: true,
 export function useHaebingFlow() {
   const [stage, setStage] = useState(0)
   const [intakePage, setIntakePage] = useState(0)
-  const [intakeDir, setIntakeDir] = useState<1 | -1>(1)
+  // 0 = 방향 없음(최초 진입·재시작). 진입 애니메이션을 세로 상승으로 둔다.
+  const [navDir, setNavDir] = useState<0 | 1 | -1>(0)
   const [intake, setIntake] = useState<IntakeAnswers>(INITIAL_INTAKE)
   const [evidence, setEvidence] = useState<EvidenceState>(INITIAL_EVIDENCE)
   const [bankConfirmed, setBankConfirmed] = useState(false)
@@ -56,19 +57,21 @@ export function useHaebingFlow() {
   }, [])
 
   const go = useCallback((n: number) => {
-    setStage(Math.max(0, Math.min(5, n)))
+    const next = Math.max(0, Math.min(5, n))
+    // 같은 단계를 다시 고르는 경우도 문진 쪽이 0으로 되감기므로 후진으로 본다.
+    setNavDir(next > stage ? 1 : -1)
+    setStage(next)
     setIntakePage(0)
-    setIntakeDir(1)
     setViewer(null)
     setViewerNote(null)
     window.scrollTo(0, 0)
-  }, [])
+  }, [stage])
 
   // 상황 접수 안에서만 움직이는 서브스텝 이동. dir은 진입 애니메이션 방향에 쓴다.
   const goIntakePage = useCallback(
     (n: number) => {
       const next = Math.max(0, Math.min(INTAKE_PAGES.length - 1, n))
-      setIntakeDir(next >= intakePage ? 1 : -1)
+      setNavDir(next >= intakePage ? 1 : -1)
       setIntakePage(next)
       window.scrollTo(0, 0)
     },
@@ -238,7 +241,7 @@ export function useHaebingFlow() {
   const restart = useCallback(() => {
     setStage(0)
     setIntakePage(0)
-    setIntakeDir(1)
+    setNavDir(0)
     setIntake(INITIAL_INTAKE)
     setEvidence(INITIAL_EVIDENCE)
     setBankConfirmed(false)
@@ -311,7 +314,7 @@ export function useHaebingFlow() {
     go,
     back,
     intakePage,
-    intakeDir,
+    navDir,
     goIntakePage,
     intakePageAnswered,
     intakeLastPage,
