@@ -1,14 +1,19 @@
 # 역할 분담
 
+> **수정 기록 (2026-08-23, 백엔드)**
+> - A·백엔드 담당 범위에 **타임라인 조립(F5-01~03)** 명시. 근거는 `../02-architecture/system-architecture.md`의 같은 날짜 수정 기록 참조
+> - B·AI 담당 범위에서 `TimelineService` 제거 (백엔드로 이관)
+> - 역할 표에 **받을 회신 폴더(`../response/*`)** 열 추가 — `response/` 폴더 신설에 따른 반영
+
 > 출처: `../00-context/prd.md` §12.1.
 >
 > **개정 (2026-08-23 이후)**: 배포·인프라를 프론트가 전부 담당하던 원안을 변경했습니다. **각 담당자가 자신이 개발한 서비스를 직접 배포·운영합니다.** 이는 AI 파이프라인이 백엔드에서 분리되어 독립된 AI-server가 된 것과 맞물린 결정입니다 (`../02-architecture/system-architecture.md` 참조).
 
-| PRD 역할 | 실제 역할 | 담당 범위 | 배포 책임 | 요청 문서 폴더 |
-| --- | --- | --- | --- | --- |
-| A · 백엔드 | **백엔드** | Spring Boot 골격, 세션 관리, ReadinessService(규칙 엔진), 공개 API, 내부 API 클라이언트(AI-server 호출), Supabase 연동 | 백엔드 서비스 배포·가동 (Render) | `../request/backend/` |
-| B · AI 개발자 | **AI 개발자** | AI-server 전체(멀티모달 프롬프트, 추출 스키마, TimelineService, DraftService, 사실 검증, 문장-근거 연결), 내부 API 서버 | AI-server 배포·가동 (Render) | `../request/ai/` |
-| C · 프론트엔드 | **프론트엔드** | 5단계 UI, 반응형, 접근성, 클라이언트 리사이즈·마스킹·blob 관리·PDF 병합, 기획서·기능명세서 작성 | 프론트엔드 배포·가동 (정적 호스팅) | `../request/frontend/` |
+| PRD 역할 | 실제 역할 | 담당 범위 | 배포 책임 | 받을 요청 폴더 | 받을 회신 폴더 |
+| --- | --- | --- | --- | --- | --- |
+| A · 백엔드 | **백엔드** | Spring Boot 골격, 세션 관리, **타임라인 조립(정렬·병합·공백 탐지)**, ReadinessService(규칙 엔진), 공개 API, 내부 API 클라이언트(AI-server 호출), Supabase 연동 | 백엔드 서비스 배포·가동 (Render) | `../request/backend/` | `../response/backend/` |
+| B · AI 개발자 | **AI 개발자** | AI-server 전체(멀티모달 프롬프트, 추출 스키마, DraftService, 사실 검증, 문장-근거 연결), 내부 API 서버 | AI-server 배포·가동 (Render) | `../request/ai/` | `../response/ai/` |
+| C · 프론트엔드 | **프론트엔드** | 5단계 UI, 반응형, 접근성, 클라이언트 리사이즈·마스킹·blob 관리·PDF 병합, 기획서·기능명세서 작성 | 프론트엔드 배포·가동 (정적 호스팅) | `../request/frontend/` | `../response/frontend/` |
 
 ## 배포는 각자, 문서는 여전히 공동 책임
 

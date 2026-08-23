@@ -8,7 +8,7 @@
 
 모든 요구사항과 설계 결정의 단일 진실 공급원은 [`docs/00-context/prd.md`](docs/00-context/prd.md) 입니다. 프로젝트를 처음 본다면 [`docs/README.md`](docs/README.md) 부터 읽으세요 — 문서 지도와 역할별 읽는 순서가 정리되어 있습니다.
 
-다른 역할에게 요청할 사항은 `docs/request/{frontend,backend,ai}/` 아래에 문서로 작성합니다.
+다른 역할에게 요청할 사항은 `docs/request/{frontend,backend,ai}/` 아래에 문서로 작성하고, **처리한 뒤에는 `docs/response/{요청한 사람}/`에 어떻게 반영했는지 회신 문서를 남깁니다.** 두 폴더 모두 **폴더 이름이 그 문서를 읽을 사람**입니다.
 
 ## 저장소 구조
 
@@ -17,7 +17,7 @@
 | 경로 | 서비스 | 담당 | 스택 |
 | --- | --- | --- | --- |
 | [`frontend/`](frontend/) | 정적 SPA (5단계 UI) | 프론트엔드 | React + TypeScript + Vite + Tailwind CSS |
-| `backend/` | 세션·준비도 점검 API | 백엔드 | Java 17 + Spring Boot 3.x |
+| `backend/` | 세션·준비도 점검 API | 백엔드 | Java 21 + Spring Boot 3.x |
 | `ai-server/` | 멀티모달 판독 · 소명서 생성 | AI 개발자 | AI 담당자 재량 |
 
 세 서비스 간 계약은 [`docs/02-architecture/api-contract.md`](docs/02-architecture/api-contract.md)(프론트↔백엔드)와 [`docs/02-architecture/internal-api-contract.md`](docs/02-architecture/internal-api-contract.md)(백엔드↔AI-server)에 정의되어 있습니다.

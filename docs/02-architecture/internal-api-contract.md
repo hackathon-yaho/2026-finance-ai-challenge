@@ -1,5 +1,10 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-23, 백엔드)**
+> - "인증 (착수 전 확정 필요)" 절 → 공유 시크릿 헤더 `X-Internal-Token` 확정 내용으로 대체. `/internal/health`는 무인증 공개 예외로 명시
+> - 하단 체크리스트의 인증 항목 완료 처리, 이미지 전달 방식(A/B) 항목에 요청 문서 링크 추가
+> - **이미지 전달 방식(A/B)은 여전히 미확정**입니다 — AI 담당 회신 대기
+
 > 출처: `../00-context/prd.md` §9.1. 이 문서는 **백엔드와 AI 개발자 사이의 계약**입니다. `api-contract.md`(프론트-백엔드 공개 API)와는 별개입니다.
 >
 > 배경: AI 파이프라인이 백엔드에서 분리되어 독립 배포되는 별도 서버(AI-server)가 되었습니다. 프론트엔드는 이 API를 직접 호출하지 않습니다 — 항상 백엔드를 거칩니다.
@@ -12,11 +17,16 @@
 | POST | `/internal/draft` | 타임라인 + 준비도 결과 → 소명서 초안 + 문장-근거 연결 + 사실검증 결과 |
 | GET | `/internal/health` | AI-server 헬스체크 (킵얼라이브용, 외부 헬스체크 도구가 직접 호출) |
 
-## 인증 (착수 전 확정 필요)
+## 인증 (2026-08-23 확정)
 
-- [ ] 공유 시크릿 헤더(예: `X-Internal-Token`) 또는 네트워크 레벨 차단(허용 IP만) 중 방식 결정
-- [ ] AI-server가 인터넷에 공개되어 있다면, `/internal/*` 경로는 백엔드 외 요청을 거부하도록 구현
-- [ ] 결정된 방식을 이 문서에 추가
+**공유 시크릿 헤더 `X-Internal-Token`** 을 사용합니다. Render는 고정 아웃바운드 IP를 보장하지 않아 IP 허용목록 방식은 채택하지 않았습니다.
+
+- 백엔드는 모든 `/internal/*` 호출에 헤더 `X-Internal-Token`을 부착합니다. 값은 양쪽 환경변수 `INTERNAL_TOKEN`으로 공유합니다.
+- AI-server는 이 헤더가 없거나 값이 다르면 **401로 거부**합니다.
+- **예외: `GET /internal/health`는 토큰 없이 접근 가능해야 합니다.** 외부 헬스체크 도구가 직접 호출하는 킵얼라이브 용도이기 때문입니다(`../03-infra-ops/deployment-and-uptime.md` §3).
+
+- [x] 인증 방식 확정
+- [ ] AI-server 측 401 검증 구현 (AI 담당)
 
 ## `POST /internal/extract`
 
@@ -123,8 +133,8 @@
 
 ## 체크리스트
 
-- [ ] 인증 방식 확정 및 구현 (백엔드·AI 양쪽)
-- [ ] 이미지 전달 방식(A/B) 확정
+- [x] 인증 방식 확정 (`X-Internal-Token`) — AI-server 측 검증 구현은 진행 중
+- [ ] 이미지 전달 방식(A/B) 확정 — 요청서: `../request/ai/image-transfer-and-internal-auth.md`
 - [ ] AI-server가 `/internal/*` 응답 스키마를 `api-contract.md`와 동일하게 맞췄는지 확인 — 스키마가 둘로 갈라지면 백엔드가 매번 변환 코드를 짜야 합니다
 - [ ] `/internal/health`가 외부 헬스체크 도구에서 접근 가능한지 확인 (킵얼라이브 목적이므로 이 엔드포인트만은 공개되어야 함)
 - [ ] AI-server도 이미지를 처리 완료 즉시 폐기하는지 확인 (원본이 AI-server에도 남지 않아야 함, `../03-infra-ops/privacy-and-safety.md` 참조)

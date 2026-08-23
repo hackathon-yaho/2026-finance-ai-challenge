@@ -1,5 +1,11 @@
 # PRD — 해빙 (解氷)
 
+> **수정 기록 (2026-08-23, 백엔드)**
+> - 문서 상단 기술 스택 표: Java 17 → **Java 21** (팀 결정). 코드·기능 요구사항 본문은 변경하지 않았습니다.
+> - §6 아키텍처 다이어그램과 §12.1 역할 분담표에서 **`TimelineService`를 AI-server → 백엔드로 이동**. 근거: spec 총괄표의 F5-01~03 담당이 `A`(백엔드)이고, `../02-architecture/internal-api-contract.md`에 타임라인 관련 내부 엔드포인트가 없으며, 정렬·병합·공백 탐지 규칙이 전부 결정적이라 LLM이 필요하지 않습니다
+> - §9 API 명세표를 계약 문서(`../02-architecture/api-contract.md` v1.3)와 동기화 — `/api/session`에 `demoMode`, `/api/readiness`에 `smallAmountNotice`, `/api/intake` 요청에 채권소멸절차 공고 필드 2종·응답에 `deadline` 추가
+> - **FR-010의 문항 목록에 "채권소멸절차 개시 공고"를 추가**하고 "5개 문항" → "6개 문항"으로 정정. 기존 목록에 이 문항이 없어, 이 목록만 보고 화면을 만들면 공고 입력칸이 빠지고 **FR-014 기한 계산(공고일 + 2개월)이 동작하지 않습니다**. spec F2-01 본문 표에는 이미 6문항이 정확히 적혀 있습니다
+
 ## 지급정지 계좌 소명 지원 서비스
 
 | 항목 | 내용 |
@@ -10,7 +16,7 @@
 | 제출 마감 | 2026. 09. 07.(월) 10:00 — **잔여 16일** |
 | URL 유지 의무 | 2026. 09. 07. 11:00 ~ 09. 11. 23:59 (미접근 시 결격) |
 | 팀 구성 | 3인 |
-| 기술 스택 | Java 17 / Spring Boot 3.x / Render / Supabase(PostgreSQL) / 멀티모달 LLM API |
+| 기술 스택 | Java 21 / Spring Boot 3.x / Render / Supabase(PostgreSQL) / 멀티모달 LLM API |
 
 > 이 문서는 프로젝트의 단일 진실 공급원(source of truth)입니다. `docs/` 하위의 다른 문서와 내용이 다르면 이 문서가 우선합니다. 기능 단위의 더 상세한 명세는 `spec.md`(기능명세서 전문)를 참조하세요 — 둘이 다르면 이 문서(PRD)가 우선합니다.
 
@@ -259,7 +265,7 @@
 
 | ID | 요구사항 | 우선 | 수용 기준 |
 | --- | --- | --- | --- |
-| FR-010 | 5개 문항 문진 (지급정지일, 문제 입금액, 거래 성격, 과거 이력, 계좌 사용 목적) | P0 | 필수값 입력 또는 "확인 불가" 선택 시 다음 단계 활성화 |
+| FR-010 | 6개 문항 문진 (지급정지일, **채권소멸절차 개시 공고**, 문제 입금액, 거래 성격, 과거 이력, 계좌 사용 목적) | P0 | 필수값 입력 또는 "확인 불가" 선택 시 다음 단계 활성화 |
 | FR-011 | 자료가 없어도 문진만으로 진행 가능 | P0 | 증거 0건 상태에서 Stage 2 통과 가능 |
 | FR-012 | 응답 변경 시 이후 단계 상태 자동 초기화 | P1 | 문항 변경 → 판정·소명서 무효화 후 재계산 |
 | FR-013 | 문진 응답을 세션에 보관, 뒤로 가기 시 복원 | P1 | Stage 이동 시 값 유지 |
@@ -501,6 +507,7 @@ ELSE:
 │  │ IntakeCtrl │ ReadinessCtrl│ │
 │  ├────────────┴─────────────┤ │
 │  │ EvidenceCtrl (오케스트레이션) │
+│  │ TimelineService (정렬·병합·공백 — 결정적) │
 │  │ ReadinessService (§4.3 규칙 엔진 — 결정적) │
 │  │ SessionStore (인메모리+TTL) │ │
 │  └───────────────────────────┘ │
@@ -512,7 +519,6 @@ ELSE:
 │  (익명 통계만)   │  │  ┌────────────────────────┐ │
 └─────────────────┘  │  │ ExtractionService       │ │
                       │  │ (멀티모달 LLM 호출, 품질검사) │
-                      │  │ TimelineService         │ │
                       │  │ DraftService            │ │
                       │  │ (소명서 생성+사실검증+문장근거연결) │
                       │  └───────────┬────────────┘ │
@@ -657,13 +663,13 @@ record Session(
 
 | Method | Path | 설명 | Req | Res |
 | --- | --- | --- | --- | --- |
-| POST | `/api/session` | 세션 생성 | — | `{sessionHash, expiresAt}` |
-| POST | `/api/intake` | 문진 저장 | `{when,amount,kind,history,usage}` | `{ok, nextStage}` |
+| POST | `/api/session` | 세션 생성 | — | `{sessionHash, expiresAt, demoMode}` |
+| POST | `/api/intake` | 문진 저장 | `{when, dueNoticeStatus, dueNoticeDate, amount, kind, history, usage}` | `{ok, nextStage, deadline}` |
 | POST | `/api/evidence` | 이미지 판독 (메모리 통과, 미저장) | `multipart[]` | `{cards:[...], signals, qualityFlags}` |
 | POST | `/api/evidence/confirm` | 추출 카드 확인·수정 저장 (FR-028) | `{cardId, confirmed, corrections}` | `{ok, confirmedCount, unconfirmedCount}` |
 | POST | `/api/evidence/text` | 텍스트 대체 입력 | `{rawText}` | `{cards:[...]}` |
 | GET | `/api/timeline` | 타임라인 조회 | — | `{events:[...], gaps:[...]}` |
-| POST | `/api/readiness` | 준비도 점검 실행 | — | `{reason, checklist, readiness, missingItems, conflicts, notices, urgentAlert}` |
+| POST | `/api/readiness` | 준비도 점검 실행 | — | `{reason, checklist, readiness, missingItems, conflicts, notices, smallAmountNotice, urgentAlert}` |
 | POST | `/api/draft` | 소명서 생성 | — | `{draftText, sentences:[{text, evidenceRefs:[{imageIndex, bbox}]}], checklist:[...]}` |
 | GET | `/api/package/text` | 텍스트 5종 PDF 생성 (FR-047) | — | `application/pdf` |
 | DELETE | `/api/session` | 세션 즉시 파기 | — | `204` |
@@ -777,8 +783,8 @@ record Session(
 
 | 역할 | 담당 범위 | 배포 책임 |
 | --- | --- | --- |
-| **A · 백엔드** | Spring Boot 골격, 세션 관리, ReadinessService(규칙 엔진), 공개 API, 내부 API 클라이언트(AI-server 호출), Supabase 연동 | 백엔드 서비스 배포·가동 (Render) |
-| **B · AI 개발자** | AI-server 전체(멀티모달 프롬프트 설계, 추출 스키마, TimelineService, DraftService, 사실 검증, 문장-근거 연결), 내부 API 서버 | AI-server 배포·가동 (Render) |
+| **A · 백엔드** | Spring Boot 골격, 세션 관리, **TimelineService(정렬·병합·공백 탐지)**, ReadinessService(규칙 엔진), 공개 API, 내부 API 클라이언트(AI-server 호출), Supabase 연동 | 백엔드 서비스 배포·가동 (Render) |
+| **B · AI 개발자** | AI-server 전체(멀티모달 프롬프트 설계, 추출 스키마, DraftService, 사실 검증, 문장-근거 연결), 내부 API 서버 | AI-server 배포·가동 (Render) |
 | **C · 프론트엔드** | 5단계 UI, 반응형, 접근성, **클라이언트 리사이즈·마스킹·blob 관리·PDF 병합**, 기획서·기능명세서 작성 | 프론트엔드 배포·가동 (정적 호스팅) |
 
 > **개정 (2026-08-23 이후)**: 배포·인프라 전체를 C(프론트) 담당으로 묶지 않고, **각자 자신이 개발한 서비스를 직접 배포·운영**한다. 문서(기획서·기능명세서) 작성은 여전히 C가 주도하되, 마감 압박이 큰 항목이니 필요하면 셋이 분담한다. 팀장이 C를 맡는 편이 좋다 — **문서 2종이 코드만큼 중요한 제출물**이기 때문이다.
