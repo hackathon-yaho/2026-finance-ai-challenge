@@ -224,7 +224,7 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 | 실패 | AI-server 동작 | 백엔드로 가는 응답 |
 | --- | --- | --- |
 | LLM 스키마 불일치·파싱 실패 | **1회 재시도**(남은 시간 예산 내에서만) | 재실패 시 `502 EXTRACTION_FAILED` + `fallback: "text_input"` → 백엔드가 해당 이미지 스킵 |
-| LLM 안전 거부 (`stop_reason: refusal`) | 서버측 폴백 모델 자동 재시도(`fallbacks` 파라미터 — 협박 문자 등 민감 이미지 대비) → 그래도 거부면 실패 처리 | `502 EXTRACTION_FAILED` |
+| LLM 안전 거부 (`stop_reason: refusal`) | 예산 내 1회 재시도 → 실패 처리. (서버측 폴백 모델 `fallbacks` 파라미터는 평가 세트에서 거부율 실측 후 도입 검토 — 협박 문자 이미지 대비) | `502 EXTRACTION_FAILED` |
 | LLM 타임아웃 | 내부 타임아웃 extract 12s / draft 10s (백엔드 20s/15s보다 짧게 — 끊기기 전에 정형 오류 반환) | `504 TIMEOUT` |
 | 쿼터·레이트리밋 | SDK 재시도 없이 즉시 반환 (백엔드가 데모 모드 폴백 판단) | `429 QUOTA_EXCEEDED` |
 | 사실 검증 실패 | `factCheckPassed: false` + 통과 문장만 (오류 아님) | `200` — 백엔드가 1회 재호출 |

@@ -51,7 +51,7 @@
 | 역할 | 실행 계획 문서 | 대응표 |
 | --- | --- | --- |
 | A · 백엔드 | [`../../backend/docs/`](../../backend/docs/) | [`../../backend/docs/README.md`](../../backend/docs/README.md) "공용 문서가 바뀌면 이 폴더를 확인한다" |
-| B · AI | (아직 없음 — 만들면 같은 규칙 적용) | — |
+| B · AI | [`../../ai-server/docs/`](../../ai-server/docs/) (2026-08-25 신설) | [`../../ai-server/docs/plan.md`](../../ai-server/docs/plan.md) "공용 문서가 바뀌면 이 폴더를 확인한다" |
 | C · 프론트엔드 | (아직 없음 — 만들면 같은 규칙 적용) | — |
 
 ## 매몰 방지 원칙

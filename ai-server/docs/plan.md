@@ -56,6 +56,23 @@
 - [ ] 9/6: 3서비스 전체 플로우 3회 완주 합동 확인
 - [ ] 9/7~9/11: 매일 아침 `/internal/health` 확인 로테이션 참여
 
+## 공용 문서가 바뀌면 이 폴더를 확인한다 (역방향 규칙)
+
+`docs/05-planning/role-assignment.md` "파생 문서 동기화 원칙"(2026-08-25 신설)의 AI 쪽 대응표다. **루트 `../../docs/`의 스펙·계약 문서를 고쳤으면 같은 작업 안에서 아래 문서를 열어 반영할 것이 있는지 확인한다.** 없으면 없는 대로 넘어가되, 확인은 건너뛰지 않는다.
+
+| 루트 문서 | 확인할 AI 문서·코드 |
+| --- | --- |
+| `spec.md` F3-04 (텍스트 입력) · F4 (판독·품질검사) | [design.md](design.md) §3-3·§4 + `app/services/extraction.py`·`app/llm/prompts.py` |
+| `spec.md` F7-01·02·05 (소명서·검증·근거 연결) · F10-02·04 (협박) | [design.md](design.md) §5 + `app/services/drafting.py`·`factcheck.py` |
+| `spec.md` F11-03 (데모) · F11-05 (평가) | `demo/` + [design.md](design.md) §9 + `evals/` |
+| `01-product/reason-type-rules.md` (§0 절대 원칙 · §4 금지 문구) | [design.md](design.md) §0·§5-2 (FactChecker 블록리스트) + [plan.md](plan.md) 절대 원칙 |
+| `02-architecture/internal-api-contract.md` | [design.md](design.md) §3 + `app/schemas/` (계약=코드) + `demo/` 파일 |
+| `02-architecture/api-contract.md` 카드·draft 스키마 | 위와 동일 (내부·외부 응답은 같은 형식이어야 함) |
+| `03-infra-ops/privacy-and-safety.md` | [design.md](design.md) §6 + `app/pii.py` |
+| `03-infra-ops/deployment-and-uptime.md` | [design.md](design.md) §10 + Phase A5 |
+| `04-testing/test-cases-and-demo.md` | `demo/`·`evals/` + 해당 Phase 체크리스트 |
+| `00-context/prd.md` §10 (AI 파이프라인) | [design.md](design.md) §4·§5·§7 전체 |
+
 ## 절대 원칙 (구현 중 어떤 경우에도 깨지 않는다)
 
 1. **준비도를 판단하지 않는다.** `readiness`는 받은 값 그대로, 문장 톤 제어에만 쓴다. — `reason-type-rules.md` §0
