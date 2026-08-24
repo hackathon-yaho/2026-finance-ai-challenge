@@ -44,5 +44,6 @@
 | [evidence-structure-revision.md](evidence-structure-revision.md) | ⏳ 회신 대기 (08-24) | **증빙 구조 6건** — 송금인 일치·택일구조·직거래·플랫폼·신원소명·수사자료 |
 | [legal-form-and-package.md](legal-form-and-package.md) | ⏳ 회신 대기 (08-24) | **법정 서식 대조** — 필드 8→11 정정, 서명 안내, 5면 분리 |
 | [honest-disclosure-fixes.md](honest-disclosure-fixes.md) | ⏳ 회신 대기 (08-24) | **고지 문구 3건** — 5영업일·3년 제한·보존 지침 |
+| [image-delivery-spec.md](image-delivery-spec.md) | ⏳ 회신 대기 (08-25) | 전송 이미지 해상도·포맷 확인 (AI 평가 세트 조건 맞추기) — **급하지 않음** |
 
-> 프론트가 동시에 4건을 받는 상태입니다. **회신 우선순위는 `legal-form-and-package` → `honest-disclosure-fixes` → `evidence-structure-revision` → `draft-preview-and-edit`** 를 권합니다 — 앞의 둘이 확정적이고 작습니다.
+> 프론트가 동시에 5건을 받는 상태입니다. **회신 우선순위는 `legal-form-and-package` → `honest-disclosure-fixes` → `evidence-structure-revision` → `draft-preview-and-edit` → `image-delivery-spec`** 를 권합니다 — 앞의 둘이 확정적이고 작습니다. **마지막 `image-delivery-spec`은 값 세 개만 알려주면 되는 것이고, 늦어도 아무 작업을 막지 않습니다.**

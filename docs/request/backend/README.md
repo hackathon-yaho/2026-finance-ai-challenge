@@ -13,4 +13,5 @@
 
 | 문서 | 상태 | 막고 있는 작업 |
 | --- | --- | --- |
-| [draft-intake-input.md](draft-intake-input.md) | ⏳ 회신 대기 (2026-08-25) | AI-server `DraftService` 요청 스키마 확정 (TC-06 자료 0건 경로) |
+| [deploy-handoff.md](deploy-handoff.md) | ⏳ 회신 대기 (2026-08-25) | **AI-server 배포** — `INTERNAL_TOKEN`이 예정(Phase 3 착수 전)보다 먼저 필요합니다 |
+| [draft-intake-input.md](draft-intake-input.md) | ✅ 회신 완료 (2026-08-25) | 해소 — `intake` 원안 수용, AI 후속 처리까지 완료 |
