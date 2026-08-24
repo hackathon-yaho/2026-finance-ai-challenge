@@ -1,25 +1,77 @@
-import type { EvidenceId, IntakeField, ViewerId } from "./types"
+import type { DueNoticeStatus, EvidenceId, IntakeField, ViewerId } from "./types"
 
 export const STEP_LABELS = ["상황 접수", "증거 정리", "준비도", "소명서", "접수"]
 
-export const QUESTIONS: { id: IntakeField; label: string; short: string; options: string[] }[] = [
-  { id: "when", label: "계좌가 언제 정지됐나요?", short: "정지 시점", options: ["오늘", "1~3일 전", "4일 이상 전", "확인 불가"] },
+/**
+ * 문항별 입력 형식 (spec.md F2-01 "날짜 선택 / 금액 직접 입력 / 단일 선택 칩").
+ * `notice`는 상태 칩 + 통지받은 경우의 공고일 입력이 한 문항으로 묶인 형태다.
+ */
+export type IntakeInput = "date" | "notice" | "amount" | "chips"
+
+export const QUESTIONS: {
+  id: IntakeField
+  label: string
+  short: string
+  input: IntakeInput
+  hint?: string
+  options?: string[]
+}[] = [
+  {
+    id: "when",
+    label: "계좌가 언제 정지됐나요?",
+    short: "정지 시점",
+    input: "date",
+    hint: "지급정지 통지서에 적힌 날짜예요.",
+  },
   {
     id: "notice",
     label: "채권소멸절차 개시 공고를 받았나요?",
     short: "공고",
-    options: ["아직 공고 전이에요", "공고 받고 50일 안 지났어요", "공고 받고 50일 넘었어요", "모르겠어요"],
+    input: "notice",
   },
-  { id: "amount", label: "정지된 입금액은 얼마인가요?", short: "입금액", options: ["45만원", "300만원", "500만원", "확인 불가"] },
+  {
+    id: "amount",
+    label: "정지된 입금액은 얼마인가요?",
+    short: "입금액",
+    input: "amount",
+    hint: "소명서에 사실로 적기만 해요. 금액으로 준비도를 판정하지 않아요.",
+  },
   {
     id: "kind",
     label: "이 입금은 어떤 거래였나요?",
     short: "거래 성격",
+    input: "chips",
     options: ["중고 물건 판매", "용역·알바 대가", "빌려준 돈 회수", "잘 모르겠어요"],
   },
-  { id: "history", label: "이 계좌가 과거에도 지급정지된 적 있나요?", short: "과거 이력", options: ["없어요", "있어요"] },
-  { id: "usage", label: "이 계좌를 얼마나 쓰세요?", short: "계좌 사용", options: ["주 거래 계좌예요", "가끔 써요", "거의 안 써요"] },
+  {
+    id: "history",
+    label: "이 계좌가 과거에도 지급정지된 적 있나요?",
+    short: "과거 이력",
+    input: "chips",
+    options: ["없어요", "있어요"],
+  },
+  {
+    id: "usage",
+    label: "이 계좌를 얼마나 쓰세요?",
+    short: "계좌 사용",
+    input: "chips",
+    options: ["주 거래 계좌예요", "가끔 써요", "거의 안 써요"],
+  },
 ]
+
+/** ② 채권소멸절차 개시 공고 — api-contract의 dueNoticeStatus 3종. */
+export const NOTICE_OPTIONS: { value: DueNoticeStatus; label: string }[] = [
+  { value: "notified", label: "통지받았어요" },
+  { value: "not_yet", label: "아직 없어요" },
+  { value: "unknown", label: "모름" },
+]
+
+/** 요약 칩(F2-02)에 쓰는 짧은 표기. */
+export const NOTICE_LABEL: Record<DueNoticeStatus, string> = {
+  notified: "통지받음",
+  not_yet: "아직 없음",
+  unknown: "모름",
+}
 
 // 상황 접수(stage 1)를 3문항씩 두 페이지로 나눈다.
 // 1페이지 = FR-014 이의제기 기한 계산 입력, 2페이지 = 하위 단계 분기용 거래 맥락.
@@ -72,12 +124,6 @@ export const CHECK_LABELS: Record<string, [EvidenceId, string][]> = {
     ["bank", "입금 내역"],
     ["autopay", "생계 흔적 (자동이체)"],
   ],
-}
-
-export const AMOUNT_MAP: Record<string, number> = {
-  "45만원": 450000,
-  "300만원": 3000000,
-  "500만원": 5000000,
 }
 
 export const ROUTES: { title: string; desc: string; badge: "official" | "secondary" }[] = [

@@ -1,4 +1,5 @@
 import { BottomCta } from "./components/BottomCta"
+import { DateSheet } from "./components/DateSheet"
 import { ImageLightbox } from "./components/ImageLightbox"
 import { MaskingSheet } from "./components/MaskingSheet"
 import { DraftStage } from "./components/stages/DraftStage"
@@ -65,9 +66,13 @@ function App() {
               <IntakeStage
                 page={flow.intakePage}
                 intake={flow.intake}
-                deadlineNotice={flow.deadlineNotice}
-                deadlineUrgent={flow.deadlineUrgent}
+                deadline={flow.deadline}
                 onPick={flow.pick}
+                onOpenDate={flow.openDateSheet}
+                onToggleWhenUnknown={flow.toggleWhenUnknown}
+                onSetNoticeStatus={flow.setNoticeStatus}
+                onSetAmount={flow.setAmount}
+                onToggleAmountUnknown={flow.toggleAmountUnknown}
                 onGoPage={flow.goIntakePage}
               />
             )}
@@ -129,6 +134,22 @@ function App() {
       </div>
 
       <BottomCta label={CTA_LABEL[stage]} disabled={ctaDisabled} width={width} onClick={handleCta} />
+
+      {flow.dateSheet && (
+        <DateSheet
+          key={flow.dateSheet}
+          title={flow.dateSheet === "when" ? "계좌가 정지된 날" : "채권소멸절차 개시 공고일"}
+          hint={
+            flow.dateSheet === "when"
+              ? "지급정지 통지서에 적힌 날짜를 골라주세요."
+              : "이 날짜로부터 2개월이 이의제기 기한이에요."
+          }
+          value={flow.dateSheet === "when" ? flow.intake.when : flow.intake.noticeDate}
+          width={width}
+          onSelect={flow.commitDate}
+          onClose={flow.closeDateSheet}
+        />
+      )}
 
       <ViewerSheet
         viewer={flow.viewer}

@@ -1,7 +1,7 @@
 import { getAmountInfo } from "./amount"
 import type { EvidenceState, TimelineEvent } from "../types"
 
-export function buildTimeline(evidence: EvidenceState, amount: string | null, bankConfirmed: boolean): TimelineEvent[] {
+export function buildTimeline(evidence: EvidenceState, amount: number | null, bankConfirmed: boolean): TimelineEvent[] {
   const amountInfo = getAmountInfo(amount)
   const out: TimelineEvent[] = []
 

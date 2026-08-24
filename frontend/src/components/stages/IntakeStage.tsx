@@ -1,5 +1,9 @@
-import { INTAKE_PAGES, QUESTIONS } from "../../data"
-import type { IntakeAnswers, IntakeField } from "../../types"
+import { INTAKE_PAGES, NOTICE_OPTIONS, QUESTIONS } from "../../data"
+import type { DeadlineInfo } from "../../lib/deadline"
+import { chipValue, isAnswered, summaryValue } from "../../lib/intake"
+import type { DueNoticeStatus, IntakeAnswers, IntakeField } from "../../types"
+import { AmountField } from "../intake/AmountField"
+import { DateField } from "../intake/DateField"
 
 // 문항 번호는 페이지가 나뉘어도 스펙 F2-01의 ①~⑥을 그대로 따라간다.
 function findQuestion(id: IntakeField) {
@@ -10,13 +14,28 @@ function findQuestion(id: IntakeField) {
 interface IntakeStageProps {
   page: number
   intake: IntakeAnswers
-  deadlineNotice: string | null
-  deadlineUrgent: boolean
+  deadline: DeadlineInfo | null
   onPick: (field: IntakeField, value: string) => void
+  onOpenDate: (field: "when" | "notice") => void
+  onToggleWhenUnknown: () => void
+  onSetNoticeStatus: (status: DueNoticeStatus) => void
+  onSetAmount: (value: number | null) => void
+  onToggleAmountUnknown: () => void
   onGoPage: (page: number) => void
 }
 
-export function IntakeStage({ page, intake, deadlineNotice, deadlineUrgent, onPick, onGoPage }: IntakeStageProps) {
+export function IntakeStage({
+  page,
+  intake,
+  deadline,
+  onPick,
+  onOpenDate,
+  onToggleWhenUnknown,
+  onSetNoticeStatus,
+  onSetAmount,
+  onToggleAmountUnknown,
+  onGoPage,
+}: IntakeStageProps) {
   const current = INTAKE_PAGES[page]
   const priorFields = INTAKE_PAGES.slice(0, page).flatMap((prev, prevPage) =>
     prev.fields.map((id) => ({ id, page: prevPage })),
@@ -47,6 +66,7 @@ export function IntakeStage({ page, intake, deadlineNotice, deadlineUrgent, onPi
           <div className="flex flex-wrap gap-2">
             {priorFields.map(({ id, page: target }) => {
               const { question } = findQuestion(id)
+              const value = summaryValue(intake, id)
               return (
                 <button
                   key={id}
@@ -55,7 +75,7 @@ export function IntakeStage({ page, intake, deadlineNotice, deadlineUrgent, onPi
                   className="flex h-9 items-center gap-1.5 rounded-full bg-surface px-3.5 text-[13px] tracking-tight transition-colors duration-[120ms]"
                 >
                   <span className="text-muted">{question.short}</span>
-                  <span className="font-semibold">{intake[id] ?? "미응답"}</span>
+                  <span className="font-semibold">{value ?? "미응답"}</span>
                 </button>
               )
             })}
@@ -63,13 +83,16 @@ export function IntakeStage({ page, intake, deadlineNotice, deadlineUrgent, onPi
         </div>
       )}
 
-      {deadlineNotice && (
+      {deadline && (
         <div
-          key={intake.notice}
-          className={`animate-deadline-in origin-top rounded-2xl p-4 ${deadlineUrgent ? "bg-danger-subtle" : "bg-brand-subtle"}`}
+          key={deadline.notice}
+          className={`animate-deadline-in origin-top rounded-2xl p-4 ${deadline.urgent ? "bg-danger-subtle" : "bg-brand-subtle"}`}
         >
-          <div className={`mb-1 text-[13px] font-semibold ${deadlineUrgent ? "text-danger" : "text-brand"}`}>이의제기 기한</div>
-          <div className="text-[15px] leading-normal">{deadlineNotice}</div>
+          <div className={`mb-1 text-[13px] font-semibold ${deadline.urgent ? "text-danger" : "text-brand"}`}>
+            이의제기 기한
+          </div>
+          {/* 법 제7조 근거 안내라 문구를 줄이거나 순화하지 않는다 (lib/deadline.ts 주석 참조). */}
+          <div className="text-[15px] leading-normal">{deadline.notice}</div>
         </div>
       )}
 
@@ -78,28 +101,90 @@ export function IntakeStage({ page, intake, deadlineNotice, deadlineUrgent, onPi
         return (
           <div key={question.id} className="flex flex-col gap-3">
             <div className="flex items-start gap-2.5">
-              <div className="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-brand-subtle text-[13px] font-bold tabular-nums text-brand">
+              <div
+                className={`mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full text-[13px] font-bold tabular-nums transition-colors duration-200 ${
+                  isAnswered(intake, id) ? "bg-brand text-white" : "bg-brand-subtle text-brand"
+                }`}
+              >
                 {no}
               </div>
-              <div className="text-[17px] leading-[1.45] font-semibold tracking-tight">{question.label}</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[17px] leading-[1.45] font-semibold tracking-tight">{question.label}</div>
+                {question.hint && <p className="mt-1 text-[13px] leading-normal text-muted">{question.hint}</p>}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {question.options.map((option) => {
-                const selected = intake[question.id] === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => onPick(question.id, option)}
-                    className={`h-11 rounded-full border px-[18px] text-[15px] font-semibold tracking-tight transition-all duration-[120ms] ${
-                      selected ? "border-ink bg-ink text-white" : "border-border bg-bg text-ink"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                )
-              })}
-            </div>
+
+            {question.input === "date" && (
+              <DateField
+                value={intake.when}
+                placeholder="날짜 선택"
+                unknown={intake.whenUnknown}
+                onOpen={() => onOpenDate("when")}
+                onToggleUnknown={onToggleWhenUnknown}
+              />
+            )}
+
+            {question.input === "amount" && (
+              <AmountField
+                value={intake.amount}
+                unknown={intake.amountUnknown}
+                onChange={onSetAmount}
+                onToggleUnknown={onToggleAmountUnknown}
+              />
+            )}
+
+            {question.input === "notice" && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap gap-2">
+                  {NOTICE_OPTIONS.map((option) => {
+                    const selected = intake.noticeStatus === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => onSetNoticeStatus(option.value)}
+                        className={`h-11 rounded-full border px-[18px] text-[15px] font-semibold tracking-tight transition-all duration-[120ms] ${
+                          selected ? "border-brand bg-brand text-white" : "border-border bg-bg text-ink"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                {/* 기한은 공고일 + 2개월이라, 통지받은 경우에만 날짜를 더 받는다 (FR-014). */}
+                {intake.noticeStatus === "notified" && (
+                  <div className="animate-drop-in flex flex-col gap-2">
+                    <div className="text-[13px] font-semibold text-muted">공고일</div>
+                    <DateField
+                      value={intake.noticeDate}
+                      placeholder="공고일 선택"
+                      onOpen={() => onOpenDate("notice")}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {question.input === "chips" && (
+              <div className="flex flex-wrap gap-2">
+                {question.options?.map((option) => {
+                  const selected = chipValue(intake, question.id) === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => onPick(question.id, option)}
+                      className={`h-11 rounded-full border px-[18px] text-[15px] font-semibold tracking-tight transition-all duration-[120ms] ${
+                        selected ? "border-brand bg-brand text-white" : "border-border bg-bg text-ink"
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )
       })}
