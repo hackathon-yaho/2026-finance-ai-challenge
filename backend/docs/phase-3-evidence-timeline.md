@@ -144,7 +144,8 @@ F4-07의 담당은 `B`(AI)지만, **처리 절차가 "LLM이 quality_flags 산�
 
 회신: `../../docs/response/backend/card-source-type.md`. **이벤트(카드) 단위**로 확정됐다 — 한 이미지에 유형이 섞이는 경우가 흔해 이미지 단위 역매핑은 기각됐다.
 
-- [ ] tie-break 우선순위: `chat(0) → bank(1) → shipping(2) → threat/autopay(3) → unknown(최하위)`. **`unknown`은 정상 값이다** (AI가 추측하지 않고 내린 값) — 오류로 처리하지 않는다
+- [ ] tie-break 우선순위: **`chat → bank → shipping`** 순, **`unknown`은 최하위**. `threat`·`autopay`의 순서는 회신에 명시되지 않았다 — 실제로 동시각 충돌이 나면 `shipping`과 `unknown` 사이(즉 최하위 바로 앞)에 둔다. 애매하면 회신 원문(`../../docs/response/backend/card-source-type.md`)을 다시 확인한다
+- [ ] **`unknown`은 정상 값이다** (AI가 추측하지 않고 내린 값) — 오류로 처리하지 않는다
 - [ ] F5-03 ③ 대화 유무 판정은 **`source_type == "chat"` 카드의 존재 여부**로 구현한다
 
 ### `event_id` 중복은 백엔드가 처리한다 (2026-08-25 확정)
