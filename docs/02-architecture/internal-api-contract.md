@@ -133,7 +133,7 @@ X-Internal-Token: {INTERNAL_TOKEN}
 
 | 백엔드 사용처 | 내용 |
 | --- | --- |
-| F5-01 동시각 tie-break | `chat → bank → shipping` 순. **`unknown`은 최하위** |
+| F5-01 동시각 tie-break | `chat(0) → bank(1) → shipping(2) → threat(3) → autopay(4) → unknown(5)`. **`unknown`은 최하위** (2026-08-25 ② `threat`·`autopay` 자리 보완 — `../response/backend/card-source-type.md`). 화면 표시 순서일 뿐 의미 판정이 아니다 |
 | F5-03 ③ 대화 유무 판정 | `source_type == "chat"` 카드의 존재 여부 |
 
 판정이 애매한 이벤트는 AI-server가 추측하지 않고 `unknown`으로 내립니다.
