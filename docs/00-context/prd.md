@@ -1,5 +1,10 @@
 # PRD — 해빙 (解氷)
 
+> **수정 기록 (2026-08-24, 백엔드)** — 근거: `../response/backend/pdf-ownership-and-open-contracts.md` (프론트 회신)
+> - §9 API 명세표를 계약 문서(`../02-architecture/api-contract.md` v1.4)와 동기화 — `/api/package/text` **`GET` → `POST`**(별지 제4호서식 8개 필드를 바디로 받음), `/api/timeline` 응답에 `mergeCandidates`, `POST /api/timeline/merge` 신설
+> - §9 보충 설명에 **텍스트 5종 PDF 생성 주체 = 서버(백엔드)** 확정, `mergeCandidates` 비자동 병합, 서식 8개 필드의 **전부 선택** 규칙 추가
+> - 기능 요구사항(FR) 본문은 변경하지 않았습니다 — 계약 표현만 실제 확정값에 맞췄습니다
+
 > **수정 기록 (2026-08-23, 백엔드)**
 > - 문서 상단 기술 스택 표: Java 17 → **Java 21** (팀 결정). 코드·기능 요구사항 본문은 변경하지 않았습니다.
 > - §6 아키텍처 다이어그램과 §12.1 역할 분담표에서 **`TimelineService`를 AI-server → 백엔드로 이동**. 근거: spec 총괄표의 F5-01~03 담당이 `A`(백엔드)이고, `../02-architecture/internal-api-contract.md`에 타임라인 관련 내부 엔드포인트가 없으며, 정렬·병합·공백 탐지 규칙이 전부 결정적이라 LLM이 필요하지 않습니다
@@ -668,10 +673,11 @@ record Session(
 | POST | `/api/evidence` | 이미지 판독 (메모리 통과, 미저장) | `multipart[]` | `{cards:[...], signals, qualityFlags}` |
 | POST | `/api/evidence/confirm` | 추출 카드 확인·수정 저장 (FR-028) | `{cardId, confirmed, corrections}` | `{ok, confirmedCount, unconfirmedCount}` |
 | POST | `/api/evidence/text` | 텍스트 대체 입력 | `{rawText}` | `{cards:[...]}` |
-| GET | `/api/timeline` | 타임라인 조회 | — | `{events:[...], gaps:[...]}` |
+| GET | `/api/timeline` | 타임라인 조회 | — | `{events:[...], gaps:[...], mergeCandidates:[...]}` |
+| POST | `/api/timeline/merge` | 중복 이벤트 병합 승인 (`spec.md` F5-02) | `{mergeGroupIds, approved}` | `{events:[...], gaps:[...], mergeCandidates:[...]}` |
 | POST | `/api/readiness` | 준비도 점검 실행 | — | `{reason, checklist, readiness, missingItems, conflicts, notices, smallAmountNotice, urgentAlert}` |
 | POST | `/api/draft` | 소명서 생성 | — | `{draftText, sentences:[{text, evidenceRefs:[{imageIndex, bbox}]}], checklist:[...]}` |
-| GET | `/api/package/text` | 텍스트 5종 PDF 생성 (FR-047) | — | `application/pdf` |
+| POST | `/api/package/text` | 텍스트 5종 PDF 생성 (FR-047) | `{applicant, account}` (별지 제4호서식 8개 필드, 전부 선택·서비스 미저장) | `application/pdf` |
 | DELETE | `/api/session` | 세션 즉시 파기 | — | `204` |
 | GET | `/actuator/health` | 헬스체크 (킵얼라이브용) | — | `{status:"UP"}` |
 
@@ -681,7 +687,11 @@ record Session(
 
 **evidenceRefs** — 서버는 이미지 파일이 아니라 몇 번째 이미지의 어느 영역인지만 반환한다. 실제 이미지는 브라우저가 자기 메모리에서 찾아 표시한다.
 
-**패키지 병합** — 원본 이미지 페이지는 서버가 만들지 않는다. 브라우저가 `/api/package/text` 결과에 이미지 페이지를 덧붙여 최종 PDF를 완성한다.
+**패키지 병합** — 원본 이미지 페이지는 서버가 만들지 않는다. 브라우저가 `/api/package/text` 결과에 이미지 페이지를 덧붙여 최종 PDF를 완성한다. **텍스트 5종 PDF 생성 주체는 서버(백엔드)다**(2026-08-24 확정).
+
+**mergeCandidates** — 백엔드는 중복 이벤트 병합 후보만 산출하고 자동 병합하지 않는다. 사용자가 승인한 그룹만 `/api/timeline/merge`로 병합된다.
+
+**`/api/package/text` 요청 바디** — 별지 제4호서식의 신청인 4개(성명·생년월일·주소·연락처)와 계좌 4개(금융회사·개설점포·예금종별·계좌번호). **8개 모두 선택이며 빈 값이면 해당 칸이 공란인 작성 지원본이 생성된다** — 사용자가 계좌번호를 몰라도 패키지를 만들 수 있어야 한다. 이 값들은 PDF 생성에만 쓰고 세션·DB·로그에 남기지 않는다(§4.4).
 
 **공통 오류 응답**
 

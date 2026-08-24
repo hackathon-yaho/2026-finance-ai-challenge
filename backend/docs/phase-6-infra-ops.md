@@ -36,7 +36,7 @@
 | `POST /api/evidence` (최초) | stage 2 `complete` |
 | `POST /api/readiness` | stage 3 `complete` |
 | `POST /api/draft` | stage 4 `complete` |
-| `GET/POST /api/package/text` | stage 5 `complete` |
+| `POST /api/package/text` | stage 5 `complete` |
 | 직전 단계 `complete` | 다음 단계 `enter`로 간주 |
 | TTL 만료 | 마지막 도달 단계 `abandon` |
 

@@ -22,8 +22,9 @@
 
 ## 3-2. `POST /api/evidence`
 
-- [ ] multipart 수신 — 최대 10장, JPG/PNG
-- [ ] **프론트엔드는 1장씩 병렬로 호출한다** (2026-08-23 확정, `api-contract.md`). 호출이 나뉘어도 **세션당 누적 10장 제한을 서버가 유지**한다. F3-03(파일별 진행 표시)을 SSE·폴링 없이 만족시키기 위한 방식이다
+- [ ] multipart 수신 — 최대 10장, JPG/PNG. **`max-file-size` 10MB 설정 확인**(Phase 1-4b — 기본 1MB면 정상 이미지가 400)
+- [ ] **프론트엔드는 1장씩 병렬로 호출한다** (2026-08-23 확정, `api-contract.md`). 호출이 나뉘어도 **세션당 누적 10장 제한을 서버가 유지**한다. 11장째는 400. F3-03(파일별 진행 표시)을 SSE·폴링 없이 만족시키기 위한 방식이다
+- [ ] **프론트 동시 요청 상한은 4**다 (2026-08-24 확정). 거부선이 아니라 발신 상한이므로 **초과 도착분도 거부하지 않고 큐잉**한다. 서버가 4를 넘겨 AI로 흘려보내지 않도록 주의 — Render 512MB에서 이미지가 메모리로만 통과하므로 동시 개수가 곧 메모리 점유다
 - [ ] **파일 검증 (F3-02)**
   - [ ] 확장자 화이트리스트 (jpg, jpeg, png)
   - [ ] **실제 매직바이트 확인** — 확장자를 위조한 파일 거부 (F3-02 수용 기준)
@@ -106,8 +107,15 @@ F4-07의 담당은 `B`(AI)지만, **처리 절차가 "LLM이 quality_flags 산�
 - [ ] 병합 후보 판단: **시각 차 5분 이내 + 금액 일치 + `actor` 동일**
 - [ ] **자동 확정하지 않는다.** 후보로 제시하고 사용자 승인 후에만 병합
 - [ ] 병합해도 출처는 둘 다 기록
+- [ ] `GET /api/timeline` 응답에 **`mergeCandidates: [{ groupId, eventIds, reason }]`** 를 담는다. 후보가 없으면 빈 배열
+- [ ] `reason`은 **사용자에게 그대로 보여줄 수 있는 문장**으로 만든다 (예: "시각 차 2분 · 금액 700,000원 일치 · actor 동일"). 설명 없이 승인받지 않는다
+- [ ] **`POST /api/timeline/merge`** — `{ mergeGroupIds, approved }`. `mergeGroupIds`는 `groupId` 배열이다(`eventId` 아님)
+- [ ] `approved: false`면 거절로 기록해 이후 `mergeCandidates`에서 제외한다. 이벤트는 그대로 둔다
+- [ ] 응답은 갱신된 타임라인 전체 (`GET /api/timeline`과 같은 형태)
 
-> ⚠️ **미확정 — 승인 엔드포인트.** `api-contract.md`에 병합 승인 API가 없다. 회신 전까지 후보 산출까지만 구현하고 응답에 후보 목록을 담아둔다. 요청: `../../docs/request/frontend/pdf-ownership-and-open-contracts.md`
+> **2026-08-24 확정** — 승인 엔드포인트가 계약에 반영됐다(`api-contract.md` §`/api/timeline/merge`). 근거: `../../docs/response/backend/pdf-ownership-and-open-contracts.md` §2.
+>
+> **컷하면** `mergeCandidates`를 항상 빈 배열로 내리고 승인 엔드포인트를 만들지 않는다. 프론트는 빈 배열이면 후보 UI를 렌더하지 않으므로 양쪽이 서로를 기다리지 않는다. **컷 결정 시 `../../docs/response/frontend/`에 회신한다.**
 >
 > F5-02는 스코프 컷 순서 4번이다 — 일정이 밀리면 가장 먼저 버릴 수 있다(`spec.md` 부록).
 

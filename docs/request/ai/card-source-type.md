@@ -1,5 +1,9 @@
 # [백엔드 → AI] 추출 카드에 `source_type` 필드 추가 요청
 
+> **상태: ⏳ 회신 대기** (요청 2026-08-23)
+> 회신은 `../../response/backend/card-source-type.md`에 들어옵니다.
+> **막고 있는 작업**: Phase 3 F5-01 동시각 tie-break, F5-03 대화 유무 판정 (`../../../backend/docs/phase-3-evidence-timeline.md`)
+
 - 작성: 백엔드 · 2026-08-23
 - 관련 문서: `../../02-architecture/internal-api-contract.md`, `../../02-architecture/api-contract.md`, `../../00-context/prd.md` §4.2
 

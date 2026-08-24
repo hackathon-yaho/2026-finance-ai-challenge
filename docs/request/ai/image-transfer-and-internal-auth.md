@@ -1,5 +1,9 @@
 # [백엔드 → AI] 내부 API 이미지 전달 방식 확정 및 인증 토큰 공유
 
+> **상태: ⏳ 회신 대기** (요청 2026-08-23)
+> 회신은 `../../response/backend/image-transfer-and-internal-auth.md`에 들어옵니다.
+> **막고 있는 작업**: Phase 3 `AiClient.extract()` 본문 직렬화 (`../../../backend/docs/phase-3-evidence-timeline.md`)
+
 - 작성: 백엔드 · 2026-08-23
 - 관련 문서: `../../02-architecture/internal-api-contract.md`
 

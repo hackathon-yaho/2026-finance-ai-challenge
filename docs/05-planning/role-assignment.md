@@ -1,5 +1,9 @@
 # 역할 분담
 
+> **수정 기록 (2026-08-24, 백엔드)**
+> - 교차 검토 표의 CORS 행을 "협의 예정" → **확정 상태**로 갱신
+> - 교차 검토 표에 **텍스트 5종 PDF 생성 주체** 행 추가 (`spec.md` 총괄표 F8-01 담당 오타가 이 지점의 혼선 원인이었습니다)
+
 > **수정 기록 (2026-08-23, 백엔드)**
 > - A·백엔드 담당 범위에 **타임라인 조립(F5-01~03)** 명시. 근거는 `../02-architecture/system-architecture.md`의 같은 날짜 수정 기록 참조
 > - B·AI 담당 범위에서 `TimelineService` 제거 (백엔드로 이관)
@@ -30,7 +34,8 @@
 | 백엔드-AI서버 내부 API, 이미지 전달 방식 | `../02-architecture/internal-api-contract.md` |
 | 개인정보 삭제 시점과 방식 | `../03-infra-ops/privacy-and-safety.md` |
 | 배포 환경 제약 (서비스별 Render/정적호스팅) | `../03-infra-ops/deployment-and-uptime.md` |
-| CORS 허용 도메인 | 프론트-백엔드 착수 전 협의, 확정되면 `../02-architecture/api-contract.md`에 추가 |
+| CORS 허용 도메인 | `../02-architecture/api-contract.md` "CORS 허용 origin·헤더" 절 — `localhost:5173` 등록 완료(2026-08-24), 프론트 배포 도메인은 확정되는 즉시 같은 표에 추가 |
+| 텍스트 5종 PDF 생성 주체 | **서버(백엔드, F8-01)** — `../00-context/spec.md` F7-06 분담표. 프론트는 `pdf-lib` **병합**만 담당 |
 
 ## 매몰 방지 원칙
 

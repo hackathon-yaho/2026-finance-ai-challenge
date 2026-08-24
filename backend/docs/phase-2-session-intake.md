@@ -71,7 +71,7 @@ record Session(
 - [ ] `dueNoticeStatus == notified`이면 `dueNoticeDate` 필수 검증
 - [ ] 응답 `{ ok, nextStage, deadline }` (2-5 참조)
 
-> **문항 수 불일치 주의**: PRD FR-010은 "5개 문항", spec F2-01 제목도 "5문항"이지만 본문 표는 6문항, `api-contract.md`는 7개 필드다. **계약 문서인 `api-contract.md`를 따른다.**
+> **문항 수**: PRD FR-010·spec F2-01 모두 **6문항으로 정정 완료**됐다(2026-08-23 백엔드 / 08-24 프론트). 공고 문항 하나가 `dueNoticeStatus`+`dueNoticeDate` 2필드로 쪼개져 **6문항 = 7필드**다. **계약 문서인 `api-contract.md`를 따른다.**
 
 > **`amount`를 준비도 판정에 절대 쓰지 않는다.** 소액 기준은 은행 내규로 비공개다 — `../../docs/00-context/prd.md` §14 OI-01.
 

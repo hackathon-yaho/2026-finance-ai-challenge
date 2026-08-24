@@ -1,5 +1,9 @@
 # [백엔드 → AI] 오프라인 데모 모드용 사전 응답 세트 요청
 
+> **상태: ⏳ 회신 대기** (요청 2026-08-23)
+> 회신은 `../../response/backend/demo-response-set.md`에 들어옵니다.
+> **막고 있는 작업**: Phase 6 `DEMO_MODE` (`../../../backend/docs/phase-6-infra-ops.md`)
+
 - 작성: 백엔드 · 2026-08-23
 - 관련 문서: `../../00-context/spec.md` F11-03, `../../04-testing/test-cases-and-demo.md`
 

@@ -1,5 +1,12 @@
 # 로드맵
 
+> **수정 기록 (2026-08-24 저녁, 백엔드)**
+> - **"AI 회신 대기 항목"** 절 신설. Phase 3·6을 막고 있는 AI 회신 대기 3건이 이 문서 어디에도 안 보여서, 로드맵만 보고 일정을 짜면 이 블로커를 놓칠 수 있었습니다
+> - "코드 착수 시 반영할 계약 확정값"에 오늘 오후 새로 보낸 요청 4건(증빙 구조·법정 서식·고지 문구·구매자 송금인 대조) 반영 — 전부 **회신 대기 중**이라 착수 시점을 아직 못 박습니다
+
+> **수정 기록 (2026-08-24, 백엔드)**
+> - **"코드 착수 시 반영할 계약 확정값"** 절 신설. 2026-08-24 프론트 회신(`../response/backend/pdf-ownership-and-open-contracts.md`)으로 확정돼 문서에는 반영했지만 **아직 구현하지 않은** 항목을 담당·착수 시점별로 모았습니다. 문서 정리 단계에서는 코드를 건드리지 않고, 해당 기간에 이 표를 체크리스트로 씁니다
+
 > 출처: `../00-context/prd.md` §12.2~12.4, `../00-context/spec.md` 부록.
 
 ## 일정
@@ -28,6 +35,60 @@
 
 FR-043(텍스트 5종 PDF)은 FR-047(6종 제출 패키지)의 입력이 되므로 컷 대상이 아닙니다. 화면 인쇄(F8-02)는 PDF 생성 실패 시의 비상 경로로만 유지합니다.
 
+## 코드 착수 시 반영할 계약 확정값
+
+문서로 확정만 해두고 **아직 구현하지 않은** 항목입니다. 문서 정리 단계에서는 손대지 않고, 해당 기간에 코드 작업을 시작할 때 이 표를 체크리스트로 씁니다. 각 항목의 근거와 상세는 계약 문서에 있으니 여기에 스펙을 복사하지 않습니다.
+
+### 백엔드 (A)
+
+| # | 항목 | 착수 시점 | 단일 출처 |
+| --- | --- | --- | --- |
+| 1 | `spring.servlet.multipart.max-file-size` / `max-request-size` = **10MB** | 8/25~8/28 (판독 착수 전) | `../02-architecture/api-contract.md` §업로드 크기 상한 |
+| 2 | CORS 허용 origin `http://localhost:5173` + 허용 헤더 `X-Session-Hash` (**프리뷰 와일드카드 금지**) | 8/25~8/28 (프론트 연동 착수 전) | 같은 문서 §CORS 허용 origin·헤더 |
+| 3 | 파일 검증 4종을 **서버에서도** 수행 — 특히 **매직바이트** | 8/25~8/28 | `../00-context/spec.md` F3-02 검증 주체 |
+| 4 | `POST /api/package/text` — 8필드 전부 선택, 공란 허용, `INVALID_FORM_FIELD` 형식 검증 | 8/29~8/31 (문서 생성) | `api-contract.md` §`/api/package/text` |
+| 5 | 같은 요청의 **바디를 로그에 남기지 않도록** 접근 로그 필터 설정 | 8/29~8/31 (4번과 같이) | `../03-infra-ops/privacy-and-safety.md` |
+| 6 | `GET /api/timeline`에 `mergeCandidates` 산출 (자동 병합 금지) | 8/25~8/28 | `api-contract.md` §`/api/timeline` 응답 |
+| 7 | `POST /api/timeline/merge` 승인 엔드포인트 | **스코프 컷 대상** (컷 순서 4번) | `spec.md` F5-02 |
+| 8 | `deadline.notice`를 공고일 미입력 시에도 **항상** 채워 내려보내기 | 8/25~8/28 | `api-contract.md` §`/api/intake` 응답 |
+| 9 | Render 프록시 요청 바디 상한이 10MB를 통과하는지 확인 | 9/5 (인프라 확정) | `../03-infra-ops/deployment-and-uptime.md` |
+
+### 프론트 (C)
+
+| # | 항목 | 착수 시점 |
+| --- | --- | --- |
+| 1 | 서식 8필드 폼 — **전부 선택**, 필수 표시 금지 (길이 100자 / `birthDate` 형식만 검증) | 8/29~8/31 |
+| 2 | `/api/package/text`를 `POST` + 바디로 호출 | 8/29~8/31 |
+| 3 | `/api/evidence` 호출을 **동시 4개**로 제한 (10장이면 4→4→2) | 8/25~8/28 |
+| 4 | 배포 도메인 확정 시 `../response/frontend/`에 회신 → CORS 등록 요청 | 9/5까지 |
+
+> **7번(F5-02)을 컷하면** 백엔드는 `mergeCandidates`를 항상 빈 배열로 내리고 승인 엔드포인트를 만들지 않습니다. 프론트는 빈 배열이면 후보 UI를 렌더하지 않으므로 양쪽이 서로를 기다리지 않습니다. **컷 결정이 나면 `../response/frontend/`에 회신합니다.**
+
+### 회신 대기 중 — 착수 시점 미확정
+
+2026-08-24 오후에 보낸 요청 4건입니다. **회신이 오기 전까지 아래 작업에 착수하지 않습니다.** 회신이 오면 위 표로 옮기고 착수 시점을 박습니다.
+
+| 항목 | 막는 작업 | 요청 문서 |
+| --- | --- | --- |
+| 서식 필드 8 → 11, 서명 안내, 5면 분리 | Phase 5 `POST /api/package/text` 구현 | `../request/frontend/legal-form-and-package.md` |
+| 5영업일 카피, 3년 제한 고지, 보존 지침 | Phase 4 `notices` 고정 문구 (F6-05) | `../request/frontend/honest-disclosure-fixes.md` |
+| 구매자–송금인 대조, 택일 구조, 직거래 경로 등 6건 | Phase 4 `ReadinessService` 규칙 정의 | `../request/frontend/evidence-structure-revision.md` |
+| 카드에 대화상대명·입금자명 추가 | 위 항목의 전제 (AI 추출 없이는 대조 불가) | `../request/ai/payer-name-extraction.md` |
+
+> `ReadinessService`(Phase 4)가 이 회신들에 가장 크게 걸려 있습니다. 회신이 늦어지면 Phase 4를 **지금 확정된 규칙만으로 먼저 짜고**, 회신 오는 대로 증분 반영하는 쪽을 권합니다 — 전부 기다리면 코어 기능 구간(8/25~8/28)이 통째로 밀립니다.
+
+## AI 회신 대기 항목
+
+Phase 3·6을 막고 있는데 로드맵 어디에도 안 보이던 항목입니다. 근거·상세는 각 요청 문서에 있습니다.
+
+| 항목 | 막는 작업 | 요청 문서 |
+| --- | --- | --- |
+| 이미지 전달 방식 (멀티파트 vs base64) | Phase 3 `AiClient.extract()` 본문 직렬화 | `../request/ai/image-transfer-and-internal-auth.md` |
+| 카드별 `source_type` | Phase 3 F5-01 동시각 tie-break, F5-03 대화 유무 판정 | `../request/ai/card-source-type.md` |
+| 데모 응답 세트 JSON | Phase 6 `DEMO_MODE` | `../request/ai/demo-response-set.md` |
+
+> Phase 3의 `AiClient.extract()`는 **이미지 전달 방식이 정해지지 않으면 본문 직렬화를 구현할 수 없습니다.** 8/25~8/28에 Phase 3 착수 시 이 회신이 안 와 있으면, 헤더·타임아웃·재시도·오류 변환만 먼저 만들고 본문 직렬화 자리를 비워둡니다(`backend/docs/phase-3-evidence-timeline.md` 참조).
+
 ## 리스크 레지스터
 
 | 리스크 | 확률 | 영향 | 대응 |
@@ -42,6 +103,7 @@ FR-043(텍스트 5종 PDF)은 FR-047(6종 제출 패키지)의 입력이 되므�
 | 브라우저 새로고침 시 원본 소실 | 높음 | 중 | `beforeunload` 경고 + 재진입 시 "원본이 필요합니다. 다시 올려주세요" 안내. 추출 결과·소명서는 서버 세션에 남으므로 재업로드만 하면 복구 |
 | 모바일 메모리 초과로 탭 강제 종료 | 중 | 높음 | 업로드 시 장변 1600px 리사이즈. 10장 상한 유지. 사용 후 blob URL revoke |
 | 클라이언트 PDF 병합 실패 | 중 | 중 | 텍스트 PDF 다운로드 + 원본 이미지 개별 저장 안내로 폴백 |
+| **미회신 요청 누적으로 Phase 4·5 착수 지연** | 중 | 높음 | 2026-08-24 기준 프론트 4건 + AI 3건 회신 대기 중. Phase 4(`ReadinessService`)는 확정된 규칙만으로 먼저 짜고 증분 반영. Phase 3(`AiClient`)는 본문 직렬화 자리를 비워두고 나머지 먼저 구현 |
 
 ## 매일 스탠드업 권장 형식 (15분)
 

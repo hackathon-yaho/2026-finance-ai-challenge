@@ -29,7 +29,7 @@ com.haebing.backend
                         handler/GlobalExceptionHandler.java
 ```
 
-`ErrorCode`에는 `../../docs/02-architecture/api-contract.md` 오류표의 4종을 미리 정의해 둔다 — `EXTRACTION_FAILED`, `TIMEOUT`, `SESSION_EXPIRED`(410), `QUOTA_EXCEEDED`. 응답 형태는 계약 문서 그대로 `{ error, message, fallback }`이며, `fallback`에는 **내부 경로를 노출하지 않고** 공개 경로(`/api/evidence/text`)를 담는다(`internal-api-contract.md` 오류 절).
+`ErrorCode`에는 `../../docs/02-architecture/api-contract.md` 오류표의 **6종**을 미리 정의해 둔다 — `EXTRACTION_FAILED`, `TIMEOUT`, `SESSION_EXPIRED`(410), `UNCONFIRMED_FIELDS`(409), `INVALID_FORM_FIELD`(400), `QUOTA_EXCEEDED`. 응답 형태는 계약 문서 그대로 `{ error, message, fallback }`이며, `fallback`에는 **내부 경로를 노출하지 않고** 공개 경로(`/api/evidence/text`)를 담는다(`internal-api-contract.md` 오류 절).
 
 ## 1-1b. docker-compose (로컬 인프라)
 
@@ -62,10 +62,18 @@ com.haebing.backend
 
 ## 1-4. CORS
 
-- [ ] 허용 origin을 환경변수(`CORS_ALLOWED_ORIGINS`)로 주입
+- [ ] 허용 origin을 환경변수(`CORS_ALLOWED_ORIGINS`)로 주입 — **로컬 기본값 `http://localhost:5173`** (Vite 개발 서버, 2026-08-24 확정)
 - [ ] 허용 헤더에 **`X-Session-Hash` 포함** (결정 로그 참조 — 이게 빠지면 프론트의 모든 요청이 막힌다)
+- [ ] 허용 메서드 `GET`, `POST`, `DELETE`, `OPTIONS`
 - [ ] 쿠키를 쓰지 않으므로 `allowCredentials`는 켜지 않는다
-- [ ] 프론트 배포 도메인 확정 후 값 등록 — `../../docs/05-planning/role-assignment.md` 교차 검토 표
+- [ ] **와일드카드 패턴(`*.vercel.app` 등)을 쓰지 않는다** — 임의 브랜치·포크 배포에서 API를 호출할 수 있게 된다. 프론트도 프리뷰를 로컬로 대체하기로 합의함
+- [ ] 프론트 배포 도메인 확정 후 값 추가 — `../../docs/02-architecture/api-contract.md` CORS 절
+
+## 1-4b. multipart 크기 (Phase 3 대비)
+
+- [ ] `spring.servlet.multipart.max-file-size` / `max-request-size` = **10MB**
+
+기본값 1MB로 두면 **1600px 리사이즈된 정상 캡처(장당 300KB~1MB)가 `400`으로 떨어진다.** Phase 3에서 발견하면 원인 추적에 시간이 든다 — 설정은 골격 단계에서 넣어둔다. 근거: `api-contract.md` §업로드 크기 상한.
 
 > **배포 환경 제약을 지금부터 지킨다.** Render는 512MB RAM / 0.1 CPU에 **파일시스템이 휘발성**이다. 배포는 Phase 6로 미루지만, 디스크에 의존하는 코드를 만들면 그때 전부 뜯어야 한다 — 세션도 이미지도 메모리로만 다룬다.
 
@@ -73,7 +81,7 @@ com.haebing.backend
 
 - [ ] 나눔고딕 ttf를 `src/main/resources/fonts/`에 포함 (또는 Dockerfile을 쓴다면 `fonts-nanum` 설치)
 
-근거: `../../docs/00-context/spec.md` F8-01 개발 주의 — **Render 컨테이너에 한글 폰트가 없으면 PDF가 전부 깨진다.** Phase 5에서 발견하면 늦으므로 골격 단계에서 넣어둔다. (PDF 생성 주체가 프론트로 확정되면 이 항목은 불필요해진다.)
+근거: `../../docs/00-context/spec.md` F8-01 개발 주의 — **Render 컨테이너에 한글 폰트가 없으면 PDF가 전부 깨진다.** Phase 5에서 발견하면 늦으므로 골격 단계에서 넣어둔다. **PDF 생성 주체는 서버로 확정됐으므로(2026-08-24) 이 항목은 필수다.**
 
 ## 완료 기준
 
@@ -81,6 +89,9 @@ com.haebing.backend
 - 로컬 `/actuator/health`가 `{"status":"UP","db":"OK"}`를 반환한다
 - 호출할 때마다 `keepalive` 테이블 행이 늘어난다
 - CORS 설정이 환경변수로 주입되고, 허용 헤더에 `X-Session-Hash`가 들어 있다
+- `http://localhost:5173`에서 보낸 요청이 CORS에 막히지 않는다
+- multipart 상한이 10MB로 설정돼 있다
+- **`api-spec.md`의 7.1 헬스체크 절과 "구현 현황" 표를 갱신했다**
 
 ## 이 Phase에서 하지 않는 것
 

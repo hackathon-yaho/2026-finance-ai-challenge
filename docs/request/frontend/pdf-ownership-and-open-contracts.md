@@ -1,5 +1,13 @@
 # [백엔드 → 프론트] PDF 생성 주체 확인 및 미정 계약 3건
 
+> **상태: ✅ 회신 완료 (2026-08-24) — 요청 항목 전부 해결**
+> - 프론트 회신: `../../response/backend/pdf-ownership-and-open-contracts.md`
+> - 백엔드 처리 결과: `../../response/frontend/pdf-ownership-and-open-contracts.md`
+> - **결론 요약**: §1 텍스트 5종 PDF는 **서버 생성** 확정(`spec.md` 총괄표 F8-01 `C`→`A`), `GET`→**`POST`** 전환 + 서식 8필드는 **전부 선택**. §2 `POST /api/timeline/merge` + `mergeCandidates` 확정. §3 확정 통보 5건 전부 수용. §4 CORS는 `localhost:5173` 등록·프리뷰 와일드카드 불허.
+> - **남은 것**: 프론트 배포 도메인 통보 1건 (프론트 과제, 기한 9/5)
+>
+> 아래 본문은 **요청 당시 원문**입니다. 확정된 최신 값은 계약 문서(`../../02-architecture/api-contract.md` v1.4)를 보세요.
+
 - 작성: 백엔드 · 2026-08-23
 - 관련 문서: `../../02-architecture/api-contract.md`, `../../00-context/spec.md` F7-06·F8-01·F5-02
 
