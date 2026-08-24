@@ -9,6 +9,7 @@
 3. 각 항목에는 **근거 문서 위치**가 붙어 있다. 구현 중 판단이 필요하면 추론하지 말고 근거 문서를 연다.
 4. 근거 문서와 다르게 구현해야 할 상황이 생기면 **근거 문서를 먼저 고치고**(문서 상단에 수정 기록) 코드를 바꾼다 — `../../docs/05-planning/role-assignment.md` "매몰 방지 원칙".
 5. **API를 하나 완료하거나 수정하면 [api-spec.md](api-spec.md)를 같이 고친다** (아래 규칙).
+6. **루트 `../../docs/`를 고쳤으면 이 폴더에 반영할 것이 있는지 확인한다** (아래 "역방향 규칙").
 
 ## API 작업 규칙 — `api-spec.md`를 항상 최신으로
 
@@ -32,6 +33,36 @@
 **두 문서가 다르면 `api-contract.md`가 우선이다.** 계약이 먼저 바뀌고 구현이 따라온다. `api-spec.md`에서 계약에 없는 값을 새로 정하지 않는다 — 정해야 하면 계약을 먼저 고치고, 프론트에 영향이 있으면 `../../docs/request/frontend/`로 요청을 보낸다.
 
 > **결정 근거는 여기에 적지 않는다.** "왜 그렇게 정했는지"는 `../../docs/request/*` ↔ `../../docs/response/*` 왕복 문서에 이미 남는다. 아래 결정 로그는 그 결론과 근거 문서 위치만 가리킨다.
+
+## 공용 문서가 바뀌면 이 폴더를 확인한다 (역방향 규칙)
+
+위 규칙이 **"코드 → 문서"** 방향이라면, 이건 **"공용 문서 → 백엔드 문서"** 방향이다. 둘 다 없으면 한쪽이 조용히 낡는다.
+
+> **루트 `../../docs/`의 스펙·계약 문서를 고쳤으면, 같은 작업 안에서 이 폴더의 해당 Phase 문서를 열어 반영할 것이 있는지 확인한다.** 없으면 없는 대로 넘어가되, **확인은 건너뛰지 않는다.**
+
+실제로 2026-08-25에 이 규칙이 없어서 백엔드 문서 6개가 하루치 변경분만큼 낡았다. Phase 5 체크리스트가 Phase 4와 다른 구조를 전제하게 되어, 그대로 구현했으면 **Stage 3과 Stage 4에서 서로 다른 체크리스트**가 나올 뻔했다.
+
+### 어느 문서를 고치면 어디를 봐야 하나
+
+| 루트 문서 | 확인할 백엔드 문서 |
+| --- | --- |
+| `spec.md` F1·F2 (세션·문진) | `phase-2-session-intake.md` |
+| `spec.md` F3·F4·F5 (업로드·판독·타임라인) | `phase-3-evidence-timeline.md` |
+| `spec.md` F6 (준비도) | `phase-4-readiness.md` |
+| `spec.md` F7·F8 (소명서·PDF) | `phase-5-draft-package.md` |
+| `spec.md` F11 (데모·통계·로깅) | `phase-6-infra-ops.md` |
+| `01-product/reason-type-rules.md` | `phase-4` (준비도 규칙) + `phase-5` (체크리스트) |
+| `02-architecture/api-contract.md` | **`api-spec.md`** + 해당 엔드포인트의 Phase 문서 |
+| `02-architecture/data-model.md` | `phase-1` (스키마) · `phase-2` (세션 구조) |
+| `02-architecture/internal-api-contract.md` | `phase-3` (AiClient) · `phase-5` (draft 호출) |
+| `03-infra-ops/privacy-and-safety.md` | `phase-3` (이미지 폐기) · `phase-6` (로깅) |
+| `03-infra-ops/deployment-and-uptime.md` | `phase-1` (골격 설정) · `phase-6` (배포) |
+| `04-testing/test-cases-and-demo.md` | `phase-4` 완료 기준 (TC 표) |
+| 새 결정·확정 사항 | **이 파일의 결정 로그** (근거 문서 위치까지) |
+
+### 회신 대기 항목은 Phase 문서에도 표시한다
+
+요청을 보내놓고 회신을 기다리는 동안, **그 항목이 막는 Phase 문서에 `⚠️ 회신 대기` 표시를 남긴다.** 표시가 없으면 구현할 때 그냥 지금 규칙대로 짜고 넘어가게 된다 — 나중에 회신이 와도 이미 짠 코드를 다시 뜯어야 한다.
 
 ## 문서 목록
 
