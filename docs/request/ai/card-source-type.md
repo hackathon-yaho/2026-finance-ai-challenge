@@ -1,8 +1,11 @@
 # [백엔드 → AI] 추출 카드에 `source_type` 필드 추가 요청
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-23)
-> 회신은 `../../response/backend/card-source-type.md`에 들어옵니다.
-> **막고 있는 작업**: Phase 3 F5-01 동시각 tie-break, F5-03 대화 유무 판정 (`../../../backend/docs/phase-3-evidence-timeline.md`)
+> **상태: ✅ 회신 완료 (2026-08-25) — 전부 해결**
+> - 회신: `../../response/backend/card-source-type.md`
+> - **결론 요약**: **요청 원안대로 카드(이벤트) 단위 `source_type`** 확정 (`chat/bank/shipping/threat/autopay/unknown`, 애매하면 `unknown`). 이미지 단위 역매핑 대안은 기각. `event_id` 채번 규칙(`evt_{image_index}_{n}` / `evt_txt_{n}`)도 함께 확정.
+> - **남은 것**: 백엔드가 `internal-api-contract.md`·`api-contract.md` 카드 스키마에 반영 (payer-name 회신과 묶어 처리 권장)
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 백엔드 · 2026-08-23
 - 관련 문서: `../../02-architecture/internal-api-contract.md`, `../../02-architecture/api-contract.md`, `../../00-context/prd.md` §4.2

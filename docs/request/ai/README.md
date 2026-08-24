@@ -11,9 +11,9 @@ AI 개발자에게 요청할 사항을 문서로 정리하는 폴더입니다.
 
 ## 현재 요청 목록
 
-| 문서 | 상태 | 막고 있는 작업 |
+| 문서 | 상태 | 막고 있던 작업 |
 | --- | --- | --- |
-| [image-transfer-and-internal-auth.md](image-transfer-and-internal-auth.md) | ⏳ 회신 대기 (2026-08-23) | Phase 3 `AiClient.extract()` |
-| [card-source-type.md](card-source-type.md) | ⏳ 회신 대기 (2026-08-23) | Phase 3 F5-01·F5-03 |
-| [demo-response-set.md](demo-response-set.md) | ⏳ 회신 대기 (2026-08-23) | Phase 6 `DEMO_MODE` |
-| [payer-name-extraction.md](payer-name-extraction.md) | ⏳ 회신 대기 (2026-08-24) | Phase 3 구매자–송금인 대조, Phase 4 준비도 신호 |
+| [image-transfer-and-internal-auth.md](image-transfer-and-internal-auth.md) | ✅ 회신 완료 (08-25) | Phase 3 `AiClient.extract()` — **블로커 해제** |
+| [card-source-type.md](card-source-type.md) | ✅ 회신 완료 (08-25) | Phase 3 F5-01·F5-03 — 백엔드 계약 반영만 남음 |
+| [demo-response-set.md](demo-response-set.md) | ✅ 회신 완료 (08-25) | Phase 6 `DEMO_MODE` — v1 납품(`ai-server/demo/`), v2는 리허설 때 |
+| [payer-name-extraction.md](payer-name-extraction.md) | ✅ 회신 완료 (08-25) | Phase 3 구매자–송금인 대조 — §2 절충안에 대한 백엔드 결정 대기 |

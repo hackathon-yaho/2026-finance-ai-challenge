@@ -1,8 +1,11 @@
 # [백엔드 → AI] 오프라인 데모 모드용 사전 응답 세트 요청
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-23)
-> 회신은 `../../response/backend/demo-response-set.md`에 들어옵니다.
-> **막고 있는 작업**: Phase 6 `DEMO_MODE` (`../../../backend/docs/phase-6-infra-ops.md`)
+> **상태: ✅ 회신 완료 (2026-08-25) — 전부 해결 (v1 납품, v2는 리허설 때)**
+> - 회신: `../../response/backend/demo-response-set.md`
+> - **결론 요약**: 백엔드 리소스 탑재·AI-server 미호출 결정 수용. **v1 파일 9종을 `ai-server/demo/`에 조기 납품** — 판독 6종(TC-01~06) + 소명서 3종(TC-01·03·06). `AiClient` 테스트 픽스처로도 사용 가능. `imageIndex`·`bbox`는 실제 데모 이미지 확정 후(9/1~9/2 리허설) v2로 재생성 예정.
+> - **남은 것**: 백엔드가 `src/main/resources/demo/`로 복사 · 리허설에서 데모 이미지 4장 확정 → AI가 v2 납품
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 백엔드 · 2026-08-23
 - 관련 문서: `../../00-context/spec.md` F11-03, `../../04-testing/test-cases-and-demo.md`

@@ -1,5 +1,11 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-25, AI)**
+> - **이미지 전달 방식 확정** — `[결정: TODO]` 블록을 확정 내용으로 대체. **A 계열(바이트 그대로 전달)로 확정하되, 멀티파트 봉투 없이 이미지 바이트를 요청 raw body로 전달**합니다(`Content-Type: image/png`, 메타데이터는 쿼리 파라미터). base64 미사용(B 기각). 근거·상세는 회신 문서 `../response/backend/image-transfer-and-internal-auth.md` 참조
+> - 텍스트 대체 경로(F3-04)의 요청 형식을 같은 절에 명시 (`application/json` — 같은 엔드포인트에서 Content-Type으로 구분)
+> - AI-server가 반환하는 오류 코드 목록(`EXTRACTION_FAILED` / `TIMEOUT` / `QUOTA_EXCEEDED` / `DRAFT_FAILED`)을 오류 절에 명시
+> - 하단 체크리스트의 이미지 전달 방식 항목 완료 처리
+
 > **수정 기록 (2026-08-23, 백엔드)**
 > - "인증 (착수 전 확정 필요)" 절 → 공유 시크릿 헤더 `X-Internal-Token` 확정 내용으로 대체. `/internal/health`는 무인증 공개 예외로 명시
 > - 하단 체크리스트의 인증 항목 완료 처리, 이미지 전달 방식(A/B) 항목에 요청 문서 링크 추가
@@ -30,16 +36,38 @@
 
 ## `POST /internal/extract`
 
-### 요청
+### 요청 (2026-08-25 확정 — A 계열: 이미지 바이트 raw body 전달)
 
-이미지 전달 방식은 두 가지 중 하나로 결정합니다(착수 전 백엔드·AI 협의):
-
-- **(A) 멀티파트 포워딩**: 백엔드가 받은 이미지 바이트를 그대로 AI-server에 멀티파트로 전달 (원본은 클라이언트에서 이미 리사이즈·마스킹이 끝난 상태)
-- **(B) Base64 JSON**: 이미지를 base64로 인코딩해 JSON 본문에 담아 전달
+**이미지 경로** — 백엔드가 받은 이미지 바이트를 **그대로 요청 본문(raw body)으로** 전달합니다. 멀티파트 봉투도, base64 인코딩도 쓰지 않습니다. 이미지 1장당 1요청입니다(공개 API `/api/evidence`가 1장씩 병렬 호출되는 구조와 1:1 대응).
 
 ```
-[결정: TODO — A/B 중 선택 후 이 블록 갱신]
+POST /internal/extract?image_index={n}
+Content-Type: image/png          (또는 image/jpeg — 받은 파일의 실제 타입 그대로)
+X-Internal-Token: {INTERNAL_TOKEN}
+
+<이미지 바이트 그대로>
 ```
+
+| 항목 | 값 |
+| --- | --- |
+| `image_index` (쿼리, 필수) | 이 이미지의 세션 내 순번(0-base). 응답 카드의 `source_image_index`로 그대로 반사됨 — 프론트 blob 배열 인덱스와 일치해야 함 |
+| 본문 크기 상한 | 10MB (공개 API와 동일) |
+| Spring 측 호출 예 | `RestClient` — `.contentType(MediaType.IMAGE_PNG).body(bytes)` (멀티파트 빌더 불필요) |
+
+**텍스트 경로 (F3-04)** — 같은 엔드포인트에 `Content-Type: application/json`으로 보냅니다. AI-server는 Content-Type으로 두 경로를 구분합니다.
+
+```json
+POST /internal/extract
+Content-Type: application/json
+X-Internal-Token: {INTERNAL_TOKEN}
+
+{ "rawText": "9월 2일쯤 당근에서 아이패드를 팔고 45만원을 입금받았습니다. ..." }
+```
+
+- 텍스트 경로 카드의 `source_image_index`는 `null`, `occurred_at`의 `field_confidence`는 **전부 `low`** 입니다(F3-04 처리 — AI-server가 승격하지 않고, 백엔드도 승격하지 않음).
+- `rawText` 최대 2000자(공개 API와 동일). 텍스트 경로에서도 협박 감지(`threat_detected`)는 동일하게 수행합니다.
+
+> **B(base64 JSON)를 기각한 이유**: 본문이 약 33% 커지고 양쪽에 인코딩/디코딩 버퍼가 한 번 더 뜹니다(Render 512MB). **멀티파트 봉투를 쓰지 않는 이유**: 서버 프레임워크의 멀티파트 파서는 큰 파트를 임시 파일로 디스크에 스풀링하는 것이 일반적이라 "이미지를 디스크에 쓰지 않는다"(`../03-infra-ops/privacy-and-safety.md`) 원칙과 충돌 위험이 있습니다. raw body는 메모리에만 존재함을 구조적으로 보장하고, 양쪽 코드도 더 단순합니다. 상세: `../response/backend/image-transfer-and-internal-auth.md`
 
 ### 응답 — 추출 카드 스키마
 
@@ -123,6 +151,18 @@
 
 백엔드는 이 오류를 받으면 공개 API 응답의 `fallback` 필드를 `/api/evidence/text`로 바꿔서 프론트에 전달합니다 (내부 경로를 외부에 노출하지 않음).
 
+**AI-server가 반환하는 오류 코드** (2026-08-25 확정):
+
+| error 코드 | HTTP | 상황 | `fallback` |
+| --- | --- | --- | --- |
+| `EXTRACTION_FAILED` | 502 | 판독 실패 (LLM 응답 불가·스키마 불일치 재시도 후 실패·안전 거부) | `"text_input"` |
+| `TIMEOUT` | 504 | AI-server 내부 LLM 호출 시간 초과 | `"text_input"` |
+| `QUOTA_EXCEEDED` | 429 | LLM API 쿼터·레이트리밋 초과 — 백엔드는 데모 모드 폴백(F4-05) | 없음 |
+| `DRAFT_FAILED` | 502 | `/internal/draft` 생성 실패 (스키마 불일치 재시도 후 실패 등) | 없음 |
+| (401 Unauthorized) | 401 | `X-Internal-Token` 누락·불일치 | 없음 |
+
+`factCheckPassed: false`는 오류가 아니라 **정상 200 응답**입니다 — 백엔드가 재시도 로직(1회)을 따릅니다.
+
 ## 타임아웃 및 재시도
 
 | 항목 | 값 |
@@ -134,7 +174,7 @@
 ## 체크리스트
 
 - [x] 인증 방식 확정 (`X-Internal-Token`) — AI-server 측 검증 구현은 진행 중
-- [ ] 이미지 전달 방식(A/B) 확정 — 요청서: `../request/ai/image-transfer-and-internal-auth.md`
+- [x] 이미지 전달 방식 확정 (2026-08-25, A 계열 raw body) — 회신: `../response/backend/image-transfer-and-internal-auth.md`
 - [ ] AI-server가 `/internal/*` 응답 스키마를 `api-contract.md`와 동일하게 맞췄는지 확인 — 스키마가 둘로 갈라지면 백엔드가 매번 변환 코드를 짜야 합니다
 - [ ] `/internal/health`가 외부 헬스체크 도구에서 접근 가능한지 확인 (킵얼라이브 목적이므로 이 엔드포인트만은 공개되어야 함)
 - [ ] AI-server도 이미지를 처리 완료 즉시 폐기하는지 확인 (원본이 AI-server에도 남지 않아야 함, `../03-infra-ops/privacy-and-safety.md` 참조)

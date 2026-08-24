@@ -1,8 +1,11 @@
 # [백엔드 → AI] 내부 API 이미지 전달 방식 확정 및 인증 토큰 공유
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-23)
-> 회신은 `../../response/backend/image-transfer-and-internal-auth.md`에 들어옵니다.
-> **막고 있는 작업**: Phase 3 `AiClient.extract()` 본문 직렬화 (`../../../backend/docs/phase-3-evidence-timeline.md`)
+> **상태: ✅ 회신 완료 (2026-08-25) — 전부 해결**
+> - 회신: `../../response/backend/image-transfer-and-internal-auth.md`
+> - **결론 요약**: 이미지 전달은 **A 계열 — 바이트를 raw body로 그대로 전달**(멀티파트 봉투·base64 없음, `Content-Type: image/png`, `?image_index={n}`), 텍스트 경로는 같은 엔드포인트에 `application/json`. `X-Internal-Token` 401 거부·`/internal/health` 무인증 공개 수용. AI가 `internal-api-contract.md`의 TODO 블록을 확정 내용으로 직접 갱신함.
+> - **남은 것**: 없음 — `AiClient.extract()` 본문 직렬화 착수 가능
+>
+> 아래 본문은 **요청 당시 원문**입니다. 확정된 최신 값은 `../../02-architecture/internal-api-contract.md`를 보세요.
 
 - 작성: 백엔드 · 2026-08-23
 - 관련 문서: `../../02-architecture/internal-api-contract.md`
