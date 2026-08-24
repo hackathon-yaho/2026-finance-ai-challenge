@@ -1,0 +1,56 @@
+{
+  "cards": [
+    {
+      "event_id": "evt_0_1",
+      "source_image_index": 0,
+      "source_type": "chat",
+      "occurred_at": "2026-08-15T13:02:00+09:00",
+      "actor": "counterparty",
+      "summary": "물품 구매 의사 확인 대화",
+      "amount": null,
+      "counterparty_name": "중고나라거래자",
+      "payer_name": null,
+      "identifiers": { "tracking_no": null, "account_last4": null },
+      "field_confidence": {
+        "occurred_at": "high",
+        "actor": "high",
+        "amount": "high",
+        "counterparty_name": "medium",
+        "payer_name": "high"
+      },
+      "source_region": { "x": 0.08, "y": 0.3, "w": 0.8, "h": 0.16 },
+      "confirmation_status": "pending"
+    },
+    {
+      "event_id": "evt_1_1",
+      "source_image_index": 1,
+      "source_type": "bank",
+      "occurred_at": "2026-08-15T14:40:00+09:00",
+      "actor": "counterparty",
+      "summary": "입금 내역 (화면이 흐려 금액 판독 불확실)",
+      "amount": 300000,
+      "counterparty_name": null,
+      "payer_name": null,
+      "identifiers": { "tracking_no": null, "account_last4": null },
+      "field_confidence": {
+        "occurred_at": "medium",
+        "actor": "high",
+        "amount": "low",
+        "counterparty_name": "high",
+        "payer_name": "low"
+      },
+      "source_region": { "x": 0.06, "y": 0.33, "w": 0.88, "h": 0.14 },
+      "confirmation_status": "pending"
+    }
+  ],
+  "signals": {
+    "threat_detected": false,
+    "delivery_evidence": false,
+    "life_activity": false,
+    "quality_flags": { "blurry": true, "missing_date": false, "amount_mismatch": false }
+  },
+  "qualityFlags": {
+    "evt_0_1": { "blurry": false, "missing_date": false, "amount_mismatch": false },
+    "evt_1_1": { "blurry": true, "missing_date": false, "amount_mismatch": false }
+  }
+}

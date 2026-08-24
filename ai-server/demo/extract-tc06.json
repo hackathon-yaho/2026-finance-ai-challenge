@@ -1,0 +1,10 @@
+{
+  "cards": [],
+  "signals": {
+    "threat_detected": false,
+    "delivery_evidence": false,
+    "life_activity": false,
+    "quality_flags": { "blurry": false, "missing_date": false, "amount_mismatch": false }
+  },
+  "qualityFlags": {}
+}

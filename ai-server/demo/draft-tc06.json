@@ -1,0 +1,28 @@
+{
+  "draftText": "1. 본인은 2026년 8월 20일경 본인 계좌의 지급정지 사실을 알게 되었습니다.\n\n2. 문제가 된 입금은 중고 물품 판매의 대가로 받은 것입니다.\n\n3. 해당 계좌는 본인이 주 거래 계좌로 사용하고 있는 계좌입니다.",
+  "sentences": [
+    {
+      "sentenceId": "s1",
+      "text": "본인은 2026년 8월 20일경 본인 계좌의 지급정지 사실을 알게 되었습니다.",
+      "evidenceRefs": [
+        { "type": "intake" }
+      ]
+    },
+    {
+      "sentenceId": "s2",
+      "text": "문제가 된 입금은 중고 물품 판매의 대가로 받은 것입니다.",
+      "evidenceRefs": [
+        { "type": "intake" }
+      ]
+    },
+    {
+      "sentenceId": "s3",
+      "text": "해당 계좌는 본인이 주 거래 계좌로 사용하고 있는 계좌입니다.",
+      "evidenceRefs": [
+        { "type": "intake" }
+      ]
+    }
+  ],
+  "checklist": [],
+  "factCheckPassed": true
+}

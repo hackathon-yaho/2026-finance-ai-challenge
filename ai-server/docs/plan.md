@@ -1,0 +1,66 @@
+# AI-server 실행 계획
+
+> 작성: AI · 2026-08-25. 팀 로드맵(`../../docs/05-planning/roadmap.md`)의 구간에 AI-server 작업을 매핑한 체크리스트다. 설계 근거는 [design.md](design.md), 계약은 `../../docs/02-architecture/internal-api-contract.md`가 단일 출처.
+>
+> 백엔드 플랜(`../../backend/docs/README.md`)과 같은 규칙을 따른다: 판단이 필요하면 추론하지 말고 근거 문서를 열고, 계약이 걸린 변경은 **문서 먼저** 고친다.
+
+## Phase A1 — 스켈레톤 (8/25, 로드맵 "킥오프·스켈레톤" 잔여일)
+
+- [ ] FastAPI 프로젝트 골격 + `requirements.txt` + Dockerfile (design.md §2 구조)
+- [ ] `GET /internal/health` (무인증) — `{"status":"UP"}`
+- [ ] `X-Internal-Token` 검증 dependency (401, 상수 시간 비교) — 계약 체크리스트 "AI-server 측 401 검증 구현" 해소
+- [ ] pydantic 스키마: 카드·신호·draft 요청/응답 (계약 = 코드)
+- [ ] Render 배포 (무료 티어로 우선) → **`AI_SERVER_URL` 백엔드 전달** (킵얼라이브 Secrets)
+- [ ] UptimeRobot 등록
+
+## Phase A2 — 추출 (8/25~8/28, 로드맵 "코어 기능")
+
+- [ ] `POST /internal/extract` 이미지 경로: raw body 수신 → LLM 판독 → 카드 응답 (design.md §3-3, §4)
+- [ ] structured outputs 스키마 + 시스템 프롬프트 (§4의 11개 조항)
+- [ ] `source_type` / `counterparty_name` / `payer_name` / `field_confidence` / `source_region` 산출
+- [ ] `signals` 산출: `threat_detected` / `delivery_evidence` / `life_activity` / `blurry` / `missing_date` (`amount_mismatch`는 항상 false)
+- [ ] 텍스트 경로 (`application/json`, rawText) — `occurred_at` confidence 전부 `low` 강제
+- [ ] PII 후처리 검증 (`pii.py`) + 단위 테스트
+- [ ] 실패 처리: 재시도 1회·타임아웃·QUOTA_EXCEEDED·refusal 폴백 (§7)
+- [ ] 이미지 참조 즉시 해제 확인 (디스크·로그에 흔적 없음 — `privacy-and-safety.md` AI 체크리스트)
+- [ ] 샘플 캡처로 인젝션 방어 검증 (TC-10 사전 확인)
+- [ ] **8/28까지: 이름 추출 정확도 실측 → `docs/response/backend/payer-name-extraction.md`에 수치 추가**
+
+## Phase A3 — 소명서 (8/29~8/31, 로드맵 "문서 생성")
+
+- [ ] `POST /internal/draft`: 사실 목록 직렬화 → LLM 문장 생성 (basis 포함) (design.md §5-1)
+- [ ] FactChecker 결정적 검증기 + 단위 테스트 (LLM 없이): 근거 매칭·날짜/금액 대조·금지 표현 차단·본인 진술 태깅·factCheckPassed 판정 (§5-2)
+- [ ] 협박 수신 사실 문단 고정 템플릿 삽입 (F10-04, §5-3)
+- [ ] 제목·메타·서명란 결정적 템플릿 조립
+- [ ] `evidenceRefs` 산출 (evidence/intake/user_text), `checklist: []`
+- [ ] `intake` 입력 반영 (백엔드 회신 도착 시 — `../../docs/request/backend/draft-intake-input.md`)
+- [ ] TC-06·TC-08 시나리오 수동 검증
+
+## Phase A4 — 완성도·품질 (9/1~9/2, 로드맵 "완성도")
+
+- [ ] 평가 세트 구축: 합성 캡처 20~30건 + 기대값 + 러너 (design.md §9)
+- [ ] PRD §1.4 지표 실측: 날짜·금액 정확도 / 협박 재현율 / 근거 연결률 / 근거 없는 문장 비율 / p95 지연
+- [ ] 미달 지표 → effort·프롬프트 조정 후 재실측
+- [ ] **데모 응답 세트 v2**: 확정된 실제 데모 이미지 4장을 파이프라인에 통과시켜 재생성 (`demo/`, imageIndex·bbox 동기화) → 백엔드에 전달
+- [ ] 품질 검사 안내와의 정합 확인 (quality_flags → 백엔드 안내 문구 매핑이 실제로 뜨는지 백엔드와 합동 확인)
+
+## Phase A5 — 인프라 확정 (9/5, 로드맵 "인프라 확정")
+
+- [ ] **Render Starter 전환 ($7/월)** — 협상 불가
+- [ ] 헬스체크·킵얼라이브 동작 확인 (스핀다운 없는 상태 검증)
+- [ ] 동시 4 요청 부하 확인 (10장 업로드 시나리오 3회)
+- [ ] 환경변수 최종 점검 (`INTERNAL_TOKEN` 일치, 키 유효기간)
+
+## Phase A6 — 최종 점검·심사 기간 (9/6~9/11)
+
+- [ ] 9/6: 3서비스 전체 플로우 3회 완주 합동 확인
+- [ ] 9/7~9/11: 매일 아침 `/internal/health` 확인 로테이션 참여
+
+## 절대 원칙 (구현 중 어떤 경우에도 깨지 않는다)
+
+1. **준비도를 판단하지 않는다.** `readiness`는 받은 값 그대로, 문장 톤 제어에만 쓴다. — `reason-type-rules.md` §0
+2. **승인·기각·해제 가능성을 언급하는 출력을 만들지 않는다.** 금지 어휘는 FactChecker 블록리스트로도 이중 차단한다.
+3. **이미지를 디스크에 쓰지 않는다. 무상태를 유지한다.** — `privacy-and-safety.md`
+4. **로그에 이미지 내용·추출 텍스트·이름·소명서 본문을 남기지 않는다.**
+5. **없는 값은 추측하지 않는다.** null + confidence/quality_flags로 정직하게 표기한다.
+6. **응답 스키마는 계약 문서와 항상 동일하게.** 스키마를 바꿔야 하면 계약 문서 먼저.

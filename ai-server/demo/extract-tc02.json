@@ -1,0 +1,34 @@
+{
+  "cards": [
+    {
+      "event_id": "evt_0_1",
+      "source_image_index": 0,
+      "source_type": "bank",
+      "occurred_at": "2026-08-12T17:21:00+09:00",
+      "actor": "counterparty",
+      "summary": "용역 대금 800,000원 입금",
+      "amount": 800000,
+      "counterparty_name": null,
+      "payer_name": "(주)브릿지디자인",
+      "identifiers": { "tracking_no": null, "account_last4": "7733" },
+      "field_confidence": {
+        "occurred_at": "high",
+        "actor": "high",
+        "amount": "high",
+        "counterparty_name": "high",
+        "payer_name": "high"
+      },
+      "source_region": { "x": 0.06, "y": 0.28, "w": 0.88, "h": 0.13 },
+      "confirmation_status": "pending"
+    }
+  ],
+  "signals": {
+    "threat_detected": false,
+    "delivery_evidence": false,
+    "life_activity": false,
+    "quality_flags": { "blurry": false, "missing_date": false, "amount_mismatch": false }
+  },
+  "qualityFlags": {
+    "evt_0_1": { "blurry": false, "missing_date": false, "amount_mismatch": false }
+  }
+}

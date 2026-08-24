@@ -1,0 +1,122 @@
+{
+  "cards": [
+    {
+      "event_id": "evt_0_1",
+      "source_image_index": 0,
+      "source_type": "bank",
+      "occurred_at": "2026-08-21T10:11:00+09:00",
+      "actor": "counterparty",
+      "summary": "10,000원 입금 (1차)",
+      "amount": 10000,
+      "counterparty_name": null,
+      "payer_name": "박OO",
+      "identifiers": { "tracking_no": null, "account_last4": "5510" },
+      "field_confidence": {
+        "occurred_at": "high",
+        "actor": "high",
+        "amount": "high",
+        "counterparty_name": "high",
+        "payer_name": "medium"
+      },
+      "source_region": { "x": 0.06, "y": 0.24, "w": 0.88, "h": 0.1 },
+      "confirmation_status": "pending"
+    },
+    {
+      "event_id": "evt_0_2",
+      "source_image_index": 0,
+      "source_type": "bank",
+      "occurred_at": "2026-08-21T10:12:00+09:00",
+      "actor": "counterparty",
+      "summary": "10,000원 입금 (2차)",
+      "amount": 10000,
+      "counterparty_name": null,
+      "payer_name": "박OO",
+      "identifiers": { "tracking_no": null, "account_last4": "5510" },
+      "field_confidence": {
+        "occurred_at": "high",
+        "actor": "high",
+        "amount": "high",
+        "counterparty_name": "high",
+        "payer_name": "medium"
+      },
+      "source_region": { "x": 0.06, "y": 0.36, "w": 0.88, "h": 0.1 },
+      "confirmation_status": "pending"
+    },
+    {
+      "event_id": "evt_0_3",
+      "source_image_index": 0,
+      "source_type": "bank",
+      "occurred_at": "2026-08-21T10:13:00+09:00",
+      "actor": "counterparty",
+      "summary": "10,000원 입금 (3차)",
+      "amount": 10000,
+      "counterparty_name": null,
+      "payer_name": "박OO",
+      "identifiers": { "tracking_no": null, "account_last4": "5510" },
+      "field_confidence": {
+        "occurred_at": "high",
+        "actor": "high",
+        "amount": "high",
+        "counterparty_name": "high",
+        "payer_name": "medium"
+      },
+      "source_region": { "x": 0.06, "y": 0.48, "w": 0.88, "h": 0.1 },
+      "confirmation_status": "pending"
+    },
+    {
+      "event_id": "evt_1_1",
+      "source_image_index": 1,
+      "source_type": "autopay",
+      "occurred_at": "2026-08-01T09:00:00+09:00",
+      "actor": "system",
+      "summary": "매장 임대료 1,200,000원 자동이체 출금",
+      "amount": 1200000,
+      "counterparty_name": null,
+      "payer_name": null,
+      "identifiers": { "tracking_no": null, "account_last4": null },
+      "field_confidence": {
+        "occurred_at": "high",
+        "actor": "high",
+        "amount": "high",
+        "counterparty_name": "high",
+        "payer_name": "high"
+      },
+      "source_region": { "x": 0.06, "y": 0.3, "w": 0.88, "h": 0.11 },
+      "confirmation_status": "pending"
+    },
+    {
+      "event_id": "evt_2_1",
+      "source_image_index": 2,
+      "source_type": "threat",
+      "occurred_at": "2026-08-22T09:14:00+09:00",
+      "actor": "counterparty",
+      "summary": "지급정지 해제를 조건으로 200,000원을 요구하는 메시지 수신",
+      "amount": 200000,
+      "counterparty_name": null,
+      "payer_name": null,
+      "identifiers": { "tracking_no": null, "account_last4": null },
+      "field_confidence": {
+        "occurred_at": "high",
+        "actor": "high",
+        "amount": "high",
+        "counterparty_name": "high",
+        "payer_name": "high"
+      },
+      "source_region": { "x": 0.1, "y": 0.35, "w": 0.8, "h": 0.24 },
+      "confirmation_status": "pending"
+    }
+  ],
+  "signals": {
+    "threat_detected": true,
+    "delivery_evidence": false,
+    "life_activity": true,
+    "quality_flags": { "blurry": false, "missing_date": false, "amount_mismatch": false }
+  },
+  "qualityFlags": {
+    "evt_0_1": { "blurry": false, "missing_date": false, "amount_mismatch": false },
+    "evt_0_2": { "blurry": false, "missing_date": false, "amount_mismatch": false },
+    "evt_0_3": { "blurry": false, "missing_date": false, "amount_mismatch": false },
+    "evt_1_1": { "blurry": false, "missing_date": false, "amount_mismatch": false },
+    "evt_2_1": { "blurry": false, "missing_date": false, "amount_mismatch": false }
+  }
+}
