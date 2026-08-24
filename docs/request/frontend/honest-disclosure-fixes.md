@@ -4,12 +4,12 @@
 > 회신은 `../../response/backend/honest-disclosure-fixes.md`에 들어옵니다.
 
 - 작성: 백엔드 · 2026-08-24
-- 관련 문서: `../../00-context/spec.md` F6-05·F10-03, `../../01-product/reason-type-rules.md` §3, `../../03-infra-ops/privacy-and-safety.md`
+- 관련 문서: `../../00-context/spec.md` F6-05·F10-03, `../../01-product/reason-type-rules.md` §4, `../../03-infra-ops/privacy-and-safety.md`
 - 근거: 법 제8조 제2항 조문 확인, 실제 피해 사례 조사 (§4 출처)
 
 ## 0. 이 요청의 성격
 
-이 프로젝트는 **"낙관적으로 순화하지 않는다"** 를 핵심 원칙으로 삼고 있습니다(`reason-type-rules.md` §3, `README.md` 핵심 설계 원칙). 그런데 조사해보니 **지금 문서는 은행의 승인 여부에 대해서만 정직하고, 시간과 후속 불이익에 대해서는 침묵**하고 있습니다.
+이 프로젝트는 **"낙관적으로 순화하지 않는다"** 를 핵심 원칙으로 삼고 있습니다(`reason-type-rules.md` §4, `README.md` 핵심 설계 원칙). 그런데 조사해보니 **지금 문서는 은행의 승인 여부에 대해서만 정직하고, 시간과 후속 불이익에 대해서는 침묵**하고 있습니다.
 
 3건 다 문구·배치 위주라 작업량은 크지 않습니다. 다만 **첫 화면 카피가 걸려 있어** 확인이 필요합니다.
 
@@ -120,7 +120,7 @@
 | `spec.md` F6-05 | 업무처리 기간 고정 안내 문구 — **"심사 통보"와 "해제"를 분리** |
 | `spec.md` F9-01 또는 F10-05 | 사기이용계좌 등록 3년 제한 안내 신설 |
 | `spec.md` F5-04 | 삭제 자료 복구 경로를 대체 증빙에 추가 |
-| `reason-type-rules.md` §3 | 금지·허용 문구 예시에 시간·후속 불이익 항목 추가 |
+| `reason-type-rules.md` §4 | 금지·허용 문구 예시에 시간·후속 불이익 항목 추가 |
 | `api-contract.md` | `/api/readiness` `notices` 항목 정의 |
 
 ## 6. 출처

@@ -447,7 +447,7 @@ Content-Type: application/json
 
 **문구 처리 주의**
 
-- `readiness`가 `BANK_CHECK_REQUIRED`면 `reason-type-rules.md` §3의 정직한 안내 문구를 그대로 노출합니다. 낙관적으로 순화하지 마세요.
+- `readiness`가 `BANK_CHECK_REQUIRED`면 `reason-type-rules.md` §4의 정직한 안내 문구를 그대로 노출합니다. 낙관적으로 순화하지 마세요.
 - `smallAmountNotice`는 **판정이 아니라 정보 제공**입니다. 입금액에 따라 문구가 달라지지 않는 고정 문구이며, "소액이라 유리하다"처럼 단정적으로 바꾸지 마세요. 준비도 배지와 **시각적으로 분리**해 배치해주세요.
 
 **Status**

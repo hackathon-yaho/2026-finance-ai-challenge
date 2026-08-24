@@ -101,7 +101,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 | `when` | string \| null | 지급정지일 (날짜, 모르면 null) | **FR-014 기한 계산 입력** |
 | `dueNoticeStatus` | enum | `notified` \| `not_yet` \| `unknown` | 채권소멸절차 개시 공고 상태. `notified`면 `dueNoticeDate` 필요 |
 | `dueNoticeDate` | string \| null | 공고일 (날짜) | **FR-014 기한 계산 입력** — 기한 = 공고일 + 2개월 |
-| `amount` | number \| null | 문제 입금액 (원 단위, 모르면 null) | **사실 기재 전용.** 준비도 판정에 사용하지 않음 (`../01-product/reason-type-rules.md` §2) |
+| `amount` | number \| null | 문제 입금액 (원 단위, 모르면 null) | **사실 기재 전용.** 준비도 판정에 사용하지 않음 (`../01-product/reason-type-rules.md` §3) |
 | `kind` | enum | `goods` \| `service` \| `debt` \| `unclear` | 사유유형 4종에 대응 |
 | `history` | boolean | 과거 지급정지 이력 여부 | `은행기준미상` 신호의 입력값 |
 | `usage` | enum | `main` \| `occasional` \| `rare` | 생계 흔적 증빙 점검 보조 |
@@ -231,7 +231,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 }
 ```
 
-- `readiness`가 `BANK_CHECK_REQUIRED`일 때 프론트엔드는 `../01-product/reason-type-rules.md` §3에 정의된 정직한 안내 문구를 그대로 노출합니다. 낙관적으로 순화하지 않습니다.
+- `readiness`가 `BANK_CHECK_REQUIRED`일 때 프론트엔드는 `../01-product/reason-type-rules.md` §4에 정의된 정직한 안내 문구를 그대로 노출합니다. 낙관적으로 순화하지 않습니다.
 - `notices`에는 세 상태 공통으로 "최종 판단은 은행이 합니다"가 항상 포함됩니다 — 프론트엔드는 이 문구를 생략하지 않습니다.
 - `smallAmountNotice`는 **판정이 아니라 정보 제공**입니다(PRD §4.3 소액 안내 카드). 고정 문구이며 입금액에 따라 문구가 달라지지 않습니다 — 소액 여부를 서비스가 판정하지 않기 때문입니다(§14 OI-01). 프론트엔드는 이 문구를 "소액에 해당하니 유리하다"처럼 단정적으로 바꾸지 않습니다.
 - `urgentAlert`는 협박 감지 여부이며 `readiness`와 독립적으로 산출됩니다.
