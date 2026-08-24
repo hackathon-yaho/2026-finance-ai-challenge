@@ -1,14 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { INTAKE_PAGES } from "../data"
+import { INTAKE_PAGES, QUESTIONS } from "../data"
 import { buildChecklist, buildDraftLines } from "../lib/draft"
 import { getAmountInfo } from "../lib/amount"
-import { getDeadlineNotice, isDeadlineUrgent } from "../lib/deadline"
+import { getDeadline } from "../lib/deadline"
+import { isAnswered } from "../lib/intake"
 import { computeReadiness } from "../lib/readiness"
 import { buildTimeline } from "../lib/timeline"
 import { MAX_UPLOADS, REJECT_MESSAGE, validateImageFile } from "../lib/upload"
-import type { EvidenceId, EvidenceState, IntakeAnswers, IntakeField, PendingUpload, UploadedFile, ViewerId } from "../types"
+import type {
+  DueNoticeStatus,
+  EvidenceId,
+  EvidenceState,
+  IntakeAnswers,
+  IntakeField,
+  PendingUpload,
+  UploadedFile,
+  ViewerId,
+} from "../types"
 
-const INITIAL_INTAKE: IntakeAnswers = { when: null, notice: null, amount: null, kind: null, history: null, usage: null }
+const INITIAL_INTAKE: IntakeAnswers = {
+  when: null,
+  whenUnknown: false,
+  noticeStatus: null,
+  noticeDate: null,
+  amount: null,
+  amountUnknown: false,
+  kind: null,
+  history: null,
+  usage: null,
+}
 const INITIAL_EVIDENCE: EvidenceState = { autopay: true, chat: true, bank: true, shipping: true, threat: false }
 
 export function useHaebingFlow() {
@@ -17,6 +37,8 @@ export function useHaebingFlow() {
   // 0 = 방향 없음(최초 진입·재시작). 진입 애니메이션을 세로 상승으로 둔다.
   const [navDir, setNavDir] = useState<0 | 1 | -1>(0)
   const [intake, setIntake] = useState<IntakeAnswers>(INITIAL_INTAKE)
+  // 열려 있는 날짜 선택 시트가 어느 문항의 것인지. 시트 자체는 App이 그린다.
+  const [dateSheet, setDateSheet] = useState<"when" | "notice" | null>(null)
   const [evidence, setEvidence] = useState<EvidenceState>(INITIAL_EVIDENCE)
   const [bankConfirmed, setBankConfirmed] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
@@ -62,6 +84,7 @@ export function useHaebingFlow() {
     setNavDir(next > stage ? 1 : -1)
     setStage(next)
     setIntakePage(0)
+    setDateSheet(null)
     setViewer(null)
     setViewerNote(null)
     window.scrollTo(0, 0)
@@ -73,6 +96,7 @@ export function useHaebingFlow() {
       const next = Math.max(0, Math.min(INTAKE_PAGES.length - 1, n))
       setNavDir(next >= intakePage ? 1 : -1)
       setIntakePage(next)
+      setDateSheet(null)
       window.scrollTo(0, 0)
     },
     [intakePage],
@@ -87,11 +111,64 @@ export function useHaebingFlow() {
     go(stage - 1)
   }, [stage, intakePage, goIntakePage, go])
 
-  const pick = useCallback((field: IntakeField, value: string) => {
-    setIntake((prev) => ({ ...prev, [field]: value }))
+  /**
+   * 문진 응답 변경. F2-03에 따라 손을 대는 즉시 준비도·소명서를 무효화한다 —
+   * 앞 단계 답이 바뀐 채로 뒤 단계 결과가 남아 있으면 틀린 서류가 만들어진다.
+   */
+  const editIntake = useCallback((patch: (prev: IntakeAnswers) => Partial<IntakeAnswers>) => {
+    setIntake((prev) => ({ ...prev, ...patch(prev) }))
     setAnalyzed(false)
     setDraftShown(false)
   }, [])
+
+  const pick = useCallback(
+    (field: IntakeField, value: string) => {
+      editIntake(() => ({ [field]: value }))
+    },
+    [editIntake],
+  )
+
+  const openDateSheet = useCallback((field: "when" | "notice") => {
+    setDateSheet(field)
+  }, [])
+
+  const closeDateSheet = useCallback(() => {
+    setDateSheet(null)
+  }, [])
+
+  /** 날짜 시트에서 고른 값을 열려 있던 문항에 적는다. */
+  const commitDate = useCallback(
+    (iso: string) => {
+      if (dateSheet === "when") editIntake(() => ({ when: iso, whenUnknown: false }))
+      else if (dateSheet === "notice") editIntake(() => ({ noticeDate: iso }))
+      setDateSheet(null)
+    },
+    [dateSheet, editIntake],
+  )
+
+  // "모름"과 입력값은 동시에 유효하지 않다. 켤 때 값을 비워 둘이 어긋나지 않게 한다.
+  const toggleWhenUnknown = useCallback(() => {
+    editIntake((prev) => (prev.whenUnknown ? { whenUnknown: false } : { whenUnknown: true, when: null }))
+  }, [editIntake])
+
+  const setNoticeStatus = useCallback(
+    (status: DueNoticeStatus) => {
+      // 통지받음이 아니면 공고일은 의미가 없다. 남겨두면 기한 계산에 유령 값이 섞인다.
+      editIntake((prev) => ({ noticeStatus: status, noticeDate: status === "notified" ? prev.noticeDate : null }))
+    },
+    [editIntake],
+  )
+
+  const setAmount = useCallback(
+    (value: number | null) => {
+      editIntake(() => ({ amount: value, amountUnknown: false }))
+    },
+    [editIntake],
+  )
+
+  const toggleAmountUnknown = useCallback(() => {
+    editIntake((prev) => (prev.amountUnknown ? { amountUnknown: false } : { amountUnknown: true, amount: null }))
+  }, [editIntake])
 
   const toggle = useCallback((id: EvidenceId) => {
     setEvidence((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -243,6 +320,7 @@ export function useHaebingFlow() {
     setIntakePage(0)
     setNavDir(0)
     setIntake(INITIAL_INTAKE)
+    setDateSheet(null)
     setEvidence(INITIAL_EVIDENCE)
     setBankConfirmed(false)
     setAnalyzing(false)
@@ -264,15 +342,14 @@ export function useHaebingFlow() {
   }, [])
 
   const amountInfo = useMemo(() => getAmountInfo(intake.amount), [intake.amount])
-  const allAnswered = useMemo(() => Object.values(intake).every((v) => v !== null), [intake])
+  const allAnswered = useMemo(() => QUESTIONS.every((question) => isAnswered(intake, question.id)), [intake])
   const intakePageAnswered = useMemo(
-    () => INTAKE_PAGES[intakePage].fields.every((field) => intake[field] !== null),
+    () => INTAKE_PAGES[intakePage].fields.every((field) => isAnswered(intake, field)),
     [intakePage, intake],
   )
   const intakeLastPage = intakePage === INTAKE_PAGES.length - 1
   const hasHistory = historyOverride === null ? intake.history === "있어요" : historyOverride
-  const deadlineNotice = useMemo(() => getDeadlineNotice(intake.notice), [intake.notice])
-  const deadlineUrgent = useMemo(() => isDeadlineUrgent(intake.notice), [intake.notice])
+  const deadline = useMemo(() => getDeadline(intake), [intake])
 
   const readiness = useMemo(
     () => computeReadiness(intake, evidence, bankConfirmed, historyOverride),
@@ -321,6 +398,14 @@ export function useHaebingFlow() {
     intake,
     pick,
     allAnswered,
+    dateSheet,
+    openDateSheet,
+    closeDateSheet,
+    commitDate,
+    toggleWhenUnknown,
+    setNoticeStatus,
+    setAmount,
+    toggleAmountUnknown,
     evidence,
     toggle,
     addThreat,
@@ -344,8 +429,7 @@ export function useHaebingFlow() {
     showToast,
     restart,
     amountInfo,
-    deadlineNotice,
-    deadlineUrgent,
+    deadline,
     readiness,
     timeline,
     draftLines,

@@ -14,7 +14,7 @@ interface EvidenceStageProps {
   analyzed: boolean
   timelineRunId: number
   timeline: TimelineEvent[]
-  amount: string | null
+  amount: number | null
   onToggle: (id: EvidenceId) => void
   onAddThreat: () => void
   onConfirmBank: () => void

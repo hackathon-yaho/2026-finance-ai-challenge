@@ -7,10 +7,14 @@ export function buildDraftLines(intake: IntakeAnswers, evidence: EvidenceState, 
   const kind = intake.kind && intake.kind !== "잘 모르겠어요" ? intake.kind : "거래"
   const lines: DraftLine[] = []
 
+  // 본인 진술 문장은 문진 응답이 근거다. 입금액을 "모름"으로 두었으면 숫자를 임의로 채우지
+  // 않고 미상으로 남긴다 (FR-028 — 확인 불가한 값은 미상으로 유지).
+  const amountPhrase = amountInfo.known ? `${amountInfo.formatted}을 입금받았습니다` : "입금을 받았습니다(입금액 미상)"
+
   lines.push({
     text:
       `본인은 이 계좌를 ${intake.usage === "주 거래 계좌예요" ? "주 거래 계좌로 사용해 왔으며" : "보유해 왔으며"}, ` +
-      `2026년 9월 1일 ${kind} 목적으로 ${amountInfo.formatted}을 입금받았습니다.`,
+      `2026년 9월 1일 ${kind} 목적으로 ${amountPhrase}.`,
     badge: "본인 진술",
     ref: null,
   })
