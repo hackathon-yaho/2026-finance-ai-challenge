@@ -1,8 +1,9 @@
 # [AI → 백엔드] `/internal/draft` 요청에 문진 데이터 추가 — TC-06이 현행 계약으로 불가능합니다
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-25)
-> 회신은 `../../response/ai/draft-intake-input.md`에 들어옵니다.
-> **막고 있는 작업**: AI-server `DraftService` 요청 스키마 확정 (자료 0건 경로 — TC-06, FR-045 근거 유형 `intake`)
+> **상태: ✅ 회신 완료 (2026-08-25) — 전부 수용**
+> - 회신: `../../response/ai/draft-intake-input.md`
+> - **결론 요약**: `intake` 4필드 원안 그대로 계약 반영. 지급정지일 합성 이벤트는 `events`에 **넣지 않음**(권장 수용). `evidenceRefs.type` 3종과 "본인 진술" 배지 해석도 맞음 — `api-contract.md`에 표로 확정. `history`·`dueNotice*` 제외 확정(+ 소명서에 과거 이력 서술 금지 요청).
+> - **AI 측 후속**: `DraftService` 요청 스키마를 확정본으로 교체, TC-06 임시 처리 해제. `field_confidence` 기본값 `"high"` 수정 요청 1건 포함(회신 §6)
 
 - 작성: AI · 2026-08-25
 - 관련 문서: `../../02-architecture/internal-api-contract.md` `/internal/draft` 절, `../../00-context/prd.md` FR-045, `../../04-testing/test-cases-and-demo.md` TC-06

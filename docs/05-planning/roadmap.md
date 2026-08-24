@@ -1,5 +1,10 @@
 # 로드맵
 
+> **수정 기록 (2026-08-25, 백엔드)**
+> - **"AI 회신 대기 항목" 절을 해소 상태로 갱신.** 4건 전부 회신 완료 — Phase 3·5의 AI 쪽 블로커가 남아 있지 않습니다. AI-server는 코드까지 구현돼 저장소에 올라와 있습니다(`../../ai-server/`)
+> - 그 자리에 **백엔드 후속 작업 4건**(토큰 생성·데모 세트 복사·`AI_SERVER_URL` 수신·데모 이미지 확정)을 시점과 함께 정리
+> - 리스크 레지스터의 미회신 항목을 **프론트 4건**으로 갱신
+
 > **수정 기록 (2026-08-24 저녁, 백엔드)**
 > - **"AI 회신 대기 항목"** 절 신설. Phase 3·6을 막고 있는 AI 회신 대기 3건이 이 문서 어디에도 안 보여서, 로드맵만 보고 일정을 짜면 이 블로커를 놓칠 수 있었습니다
 > - "코드 착수 시 반영할 계약 확정값"에 오늘 오후 새로 보낸 요청 4건(증빙 구조·법정 서식·고지 문구·구매자 송금인 대조) 반영 — 전부 **회신 대기 중**이라 착수 시점을 아직 못 박습니다
@@ -77,17 +82,28 @@ FR-043(텍스트 5종 PDF)은 FR-047(6종 제출 패키지)의 입력이 되므�
 
 > `ReadinessService`(Phase 4)가 이 회신들에 가장 크게 걸려 있습니다. 회신이 늦어지면 Phase 4를 **지금 확정된 규칙만으로 먼저 짜고**, 회신 오는 대로 증분 반영하는 쪽을 권합니다 — 전부 기다리면 코어 기능 구간(8/25~8/28)이 통째로 밀립니다.
 
-## AI 회신 대기 항목
+## AI 회신 대기 항목 — ✅ **2026-08-25 전부 해소**
 
-Phase 3·6을 막고 있는데 로드맵 어디에도 안 보이던 항목입니다. 근거·상세는 각 요청 문서에 있습니다.
+Phase 3·6을 막고 있던 3건에 회신이 왔고, AI가 보낸 신규 요청 1건도 같은 날 회신 완료했습니다. **Phase 3·5의 AI 쪽 블로커는 남아 있지 않습니다.**
 
-| 항목 | 막는 작업 | 요청 문서 |
+| 항목 | 결론 | 회신 |
 | --- | --- | --- |
-| 이미지 전달 방식 (멀티파트 vs base64) | Phase 3 `AiClient.extract()` 본문 직렬화 | `../request/ai/image-transfer-and-internal-auth.md` |
-| 카드별 `source_type` | Phase 3 F5-01 동시각 tie-break, F5-03 대화 유무 판정 | `../request/ai/card-source-type.md` |
-| 데모 응답 세트 JSON | Phase 6 `DEMO_MODE` | `../request/ai/demo-response-set.md` |
+| 이미지 전달 방식 | **A 계열 raw body** (멀티파트 봉투 없음, base64 기각) | `../response/backend/image-transfer-and-internal-auth.md` |
+| 카드별 `source_type` | **이벤트 단위**로 확정. `unknown`은 tie-break 최하위 | `../response/backend/card-source-type.md` |
+| 데모 응답 세트 JSON | **v1 조기 납품 완료** — `../../ai-server/demo/` (9개 파일) | `../response/backend/demo-response-set.md` |
+| 이름 필드 (`counterparty_name`/`payer_name`) | 필드 수용 + **원문 추출**로 확정 (부분 마스킹 기각) | `../response/backend/payer-name-extraction.md` |
+| (AI → 백엔드) `/internal/draft` `intake` | **원안 수용**, 계약 반영 완료 | `../response/ai/draft-intake-input.md` |
 
-> Phase 3의 `AiClient.extract()`는 **이미지 전달 방식이 정해지지 않으면 본문 직렬화를 구현할 수 없습니다.** 8/25~8/28에 Phase 3 착수 시 이 회신이 안 와 있으면, 헤더·타임아웃·재시도·오류 변환만 먼저 만들고 본문 직렬화 자리를 비워둡니다(`backend/docs/phase-3-evidence-timeline.md` 참조).
+**AI-server는 코드까지 구현돼 저장소에 올라와 있습니다** (`ai-server/`, FastAPI + 테스트 3종). 백엔드가 이어서 할 것:
+
+| 항목 | 시점 |
+| --- | --- |
+| `INTERNAL_TOKEN` 생성·팀 채널 공유 (32자 이상 랜덤) | Phase 3 착수 전 |
+| `ai-server/demo/` v1 → `backend/src/main/resources/demo/` 복사 | Phase 3 착수 시 (단위 테스트 픽스처로도 사용) |
+| `AI_SERVER_URL` 수신 (AI가 8/26 배포 후 공유) | Phase 6 킵얼라이브 |
+| 데모 이미지 4장 확정 → AI가 데모 세트 v2 재생성 | 9/1~9/2 리허설 안건 |
+
+> 남은 회신 대기는 **프론트 4건뿐**입니다(위 "회신 대기 중 — 착수 시점 미확정" 절). 그중 `evidence-structure-revision.md` **§1-A(F3-06 마스킹 안내 문구)** 는 안내 한 줄이면 되는데, 없으면 구매자–송금인 대조 기능이 통째로 헛돌 수 있어 우선순위 최상단으로 올려뒀습니다.
 
 ## 리스크 레지스터
 
@@ -103,7 +119,7 @@ Phase 3·6을 막고 있는데 로드맵 어디에도 안 보이던 항목입니
 | 브라우저 새로고침 시 원본 소실 | 높음 | 중 | `beforeunload` 경고 + 재진입 시 "원본이 필요합니다. 다시 올려주세요" 안내. 추출 결과·소명서는 서버 세션에 남으므로 재업로드만 하면 복구 |
 | 모바일 메모리 초과로 탭 강제 종료 | 중 | 높음 | 업로드 시 장변 1600px 리사이즈. 10장 상한 유지. 사용 후 blob URL revoke |
 | 클라이언트 PDF 병합 실패 | 중 | 중 | 텍스트 PDF 다운로드 + 원본 이미지 개별 저장 안내로 폴백 |
-| **미회신 요청 누적으로 Phase 4·5 착수 지연** | 중 | 높음 | 2026-08-24 기준 프론트 4건 + AI 3건 회신 대기 중. Phase 4(`ReadinessService`)는 확정된 규칙만으로 먼저 짜고 증분 반영. Phase 3(`AiClient`)는 본문 직렬화 자리를 비워두고 나머지 먼저 구현 |
+| **미회신 요청 누적으로 Phase 4 착수 지연** | 중 | 높음 | **2026-08-25 기준 AI 4건 전부 해소, 프론트 4건 대기 중.** Phase 3(`AiClient`)는 블로커가 풀려 바로 착수 가능. 남은 리스크는 Phase 4(`ReadinessService`)의 체크리스트 자료구조 — 프론트 `evidence-structure-revision.md` §2 회신에 걸려 있다. **확정된 규칙만으로 먼저 짜고 증분 반영**하는 방침 유지 |
 
 ## 매일 스탠드업 권장 형식 (15분)
 

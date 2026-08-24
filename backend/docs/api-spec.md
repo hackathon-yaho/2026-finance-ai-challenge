@@ -2,7 +2,7 @@
 
 - 대상: **프론트엔드 개발자**
 - 기준: 실제 구현된 백엔드 코드 (`backend/src/main/java`)
-- 최종 갱신: 2026-08-24 (0장 작성, 엔드포인트 전체 미구현)
+- 최종 갱신: **2026-08-25** — AI 회신 반영으로 카드 스키마 3필드 추가·`evidenceRefs.type` 3종 확정 (엔드포인트는 여전히 전체 미구현)
 
 > **이 문서와 `../../docs/02-architecture/api-contract.md`의 관계**
 >
@@ -287,16 +287,21 @@ Content-Type: application/json
 | --- | --- | --- | --- |
 | cards[] | 추출된 이벤트 카드 목록 | array | N |
 | cards[].event_id | 카드 식별자 | String | N |
-| cards[].source_image_index | 몇 번째 업로드 이미지인지 (**프론트 blob 배열 인덱스**) | Integer | N |
+| cards[].source_image_index | 몇 번째 업로드 이미지인지 (**프론트 blob 배열 인덱스**) | Integer | Y (텍스트 입력 카드는 `null`) |
+| cards[].source_type | `chat` / `bank` / `shipping` / `threat` / `autopay` / `unknown` — **카드 단위** | enum | N |
 | cards[].occurred_at | 발생 일시 | ISO-8601 | Y |
 | cards[].actor | `self` / `counterparty` / `system` | enum | N |
 | cards[].summary | 한 줄 요약 | String | N |
 | cards[].amount | 금액(원 단위 정수) | Integer | Y |
+| cards[].counterparty_name | 대화 상대 표시명 | String | **Y (흔히 `null`)** |
+| cards[].payer_name | 입금 내역의 입금자 표기 | String | **Y (흔히 `null`)** |
 | cards[].identifiers.tracking_no | 운송장 번호 | String | Y |
 | cards[].identifiers.account_last4 | 계좌 뒤 4자리 | String | Y |
 | cards[].field_confidence.occurred_at | `high` / `medium` / `low` | enum | N |
 | cards[].field_confidence.actor | 〃 | enum | N |
 | cards[].field_confidence.amount | 〃 | enum | N |
+| cards[].field_confidence.counterparty_name | 〃 | enum | Y |
+| cards[].field_confidence.payer_name | 〃 | enum | Y |
 | cards[].source_region | 원본 내 영역 좌표 `{x, y, w, h}` (0~1 비율) | object | Y |
 | cards[].confirmation_status | `pending` / `user_confirmed` / `user_corrected` | enum | N |
 | signals.threat_detected | 협박 감지 | boolean | N |
@@ -308,6 +313,13 @@ Content-Type: application/json
 
 1. **`signals.threat_detected: true`면 즉시 협박 대응 배너를 노출**합니다. 사용자가 다음 단계로 넘어가길 기다리지 않습니다.
 2. **날짜 또는 금액이 `low` 신뢰도인 카드가 `pending`이면 Stage 3 진입을 차단**하고 확인을 요구합니다. 서버도 같은 조건을 `409 UNCONFIRMED_FIELDS`로 거부하지만, 정상 흐름에서는 프론트가 먼저 막아야 합니다.
+
+**2026-08-25 추가 필드 3개 — 주의사항**
+
+- **`source_type`의 `unknown`은 정상 값입니다.** AI가 추측하지 않고 내린 값이라 오류로 처리하지 마세요.
+- **두 이름 필드는 `null`이 흔합니다.** 상단바를 자른 캡처, 사용자가 F3-06으로 가린 경우 모두 `null`입니다. **"읽기 실패"로 표시하지 말고** 빈 칸으로 두고 사용자가 직접 채우게 해주세요 (`/api/evidence/confirm`의 `corrections`로 보내면 됩니다).
+- **이름 일치 여부를 프론트가 계산하지 마세요.** 대조는 백엔드가 하고, 결과는 `/api/readiness` 체크리스트의 "구매자–송금인 일치 여부" 항목으로 옵니다. **불일치를 경고색으로 칠하지 마세요** — 닉네임과 실명이 다른 것은 정상이고, 삼각사기 피해자는 원래 불일치합니다. 준비도를 깎는 신호도 아닙니다.
+- **`event_id`는 불투명 문자열입니다.** 형식(`evt_2_1`)을 파싱해 의미를 꺼내 쓰지 마세요. 이미지 인덱스가 필요하면 `source_image_index`를 쓰세요.
 
 **Status**
 
@@ -477,13 +489,25 @@ Content-Type: application/json
 | draftText | 소명서 전문 | String | N |
 | sentences[].sentenceId | 문장 id | String | N |
 | sentences[].text | 문장 | String | N |
-| sentences[].evidenceRefs[].type | 근거 유형 (`evidence` / `intake` 등) | String | N |
-| sentences[].evidenceRefs[].imageIndex | **프론트 blob 배열 인덱스** | Integer | Y |
+| sentences[].evidenceRefs[].type | 근거 유형 — `evidence` / `intake` / `user_text` **3종** | enum | N |
+| sentences[].evidenceRefs[].imageIndex | **프론트 blob 배열 인덱스** (`evidence`일 때만) | Integer | Y |
 | sentences[].evidenceRefs[].bbox | 영역 좌표 `{x, y, w, h}` (0~1 비율) | object | Y |
 | checklist[].item | 첨부 서류 항목 | String | N |
 | checklist[].have | 보유 여부 | boolean | N |
 
 **`evidenceRefs`에는 이미지가 들어 있지 않습니다.** 참조만 옵니다 — 프론트가 `imageIndex`로 자기 blob 배열에서 찾아 표시하고, `bbox`가 있으면 그 영역으로 스크롤합니다(0.6).
+
+### `evidenceRefs.type`으로 배지를 갈라주세요 (2026-08-25 확정)
+
+| type | 의미 | 프론트 렌더 |
+| --- | --- | --- |
+| `evidence` | 업로드 이미지에서 추출된 카드가 근거 | 원본 이동 배지 (`imageIndex`·`bbox` 있음) |
+| `intake` | 문진 응답이 근거 | **"본인 진술" 배지** |
+| `user_text` | 텍스트 직접 입력 카드가 근거 | **"본인 진술" 배지** |
+
+- **`imageIndex`가 없다고 오류로 처리하지 마세요.** `intake`·`user_text`는 원래 이미지 참조가 없습니다 — 여기에 원본 이동 배지를 붙이면 클릭했을 때 갈 곳이 없습니다.
+- **자료 0건으로 진행한 사용자는 전 문장이 `intake`** 입니다. 전부 "본인 진술" 배지가 뜨는 것이 정상 동작이고, PRD가 요구하는 정직성 표기입니다.
+- **`bbox`는 근사 좌표입니다.** 이미지를 열고 해당 위치로 스크롤하는 용도로는 충분하지만, **픽셀 단위 정밀 하이라이트를 전제로 UI를 설계하지 마세요.**
 
 **Status**: 200 / 410 `SESSION_EXPIRED` / 504 `TIMEOUT` / 503 `QUOTA_EXCEEDED`
 
@@ -565,3 +589,5 @@ API를 완료하거나 계약이 바뀔 때마다 한 줄씩 남깁니다. **"�
 | 날짜 | 대상 | 내용 |
 | --- | --- | --- |
 | 2026-08-24 | 전체 | 문서 신설. 0장(공통 사항) 작성, 엔드포인트 12종을 계약(`api-contract.md` v1.4) 기준으로 골격 작성. 구현은 전부 미착수 |
+| 2026-08-25 | `/api/evidence` | 카드에 **`source_type`·`counterparty_name`·`payer_name`** 추가, `field_confidence` 2키 확장. `source_image_index`를 Nullable로 정정(텍스트 입력 카드). 프론트 주의사항 4건 추가 (`unknown`은 정상 값 / 이름은 `null`이 흔함 / 대조는 백엔드 / `event_id`는 불투명) |
+| 2026-08-25 | `/api/draft` | **`evidenceRefs.type` 3종 확정**(`evidence`/`intake`/`user_text`)과 "본인 진술" 배지 규칙 명시. `imageIndex` 부재가 정상인 경우, `bbox`가 근사 좌표라는 점 추가 |

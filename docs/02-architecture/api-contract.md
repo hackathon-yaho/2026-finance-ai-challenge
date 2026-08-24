@@ -1,5 +1,11 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-25, 백엔드)** — 근거: AI 회신 3건 (`../response/backend/card-source-type.md`, `payer-name-extraction.md`, `image-transfer-and-internal-auth.md`) 및 AI 요청 `../request/backend/draft-intake-input.md`
+> - **`/api/evidence` 카드 스키마에 3개 필드 추가** — `source_type`(6종, `unknown` 포함), `counterparty_name`, `payer_name`. `field_confidence`에도 이름 2종 키 추가
+> - **프론트 주의 사항 명시**: 두 이름 필드는 `null`이 흔하다(잘린 캡처·F3-06 마스킹) / **이름 대조 결과를 프론트가 계산하지 않는다** / 불일치를 경고색으로 칠하지 않는다 / `event_id`는 불투명 문자열
+> - **`/api/draft` 응답에 `evidenceRefs.type` 3종 확정** (`evidence` / `intake` / `user_text`)과 **"본인 진술" 배지 규칙** 신설. `intake`·`user_text`에는 `imageIndex`가 없는 것이 정상
+> - `bbox`가 **근사 좌표**임을 명시 — 정밀 하이라이트(P1)를 전제로 UI를 설계하지 않도록
+
 > **수정 기록 (2026-08-24, 백엔드)** — 근거: `../response/backend/pdf-ownership-and-open-contracts.md` (프론트 회신)
 > - `/api/package/text` **`GET` → `POST`** 확정 + 요청 바디 필드(`applicant`, `account` 8개) 정의 및 필수/선택 규칙 신설
 > - `GET /api/timeline` 응답에 `mergeCandidates` 추가 + `POST /api/timeline/merge` 신설 (F5-02 승인 엔드포인트)
@@ -132,17 +138,22 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 {
   "cards": [
     {
-      "event_id": "evt_001",
+      "event_id": "evt_2_1",
       "source_image_index": 2,
+      "source_type": "chat | bank | shipping | threat | autopay | unknown",
       "occurred_at": "2026-09-02T14:12:00+09:00",
       "actor": "self | counterparty | system",
       "summary": "물품대금 700,000원 입금",
       "amount": 700000,
+      "counterparty_name": "김OO",
+      "payer_name": null,
       "identifiers": { "tracking_no": null, "account_last4": null },
       "field_confidence": {
         "occurred_at": "high | medium | low",
         "actor": "high | medium | low",
-        "amount": "high | medium | low"
+        "amount": "high | medium | low",
+        "counterparty_name": "high | medium | low",
+        "payer_name": "high | medium | low"
       },
       "source_region": { "x": 0.18, "y": 0.31, "w": 0.62, "h": 0.12 },
       "confirmation_status": "pending | user_confirmed | user_corrected"
@@ -155,12 +166,24 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
     "quality_flags": { "blurry": false, "missing_date": false, "amount_mismatch": false }
   },
   "qualityFlags": {
-    "evt_001": { "blurry": false, "missing_date": false, "amount_mismatch": false }
+    "evt_2_1": { "blurry": false, "missing_date": false, "amount_mismatch": false }
   }
 }
 ```
 
 `signals.threat_detected: true`가 오면 프론트엔드는 즉시 협박 대응 배너(FR-024)를 노출해야 합니다 — 사용자가 다음 단계로 넘어가길 기다리지 않습니다.
+
+### 2026-08-25 추가된 3개 필드
+
+| 필드 | 프론트가 쓰는 곳 |
+| --- | --- |
+| `source_type` | 카드 유형 배지. 값은 `chat / bank / shipping / threat / autopay / unknown` 6종이며, **`unknown`은 정상 값**입니다(AI가 추측하지 않고 내린 값) — 오류로 처리하지 마세요 |
+| `counterparty_name` | 확인 카드(F4-06)에 **수정 가능한 필드로 노출**. 대화 상대 표시명 |
+| `payer_name` | 같음. 입금 내역의 입금자 표기 |
+
+- **두 이름 필드는 `null`이 흔합니다.** 상단바를 자른 캡처, F3-06으로 사용자가 가린 경우 모두 `null`입니다. `null`을 "읽기 실패"로 표시하지 말고 **빈 칸으로 두고 사용자가 채울 수 있게** 해주세요.
+- **대조 결과를 프론트가 계산하지 않습니다.** 이름 일치 여부 판단은 백엔드 몫이고, 그 결과는 `/api/readiness` 응답으로 옵니다. 불일치는 위험 신호가 아니라 "설명이 필요한 항목"이므로 경고색으로 칠하지 마세요 — 닉네임과 실명이 다른 것은 정상입니다.
+- `event_id`는 **불투명 문자열**입니다. 형식(`evt_{n}_{m}`)을 파싱해 의미를 꺼내 쓰지 마세요.
 
 날짜 또는 금액이 `low` 신뢰도인 카드가 `confirmation_status: "pending"`으로 남아 있으면, 프론트엔드는 Stage 3(`/api/readiness`) 진입을 차단하고 확인을 요구합니다(FR-028).
 
@@ -248,6 +271,11 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
       "evidenceRefs": [
         { "type": "evidence", "imageIndex": 2, "bbox": { "x": 0.18, "y": 0.31, "w": 0.62, "h": 0.12 } }
       ]
+    },
+    {
+      "sentenceId": "s2",
+      "text": "이 계좌는 급여 수령과 공과금 자동이체에 사용하는 주 거래 계좌입니다.",
+      "evidenceRefs": [ { "type": "intake" } ]
     }
   ],
   "checklist": [
@@ -257,6 +285,20 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 ```
 
 `evidenceRefs`는 **이미지 파일이 아니라 참조(imageIndex, bbox)만** 담습니다. 원본 이미지는 서버에 없으므로, 프론트엔드가 자기 브라우저 메모리의 blob 배열에서 `imageIndex`로 찾아 표시하고 `bbox`가 있으면 해당 영역으로 스크롤합니다. 원본이 메모리에 없으면(새로고침 등) 배지를 회색 처리하고 "원본을 다시 올리면 확인할 수 있습니다"를 표시합니다.
+
+### `evidenceRefs.type` — 근거 유형 3종과 "본인 진술" 배지 (2026-08-25 확정)
+
+FR-045가 정의한 근거 유형 셋과 1:1로 대응합니다. **`type`은 항상 존재합니다.**
+
+| `type` | 의미 | 함께 오는 필드 | 프론트 렌더 |
+| --- | --- | --- | --- |
+| `evidence` | 업로드한 이미지에서 추출된 카드가 근거 | `imageIndex`, `bbox` | 원본 이동 배지 (F7-05) |
+| `intake` | 문진 응답이 근거 | 없음 | **"본인 진술" 배지** |
+| `user_text` | 텍스트 직접 입력(F3-04) 카드가 근거 | 없음 | **"본인 진술" 배지** |
+
+- **`imageIndex`가 없다고 오류로 처리하지 마세요.** `intake` / `user_text`는 원래 이미지 참조가 없습니다 — 이 둘에 원본 이동 배지를 붙이면 클릭했을 때 갈 곳이 없습니다.
+- 자료 0건 경로(TC-06)에서는 **모든 문장이 `intake`** 이므로 전 문장에 "본인 진술" 배지가 붙습니다. 이것이 정상 동작이며, PRD가 요구하는 정직성 표기입니다.
+- `bbox`는 LLM 비전이 낸 **근사 좌표**입니다. 이미지를 열고 해당 위치로 스크롤하는 용도(P0)로는 충분하지만, **픽셀 단위 정밀 하이라이트(P1)를 전제로 UI를 설계하지 마세요.**
 
 ## `/api/package/text` — 제출 패키지 (FR-047)
 

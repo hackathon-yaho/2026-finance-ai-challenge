@@ -15,13 +15,31 @@ POST /internal/draft
 {
   "events": [ /* confirmed=true 카드만 */ ],
   "reason": "goods | service | debt | unclear",
-  "readiness": "SUBMISSION_READY | SUPPLEMENT_NEEDED | BANK_CHECK_REQUIRED"
+  "readiness": "SUBMISSION_READY | SUPPLEMENT_NEEDED | BANK_CHECK_REQUIRED",
+  "intake": { "when": "2026-09-04", "amount": 450000, "kind": "goods", "usage": "main" }
 }
 ```
 
 - [ ] **`confirmed=true` 카드만 전달한다** (F4-06 소명서 반영, TC-11)
 - [ ] `reason`·`readiness`는 `ReadinessService`가 이미 결정한 값을 그대로 넘긴다. **AI-server는 이 값을 재해석하지 않는다** — 백엔드도 AI 응답을 근거로 준비도를 다시 계산하지 않는다
 - [ ] 타임아웃 15초, 재시도 1회
+
+### `intake` 객체 (2026-08-25 신설) — TC-06이 이것 없이는 불가능하다
+
+자료 0건 경로(TC-06)는 `events`가 빈 배열이다. **문진이 유일한 사실 재료**인데 종전 스키마에는 자리가 없었다. 요청·확정: `../../docs/request/backend/draft-intake-input.md`, `../../docs/response/ai/draft-intake-input.md`.
+
+- [ ] `/api/intake`로 받아 세션에 있는 값 4개(`when`·`amount`·`kind`·`usage`)를 **필드명 그대로** 넘긴다
+- [ ] **`history`·`dueNoticeStatus`·`dueNoticeDate`는 넘기지 않는다.** 준비도 판정용 값이고 그 판정은 이미 끝나 `readiness`로 전달된다. 더 중요한 이유는 **과거 지급정지 이력이 사용자에게 불리한 정보**라는 것 — 묻지도 않은 이력을 사용자가 스스로 은행에 제출하는 문서에 넣게 만들면 안 된다
+- [ ] `intake.amount`는 **사실 기재 전용**이다. 준비도에 쓰지 않고("입금액은 소명서 사실 기재에만", `reason-type-rules.md`), "소액이라 유리하다" 류의 문장도 만들지 않는다 (PRD §14 OI-01)
+- [ ] 문진을 건너뛴 세션은 각 필드가 `null`이거나 `intake`가 통째로 없어도 된다 — AI-server가 `events`만으로 생성한다
+
+### 지급정지일 합성 이벤트를 `events`에 넣지 않는다 (2026-08-25 확정)
+
+F5-01이 타임라인에 삽입하는 "사용자 진술 / 낮은 신뢰도" 지급정지일 이벤트는 **소명서 입력에서 뺀다.**
+
+- [ ] `events` 구성 시 **추출 카드만** 담는다. 합성 이벤트를 필터링한다
+- [ ] 이유: 합성 이벤트가 섞이면 AI-server가 `evidence` 근거로 오인해 **"근거 있는 사실"처럼 서술**한다. FR-045의 근거 유형 구분이 존재하는 이유가 무너진다
+- [ ] **타임라인 표시(F5-01)와 공백 탐지(F5-03)에서는 합성 이벤트를 그대로 쓴다.** 화면의 타임라인과 `/internal/draft`의 `events`가 완전히 같지 않다는 뜻이다 — 같은 리스트를 재사용하다가 실수하기 쉬운 지점이다
 
 ### 사실 검증 실패 처리 (F7-02 / FR-045)
 
@@ -40,6 +58,7 @@ POST /internal/draft
 ```
 
 - [ ] `sentences`를 세션의 `sentenceEvidence`에 보관한다 — **참조(imageIndex, bbox)만. 이미지 바이트 금지** (`data-model.md`)
+- [ ] **`evidenceRefs.type` 3종을 그대로 통과시킨다** (2026-08-25 확정): `evidence`(+`imageIndex`·`bbox`) / `intake` / `user_text`. 뒤 둘은 `imageIndex`가 **없는 것이 정상**이므로 검증에서 필수로 걸지 않는다. 프론트는 이 둘에 "본인 진술" 배지를 렌더한다 (FR-045 ⑤)
 - [ ] **응답의 `checklist`는 백엔드가 자기 값으로 채운다.** `/internal/draft` 응답에도 `checklist`가 들어 있지만 **첨부 서류 체크리스트(F7-03)의 담당은 `A`(백엔드)** 이고 내용이 결정적(사유별 고정 목록 + 보유 여부)이므로, AI가 준 값을 그대로 흘리지 않는다. 두 값이 다르면 사용자는 Stage 3과 Stage 4에서 서로 다른 체크리스트를 보게 된다
 - [ ] 프론트는 이 참조로 자기 브라우저 blob에서 원본을 찾는다. **서버에서 원본을 다시 내려주지 않는다** (FR-046)
 

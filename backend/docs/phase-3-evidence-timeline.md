@@ -18,7 +18,35 @@
 - [ ] 재시도: **1회, 동일 요청 재전송.** 실패 시 오류 응답을 그대로 프론트에 전달
 - [ ] AI-server 오류 응답의 `fallback: "text_input"`을 공개 응답에서는 `"/api/evidence/text"`로 치환 (내부 경로 비노출)
 
-> ⚠️ **미확정 — 이미지 전달 방식 A/B.** 계약 문서의 해당 블록이 `[결정: TODO]` 상태다. 회신 전까지 `AiClientImpl.extract()`의 **본문 직렬화 부분만 비워두고** 나머지(헤더·타임아웃·재시도·오류 변환)는 먼저 구현한다. 요청: `../../docs/request/ai/image-transfer-and-internal-auth.md`
+### ✅ 이미지 전달 방식 확정 (2026-08-25) — 블로커 해제
+
+회신: `../../docs/response/backend/image-transfer-and-internal-auth.md`. **A 계열(바이트 그대로) 확정, 단 멀티파트 봉투 없이 raw body.**
+
+```java
+// 이미지 경로 — 1장당 1요청
+restClient.post()
+    .uri(aiServerUrl + "/internal/extract?image_index={n}", n)
+    .contentType(MediaType.IMAGE_PNG)      // 받은 파일의 실제 타입 그대로
+    .header("X-Internal-Token", internalToken)
+    .body(bytes)
+```
+
+- [ ] **`MultipartBodyBuilder`를 쓰지 않는다.** AI-server 쪽 멀티파트 파서가 큰 파트를 **디스크에 스풀링**해 "이미지를 디스크에 쓰지 않는다" 원칙이 깨질 수 있다는 것이 봉투를 뺀 이유다 — 우리가 편하려고 되돌리면 그 원칙이 다시 깨진다
+- [ ] `Content-Type`은 **받은 파일의 실제 타입**을 그대로 쓴다 (`image/png` / `image/jpeg`). 매직바이트 검증에서 이미 판별한 값을 재사용한다
+- [ ] 텍스트 경로(F3-04)는 **같은 엔드포인트에 `application/json`** — `{ "rawText": "..." }`. AI-server가 Content-Type으로 두 경로를 구분한다
+- [ ] `image_index`는 **프론트 blob 배열 인덱스와 일치**해야 한다. 응답 카드의 `source_image_index`로 그대로 반사되고, 프론트는 이 값으로 자기 blob을 찾는다 (F7-05)
+
+> raw body 전송에 Spring 쪽 문제가 생기면 AI 담당이 **하루 안에 멀티파트로 전환 가능**하다고 회신했다 (인메모리 파싱으로 스풀링 우회). 막히면 붙들고 있지 말고 알린다.
+
+### 오류 코드 — `QUOTA_EXCEEDED`를 따로 다룬다 (2026-08-25 확정)
+
+| AI-server가 주는 코드 | HTTP | 백엔드 처리 |
+| --- | --- | --- |
+| `EXTRACTION_FAILED` | 502 | `fallback`을 `/api/evidence/text`로 치환해 전달 |
+| `TIMEOUT` | 504 | 같음 + 부분 결과 반환 |
+| **`QUOTA_EXCEEDED`** | **429** | **데모 모드 폴백(F4-05)** — 일반 실패와 섞지 않는다 |
+| `DRAFT_FAILED` | 502 | 그대로 전달 |
+| (인증 실패) | 401 | `INTERNAL_TOKEN` 불일치 — 설정 오류다. 프론트에 500으로 내리고 로그에 남긴다 |
 
 > **F3-07(사유별 업로드 안내)은 프론트 담당이다.** 다만 안내 목록은 `reason-type-rules.md` §2를 F7-03과 공유하므로, **백엔드가 Phase 4에서 만드는 체크리스트 데이터와 같은 소스**여야 한다. 프론트가 목록을 따로 하드코딩하면 두 곳이 어긋난다 — 회신에서 전달 방식(계약 필드 vs 프론트 상수)을 정한다(`../../docs/request/frontend/evidence-structure-revision.md` §7).
 
@@ -83,6 +111,16 @@ F4-07의 담당은 `B`(AI)지만, **처리 절차가 "LLM이 quality_flags 산�
 - [ ] 서버 측 거부는 2026-08-23 확정 사항이며 `api-contract.md`에 명시했다. 프론트 차단은 사용자 경험, 서버 거부는 데이터 무결성 목적이다
 - [ ] **`confirmed`가 아닌 카드는 `/api/draft` 입력에서 제외한다** (F4-06 소명서 반영, 수용 기준: 미확인 카드의 날짜·금액이 소명서 본문에 나타나지 않음 — TC-11)
 
+### 이름 두 개를 세션에 담는다 (2026-08-25 신설)
+
+카드에 `counterparty_name`(대화 상대 표시명) / `payer_name`(입금자 표기)가 추가됐다. **구매자–송금인 일치 대조의 재료**다 (`../../docs/01-product/reason-type-rules.md` §2-1).
+
+- [ ] 두 필드를 세션 카드에 **그대로 보관**한다 (`field_confidence`의 같은 키도 함께)
+- [ ] **값이 `null`인 경우가 흔하다** — 상단바 잘린 캡처, F3-06으로 사용자가 가린 경우. `null`을 오류로 다루지 않는다
+- [ ] `/api/evidence/confirm`의 `corrections`로 **사용자가 이 두 값을 수정할 수 있어야 한다** (F4-06). 잘못 읽은 이름이 그대로 대조에 들어가는 것을 막는 유일한 장치다
+- [ ] **대조 자체는 Phase 4다.** 여기서는 담기만 한다
+- [ ] 로그에 남기지 않는다 (NFR-08). 개인정보 경계는 `../../docs/03-infra-ops/privacy-and-safety.md` "추출 범위 예외 — 거래 당사자 표시명"이 단일 출처다
+
 ## 3-4. `POST /api/evidence/text` (F3-04)
 
 - [ ] 요청 `{ rawText }` (최대 2000자) → AI-server `/internal/extract`의 텍스트 경로로 전달
@@ -98,11 +136,23 @@ F4-07의 담당은 `B`(AI)지만, **처리 절차가 "LLM이 quality_flags 산�
 ### F5-01 시간순 정렬
 
 - [ ] `occurred_at` 오름차순
-- [ ] 동시각은 `source_type` 우선순위 (`chat → bank → shipping`)
+- [ ] 동시각은 `source_type` 우선순위 (`chat → bank → shipping`, **`unknown`은 최하위**)
 - [ ] 사용자가 입력한 **지급정지일만** 이벤트로 삽입하고 "사용자 진술 / 낮은 신뢰도"로 표시
 - [ ] **금지: 문진 응답에서 날짜를 역산해 이벤트를 생성하지 않는다** (F5-01 금지 — 없는 사실을 만드는 행위)
 
-> ⚠️ **미확정 — `source_type`.** 카드 스키마에 `source_type`이 없어 동시각 tie-break을 구현할 수 없다. 회신 전까지는 `occurred_at` 단일 정렬로 두고 tie-break은 비워둔다. 요청: `../../docs/request/ai/card-source-type.md`
+### ✅ `source_type` 확정 (2026-08-25) — 블로커 해제
+
+회신: `../../docs/response/backend/card-source-type.md`. **이벤트(카드) 단위**로 확정됐다 — 한 이미지에 유형이 섞이는 경우가 흔해 이미지 단위 역매핑은 기각됐다.
+
+- [ ] tie-break 우선순위: `chat(0) → bank(1) → shipping(2) → threat/autopay(3) → unknown(최하위)`. **`unknown`은 정상 값이다** (AI가 추측하지 않고 내린 값) — 오류로 처리하지 않는다
+- [ ] F5-03 ③ 대화 유무 판정은 **`source_type == "chat"` 카드의 존재 여부**로 구현한다
+
+### `event_id` 중복은 백엔드가 처리한다 (2026-08-25 확정)
+
+AI-server는 **무상태**라 세션을 모른다. 채번은 `evt_{image_index}_{n}` / `evt_txt_{n}`이므로 **같은 `image_index`로 재추출하면 ID가 충돌한다** (사용자가 카드를 지우고 같은 자리에 다시 올리는 경우).
+
+- [ ] 세션에 카드를 담을 때 **같은 `event_id`가 이미 있으면 기존 카드를 대체**한다 (추가하지 않는다)
+- [ ] `event_id`를 **파싱해 의미를 꺼내 쓰지 않는다** — 불투명 문자열로 취급한다. 인덱스가 필요하면 `source_image_index` 필드를 쓴다
 
 ### F5-02 중복 이벤트 병합
 

@@ -214,6 +214,15 @@ FR-050~053, NFR-04·05·06·09는 프론트 소관이라 이 플랜에 없다.
 | **소명자료 3단 구조** | ① 법정 첨부서류(필수) / ② 금감원 표준(**물품·용역 2종만**) / ③ 공통 최소(참고) / ④ 보강(선택)로 분리 | `reason-type-rules.md` §2, `spec.md` F7-03, Phase 4-3 | **금감원 표준은 4유형이 아니라 2유형뿐**이었고, 채권 회수·미확정 목록은 근거 없이 만든 것이었다 (2026-08-25 조사) |
 | **②를 관문으로 쓰지 않음** | 금감원 표준 미충족만으로 `SUPPLEMENT_NEEDED`를 내지 않는다 | 같은 문서 / TC-21~23 | 금감원 표준은 **부담 경감** 기준이지 요건이 아니다. 개인 중고거래자는 사업자등록증을 발급받을 수 없는데 법정 요건(자유 형식)은 충족 가능하다 |
 | **업로드 안내 시점** | 업로드 화면(S02)에서 **사유별 자료 목록을 먼저** 보여준다 (F3-07 신설) | `spec.md` F3-07 | F7-03이 Stage 4에 있어 **다 올린 뒤에야** 뭐가 필요했는지 알게 되는 구조였다 |
+| **내부 API 이미지 전달** | **A 계열 raw body.** 멀티파트 봉투·base64 모두 미사용. `POST /internal/extract?image_index={n}` + `Content-Type: image/png` | `internal-api-contract.md`, Phase 3-1 | 멀티파트 파서가 큰 파트를 **디스크에 스풀링**해 무저장 원칙이 프레임워크 기본 동작으로 깨질 수 있음 — `response/backend/image-transfer-and-internal-auth.md` §1 |
+| **`source_type` 단위** | **이벤트(카드) 단위.** 이미지 단위 역매핑 기각 | `internal-api-contract.md`, `api-contract.md`, `spec.md` F4-02 | 대화 캡처 안의 송금 알림처럼 **한 이미지에 유형이 섞이는 경우가 흔함** — `response/backend/card-source-type.md` |
+| **`event_id` 중복 처리** | 채번은 AI(`evt_{idx}_{n}`), **세션 내 중복 대체는 백엔드** | Phase 3-5 | AI-server는 무상태라 세션을 모름. 같은 인덱스 재추출 시 ID가 충돌 |
+| **거래 당사자 이름 추출** | **화면 표시명 원문 추출.** 부분 마스킹(`김O수`) 기각. 소명서 본문에도 원문 | `privacy-and-safety.md` 예외 절, `spec.md` F4-03·F3-06, 양 계약 문서 | ① 동성·동돌림자 오탐 ② **마스킹 규칙을 LLM에 시키면 비결정적** → 결정적 대조 로직의 전제가 깨짐. 이 이름은 부수 식별자가 아니라 **거래 사실 자체** — `response/backend/payer-name-extraction.md` §2 |
+| **이름 불일치 취급** | 준비도 신호 4종에 **넣지 않는다.** 체크리스트 항목 상태로만 반영 | Phase 4-4, `reason-type-rules.md` §2-1 | 통장협박·삼각사기 피해자는 **원래 불일치**. 감점으로 다루면 서비스가 피해자를 의심하는 도구가 됨 |
+| **`/internal/draft`에 `intake` 추가** | 문진 4필드(`when`·`amount`·`kind`·`usage`) 전달. `history`·`dueNotice*`는 **제외** | `internal-api-contract.md`, Phase 5-1 | **TC-06(자료 0건)이 현행 스키마로 불가능**했음. 이력 제외는 불리한 정보를 사용자가 스스로 제출하게 만들지 않기 위함 — `response/ai/draft-intake-input.md` |
+| **지급정지일 합성 이벤트** | `/internal/draft`의 `events`에 **넣지 않는다.** 타임라인 표시·공백 탐지에서는 그대로 사용 | Phase 5-1, `internal-api-contract.md` | 섞이면 AI가 `evidence` 근거로 오인해 "근거 있는 사실"처럼 서술함 |
+| **`evidenceRefs.type`** | **3종 확정** — `evidence` / `intake` / `user_text`. 뒤 둘은 "본인 진술" 배지 | `api-contract.md`, `api-spec.md`, Phase 5-1 | FR-045 근거 유형과 1:1. `imageIndex` 부재가 정상인 경우가 생김 |
+| **AI가 채우지 않는 값** | `checklist`는 항상 `[]`, `quality_flags.amount_mismatch`는 항상 `false` | `internal-api-contract.md` | 단일 출처가 백엔드. 이미지 1장만 보는 AI는 카드 간 교차 대조를 할 수 없음 |
 
 ### 미확정 — 상대 역할 회신 대기
 
@@ -223,11 +232,14 @@ FR-050~053, NFR-04·05·06·09는 프론트 소관이라 이 플랜에 없다.
 
 | 항목 | 막히는 작업 | 요청 문서 |
 | --- | --- | --- |
-| 이미지 전달 방식 (A 멀티파트 / B base64) | Phase 3 `AiClient.extract()` 구현체 | `../../docs/request/ai/image-transfer-and-internal-auth.md` |
-| 카드별 `source_type` 필드 | Phase 3 F5-01 동시각 tie-break, F5-03 대화 유무 판정 | `../../docs/request/ai/card-source-type.md` |
-| 데모 응답 세트 JSON | Phase 6 DEMO_MODE | `../../docs/request/ai/demo-response-set.md` |
+| 증빙 구조 7건 + F3-06 안내 문구 | Phase 4 체크리스트 데이터 구조 | `../../docs/request/frontend/evidence-structure-revision.md` |
+| 서식 11필드·서명 안내·5면 구성 | Phase 5-4 `/api/package/text` | `../../docs/request/frontend/legal-form-and-package.md` |
+| 정직 고지 3건 (5영업일 카피·3년 제한·보존 지침) | 화면 문구 (백엔드 영향 적음) | `../../docs/request/frontend/honest-disclosure-fixes.md` |
+| 미리보기·수정 단계 | Phase 5-4 산출 시점 | `../../docs/request/frontend/draft-preview-and-edit.md` |
 | 프론트 배포 도메인 (CORS 등록용) | Phase 6 배포 (로컬은 `localhost:5173`으로 진행 가능) | 프론트 과제, 기한 9/5 — `../../docs/response/frontend/pdf-ownership-and-open-contracts.md` §2-5 |
 
+> **2026-08-25 해소 — AI 회신 4건으로 Phase 3·5 블로커가 전부 풀렸습니다.** 이미지 전달 방식(raw body), 카드 `source_type`, 데모 응답 세트(v1 납품 완료 — `../../ai-server/demo/`), 이름 필드까지 확정됐고, AI가 보낸 `/internal/draft` `intake` 요청도 회신 완료입니다. 결론은 위 "확정" 표, 근거는 `../../docs/response/backend/` 4건과 `../../docs/response/ai/draft-intake-input.md`.
+>
 > **2026-08-24 해소** — 텍스트 5종 PDF 생성 주체와 F5-02 병합 승인 엔드포인트는 프론트 회신으로 확정됐습니다(위 "확정" 표). 회신: `../../docs/response/backend/pdf-ownership-and-open-contracts.md`, 처리 결과: `../../docs/response/frontend/pdf-ownership-and-open-contracts.md`.
 
 ## 스펙 문서에서 발견한 불일치
@@ -240,7 +252,9 @@ FR-050~053, NFR-04·05·06·09는 프론트 소관이라 이 플랜에 없다.
 | F8-01 담당 | spec 총괄표는 `C`(프론트), 나머지 문서는 서버 생성 전제 | **해소 (2026-08-24)** — 총괄표를 `A`로 정정. 프론트 회신으로 서버 생성 확정 |
 | TimelineService 위치 | 다이어그램은 AI-server, 총괄표 담당은 `A` | 백엔드로 확정, 다이어그램 개정함 |
 | F6-06 담당 | 총괄표는 `B`(AI), **§6 외부 연동 명세도 LLM 용도로 기재**("근거 문구 다듬기"), 그런데 F6-06 본문은 "LLM 다듬기를 사용하지 않는다" — 3곳이 어긋남 | **백엔드가 고정 문구 템플릿으로 구현.** 기능 상세 본문이 우선 |
-| 카드 `source_type` | PRD FR-021은 응답 최상위 필드, 이벤트 단위 아님 | 미확정 — AI 회신 대기 |
+| 카드 `source_type` | PRD FR-021은 응답 최상위 필드, 이벤트 단위 아님 | **해소 (2026-08-25)** — **이벤트 단위로 확정.** 최상위 필드는 두지 않는다(중복). 한 이미지에 유형이 섞이는 경우가 흔해 이미지 단위로는 판정할 수 없다 |
+| **F4-03 "실명" 마스킹** | 마스킹 대상에 "실명"이 있는데, 금감원 표준의 **구매자–송금인 일치 확인**은 이름 없이 불가능 | **해소 (2026-08-25)** — **거래 당사자 표시명만 예외**로 원문 추출. 제3자는 종전대로 미추출. 단일 출처는 `privacy-and-safety.md` 예외 절 |
+| **`qualityFlags` 누락** | `api-contract.md`에는 카드별 `qualityFlags`가 있는데 `internal-api-contract.md`에는 없었다 (AI 구현 코드에는 있음) | **해소 (2026-08-25)** — 내부 계약 문서가 낡았던 것. `internal-api-contract.md`에 추가하고 `signals.quality_flags`(이미지 전체)와 다른 값임을 명시 |
 | P-03 "사업 매출" | 사유유형 4종에 없는 값 (`personas.md`, TC-03) | **사유는 문진 응답을 그대로 따름.** '사업 매출'은 계좌 사용 목적 서술로 해석 — 두 문서에 각주 추가함 |
 | F3-03 진행 표시 | SSE·폴링을 요구하나 `/api/evidence`는 일괄 응답 | 1장씩 병렬 호출로 해결, 계약에 명시함 |
 | `stage_event` 수집 | `enter/complete/abandon`을 받을 엔드포인트가 계약에 없음 | 기존 API 호출 시점으로 자동 적재 |

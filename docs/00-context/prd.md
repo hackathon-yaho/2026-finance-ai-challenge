@@ -311,28 +311,32 @@ ELIF 지급정지일도 확인 불가:
 | FR-024 | **협박 메시지 감지 시 즉시 보존 안내** | P0 | 금전 요구·해제 조건 문구 감지 시 경고 배너 노출 |
 | FR-025 | 타임라인 공백 지목 (발송 증빙 없음, 생계 흔적 없음 등) | P0 | 미충족 항목을 시각적으로 구분 표시 |
 | FR-026 | 텍스트 직접 입력 대체 경로 | P1 | 이미지 없이 텍스트만으로 타임라인 생성 가능 |
-| FR-027 | 업로드 전 개인정보 마스킹 및 서버 무저장 처리 | P0 | 업로드 화면에서 사용자가 계좌번호·주민등록번호·전화번호·주소·제3자 이름 영역을 직접 가린 뒤 전송할 수 있음. 텍스트 직접 입력(FR-026) 경로는 정규식으로 자동 마스킹. **원본 이미지는 서버 디스크·Storage·DB 어디에도 저장하지 않으며 LLM 호출 후 메모리에서 즉시 해제됨** |
+| FR-027 | 업로드 전 개인정보 마스킹 및 서버 무저장 처리 | P0 | 업로드 화면에서 사용자가 계좌번호·주민등록번호·전화번호·주소·**거래와 무관한 제3자** 이름 영역을 직접 가린 뒤 전송할 수 있음. **거래 상대방·입금자 이름은 가리지 않도록 안내한다**(2026-08-25 — 구매자–송금인 일치 확인에 쓰이므로. `../03-infra-ops/privacy-and-safety.md` 추출 범위 예외 절). 텍스트 직접 입력(FR-026) 경로는 정규식으로 자동 마스킹. **원본 이미지는 서버 디스크·Storage·DB 어디에도 저장하지 않으며 LLM 호출 후 메모리에서 즉시 해제됨** |
 | FR-028 | AI 추출 결과를 사건 카드로 제시하고 사용자가 확인·수정 | P0 | 카드에 필드별 신뢰도(높음 / 확인 필요)와 원본 위치 표시. **날짜 또는 금액이 low 신뢰도인 카드가 남아 있으면 Stage 3 진입 차단.** 그 외 미확인 카드는 진행 허용하되 "확인하지 않은 자료 n건은 문서에 포함되지 않습니다" 경고. 사용자가 수정한 값에는 "사용자 수정" 배지 표시. 확인 불가한 값은 임의로 채우지 않고 미상으로 유지 |
 | FR-029 | 증빙 품질 검사(흐림·잘림·날짜 미표시·송장 가림·맥락 부족·금액 자료 간 불일치) 및 재캡처 구체 안내 | P1 | 문제 유형별로 무엇을 어떻게 다시 찍어야 하는지 구체 문구 노출 (예: "화면 상단의 날짜가 보이도록 다시 캡처해 주세요") |
 
-**FR-021 추출 스키마**
+**FR-021 추출 스키마** (2026-08-25 개정)
 
 ```json
 {
-  "source_type": "chat | bank | shipping | threat | autopay | unknown",
-  "events": [
+  "cards": [
     {
-      "event_id": "evt_001",
+      "event_id": "evt_2_1",
       "source_image_index": 2,
+      "source_type": "chat | bank | shipping | threat | autopay | unknown",
       "occurred_at": "2026-09-02T14:12:00+09:00",
       "actor": "self | counterparty | system",
       "summary": "물품대금 700,000원 입금",
       "amount": 700000,
+      "counterparty_name": "김OO",
+      "payer_name": null,
       "identifiers": { "tracking_no": null, "account_last4": null },
       "field_confidence": {
         "occurred_at": "high | medium | low",
         "actor": "high | medium | low",
-        "amount": "high | medium | low"
+        "amount": "high | medium | low",
+        "counterparty_name": "high | medium | low",
+        "payer_name": "high | medium | low"
       },
       "source_region": { "x": 0.18, "y": 0.31, "w": 0.62, "h": 0.12 },
       "confirmation_status": "pending | user_confirmed | user_corrected"
@@ -343,9 +347,18 @@ ELIF 지급정지일도 확인 불가:
     "delivery_evidence": true,
     "life_activity": false,
     "quality_flags": { "blurry": false, "missing_date": false, "amount_mismatch": false }
+  },
+  "qualityFlags": {
+    "evt_2_1": { "blurry": false, "missing_date": false, "amount_mismatch": false }
   }
 }
 ```
+
+> **2026-08-25 개정 사항** (근거: `../response/backend/card-source-type.md`, `payer-name-extraction.md`)
+> - **`source_type`을 최상위 → 이벤트 단위로 이동.** 대화 캡처 안의 송금 알림처럼 **한 이미지에 유형이 섞이는 경우가 흔해** 이미지 단위로는 판정할 수 없습니다. 최상위 필드는 두지 않습니다(중복).
+> - **`counterparty_name` / `payer_name` 추가.** 금감원 표준의 "구매자–송금인 일치 확인"에 쓰입니다. FR-027의 이름 마스킹과 충돌하므로 **거래 당사자에 한한 예외**를 뒀습니다 — 경계와 근거는 `../03-infra-ops/privacy-and-safety.md` "추출 범위 예외 — 거래 당사자 표시명"이 단일 출처입니다.
+> - `events` → **`cards`**, 카드별 **`qualityFlags`** 추가 — 실제 계약(`../02-architecture/api-contract.md`)에 맞춘 표기 정정입니다.
+> - 필드별 상세는 `../02-architecture/api-contract.md`·`internal-api-contract.md`를 보세요.
 
 ## 4.3 Stage 3 — 제출 준비도 점검
 
@@ -428,6 +441,10 @@ ELSE:
 ④ 원본에 없는 "배송 완료", "정상 판매", "피해자와 무관하다" 같은 결론적 서술은 근거가 있어도 생성하지 않는다. 객관적 사실만 남긴다.
 ⑤ `intake` 또는 `user_text`가 근거인 문장에는 "본인 진술" 표기를 붙인다.
 ⑥ 삭제 후 재생성은 1회로 제한한다.
+
+> **2026-08-25 확정 — 근거 유형 세 가지가 계약에 반영됐습니다.** `/api/draft`·`/internal/draft` 응답의 `evidenceRefs[].type`이 정확히 이 셋(`evidence` / `intake` / `user_text`)이며, ⑤의 "본인 진술" 표기는 프론트가 `type`으로 판정합니다. `intake` 근거를 실제로 만들려면 문진 응답이 소명서 생성 입력으로 전달돼야 하는데 그 자리가 계약에 없었고, `/internal/draft` 요청에 **`intake` 객체를 신설**해 해결했습니다 — `../02-architecture/internal-api-contract.md`, `../response/ai/draft-intake-input.md`.
+>
+> 단, `intake`로 전달하는 것은 **문진 6문항 중 4개**(지급정지일·입금액·거래 성격·계좌 사용 목적)입니다. **과거 지급정지 이력(`history`)과 공고 관련 문항은 전달하지 않습니다** — 준비도 판정에만 쓰이는 값이고, 사용자에게 불리한 정보를 본인이 은행에 내는 문서에 스스로 적어 넣게 만들지 않기 위해서입니다.
 
 ## 4.5 Stage 5 — 접수 및 대응 안내
 
