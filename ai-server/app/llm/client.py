@@ -18,10 +18,22 @@ from . import prompts
 
 log = logging.getLogger("ai.llm")
 
-_client = AsyncAnthropic(max_retries=0)
+_client: AsyncAnthropic | None = None
 _semaphore: asyncio.Semaphore | None = None
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def _get_client() -> AsyncAnthropic:
+    """지연 생성. 임포트 시점에 만들면 API 키가 없을 때 서버가 아예 뜨지 못한다.
+
+    배포는 LLM 키 확정보다 먼저 이루어질 수 있어야 한다 — 키가 없어도
+    `/internal/health`는 200을 돌려주고, 실제 LLM 경로만 계약 오류로 실패한다.
+    """
+    global _client
+    if _client is None:
+        _client = AsyncAnthropic(max_retries=0)
+    return _client
 
 
 def _sem() -> asyncio.Semaphore:
@@ -51,9 +63,10 @@ async def _structured_call(
     label: str,
 ) -> T:
     started = time.monotonic()
+    client = _get_client()
     async with _sem():
         try:
-            response = await _client.with_options(timeout=timeout).messages.create(
+            response = await client.with_options(timeout=timeout).messages.create(
                 model=settings.ai_model,
                 max_tokens=max_tokens,
                 system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
@@ -73,6 +86,11 @@ async def _structured_call(
         except anthropic.APIConnectionError as exc:
             log.warning("%s llm connection error", label)
             raise LLMCallFailed("connection") from exc
+        except Exception as exc:
+            # SDK 내부 오류·API 키 미설정 등. 500으로 새어나가면 백엔드가 계약대로
+            # 폴백(텍스트 입력·데모 모드)할 수 없으므로 계약 오류로 변환한다.
+            log.warning("%s llm unexpected %s", label, type(exc).__name__)
+            raise LLMCallFailed("unexpected") from exc
 
     duration = time.monotonic() - started
     usage = getattr(response, "usage", None)

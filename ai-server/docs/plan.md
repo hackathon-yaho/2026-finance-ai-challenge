@@ -10,8 +10,11 @@
 - [x] `GET /internal/health` (무인증) — `{"status":"UP"}`
 - [x] `X-Internal-Token` 검증 dependency (401, 상수 시간 비교) — 계약 체크리스트 "AI-server 측 401 검증 구현" 해소
 - [x] pydantic 스키마: 카드·신호·draft 요청/응답 (계약 = 코드)
-- [ ] **배포 → `AI_SERVER_URL` 백엔드 전달** (킵얼라이브 Secrets) — ⚠️ **플랫폼 미확정 상태의 최우선 블로커.** 백엔드가 8/26 수신 대기 중(`../../docs/05-planning/roadmap.md`). 공용 문서(`../../docs/03-infra-ops/deployment-and-uptime.md`)는 Render Starter를 지정하고 있으나 실제 플랫폼은 미정 — **다른 플랫폼으로 정하면 공용 문서를 먼저 고치고 팀에 공유**한다(매몰 방지 원칙). 플랫폼과 무관한 조건: 심사 기간(9/7 11:00~9/11 23:59) 스핀다운 없음, `/internal/health` 외부 공개, HTTPS
-- [ ] 외부 헬스 모니터링 등록
+- [x] 배포 플랫폼 확정 — **Cloudflare Containers** (2026-08-25). 공용 문서(`../../docs/03-infra-ops/deployment-and-uptime.md` §3, PRD §8.3) 먼저 수정 완료
+- [x] 배포 설정 준비 — `wrangler.jsonc` / `worker/index.ts` / `.dockerignore` / `deployment.md`
+- [ ] **실제 배포 → `AI_SERVER_URL` 백엔드 전달** (킵얼라이브 Secrets) — 백엔드가 대기 중(`../../docs/05-planning/roadmap.md`). 필요한 것: Workers Paid 플랜, Docker Desktop 실행, 백엔드가 공유할 `INTERNAL_TOKEN`
+- [ ] 10MB 요청이 Worker → 컨테이너 구간을 통과하는지 실측
+- [ ] 외부 헬스 모니터링 등록 (5~10분 간격 — `sleepAfter = 45m`보다 짧아야 잠들지 않는다)
 
 ## Phase A2 — 추출 (8/25~8/28, 로드맵 "코어 기능")
 
@@ -49,7 +52,7 @@
 
 ## Phase A5 — 인프라 확정 (9/5, 로드맵 "인프라 확정")
 
-- [ ] **스핀다운 없는 유료 티어 전환** — 협상 불가. 공용 문서 기준값은 Render Starter($7/월)이며, 다른 플랫폼으로 정했다면 그 플랫폼의 상시 가동 요금제. 어느 쪽이든 **9/5까지 확정**
+- [ ] **Cloudflare Workers Paid 플랜 전환** ($5/월) — 협상 불가. 미전환이면 Containers 배포 자체가 안 된다. **9/5까지**
 - [ ] 헬스체크·킵얼라이브 동작 확인 (스핀다운 없는 상태 검증)
 - [ ] 동시 4 요청 부하 확인 (10장 업로드 시나리오 3회)
 - [ ] 환경변수 최종 점검 (`INTERNAL_TOKEN` 일치, 키 유효기간)

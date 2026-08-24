@@ -1,0 +1,11 @@
+{
+  "name": "haebing-ai-server-worker",
+  "private": true,
+  "description": "Cloudflare Worker 앞단 — 요청을 컨테이너(Python FastAPI)로 전달한다. 절차: docs/deployment.md",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "tail": "wrangler tail"
+  }
+}

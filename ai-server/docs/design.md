@@ -271,9 +271,14 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 
 ## 10. 배포·운영 (deployment-and-uptime.md AI 체크리스트 이행)
 
-- Dockerfile: `python:3.12-slim`, 비루트 유저, 쓰기 볼륨 없음. 한글 폰트 불필요(PDF는 백엔드).
-- Render Web Service 생성 → `/internal/health` 공개 확인 → **`AI_SERVER_URL`을 백엔드에 전달**(킵얼라이브 Secrets 등록용) → UptimeRobot 5~10분 간격 등록.
-- **9/5까지 Starter 전환** ($7/월) — 협상 불가 항목.
+**배포처: Cloudflare Containers** (2026-08-25 변경 — 종전 지정은 Render Starter). 절차와 확인 항목은 `deployment.md`, 팀 단일 출처는 `../../docs/03-infra-ops/deployment-and-uptime.md` §3.
+
+- Dockerfile: `python:3.12-slim`, 비루트 유저, 쓰기 볼륨 없음. 한글 폰트 불필요(PDF는 백엔드). **구현은 배포처 변경과 무관하게 그대로다** — 같은 이미지를 올린다.
+- 앞단 Worker(`worker/index.ts`)는 **라우팅만** 한다. 인증·계약 처리는 전부 컨테이너 안 FastAPI가 한다 — 같은 검증이 두 곳에 있으면 어느 쪽이 진짜인지 알 수 없게 된다.
+- `/internal/health`도 컨테이너까지 전달한다. 엣지에서 끊으면 "Worker는 살아 있고 컨테이너는 죽은" 상태를 정상으로 보고하게 된다.
+- **LLM 키가 없어도 배포된다** — 서버는 뜨고 헬스체크는 200, LLM 경로만 계약대로 502. 공급자 확정을 기다리지 않고 먼저 배포해 백엔드 연동을 풀 수 있다(`app/llm/client.py`의 지연 생성).
+- **9/5까지 Workers Paid 전환** ($5/월) — 협상 불가 항목. 미전환이면 Containers 배포 자체가 안 된다.
+- 배포 후: `AI_SERVER_URL`을 백엔드에 전달(킵얼라이브 Secrets) → 외부 헬스체크 5~10분 간격 등록 → 10MB 요청 통과 실측.
 - 심사 기간(9/7~9/11) 매일 아침 헬스체크 확인 로테이션 참여.
 
 ## 11. 미해결·리스크 (정직한 상태)
@@ -282,8 +287,8 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 | --- | --- | --- |
 | `/internal/draft`의 `intake` 입력 | ✅ 2026-08-25 확정 — 원안 수용 (`docs/response/ai/draft-intake-input.md`) | 구현 완료. TC-06 임시 처리 해제 |
 | payer-name §2 절충안 | ✅ 2026-08-25 확정 — **원문 추출**, 부분 마스킹 기각 | 구현 그대로 유지. 데모 세트의 `박OO` 표기도 원문 형태로 교체 |
-| 배포 플랫폼·`AI_SERVER_URL` | ⏳ **미정 — 현재 최우선 블로커** | 백엔드가 8/26 수신 대기 중(킵얼라이브·`AiClient` 설정). 무엇을 쓰든 심사 기간 무중단·`/internal/health` 공개가 조건. 확정 시 `docs/03-infra-ops/deployment-and-uptime.md` 먼저 수정 |
+| 배포 플랫폼 | ✅ 2026-08-25 **Cloudflare Containers**로 확정 | 설정·절차 준비 완료(`deployment.md`). 실제 배포와 `AI_SERVER_URL` 전달은 미완 — 백엔드가 대기 중 |
+| LLM 공급자 | ⏳ 미확정 (Anthropic 구현, OpenAI 검토 중) | 교체 범위는 `app/llm/client.py` + `prompts.py`의 structured output뿐. 스키마·프롬프트 문안·FactChecker는 공급자 중립. **키 없이도 배포·헬스체크는 동작** |
 | `source_region`(bbox) 정밀도 | LLM 비전 특성상 근사값 | F7-05 P0(열기+스크롤)에는 충분. 평가 세트에서 실측 공유. 정밀 하이라이트(P1)는 기대치 조정 |
-| 이름 추출 실측 정확도 | 미실측 | 8/28까지 평가 세트로 실측 → payer-name 회신 문서에 수치 추가 |
-| payer-name §2 절충안 | ⏳ 백엔드 결정 대기 | 기각 시 부분 마스킹 후처리로 전환 (판별력 저하 감수는 팀 결정) |
+| 이름 추출 실측 정확도 | 미실측 (실 LLM 연동 후) | 8/28까지 평가 세트로 실측 → payer-name 회신 문서에 수치 추가 |
 | p95 8초 달성 여부 | 미실측 | effort/모델 조정 여지 확보(env). 평가 세트에 지연 측정 포함 |

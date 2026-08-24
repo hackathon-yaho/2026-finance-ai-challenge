@@ -536,8 +536,8 @@ ELSE:
 └──────┬─────────────────┬───────┘
        │                 │ 내부 API (사설, §9.1)
 ┌──────▼────────┐  ┌─────▼──────────────────────┐
-│  Supabase       │  │  AI-server                  │  ← 별도 Render Web
-│  PostgreSQL     │  │  독립 배포, AI 담당         │     Service, AI 담당
+│  Supabase       │  │  AI-server                  │  ← Cloudflare
+│  PostgreSQL     │  │  독립 배포, AI 담당         │     Containers, AI 담당
 │  (익명 통계만)   │  │  ┌────────────────────────┐ │
 └─────────────────┘  │  │ ExtractionService       │ │
                       │  │ (멀티모달 LLM 호출, 품질검사) │
@@ -645,11 +645,22 @@ record Session(
 
 **담당: 백엔드.** 9월 5일까지 Render Starter 플랜 전환($7/월) 필수.
 
-## 8.3 AI-server — Render 무료/Starter 티어 확인된 제약
+## 8.3 AI-server — Cloudflare Containers 확인된 제약 (2026-08-25 변경)
 
-백엔드와 동일한 Render 제약(스핀다운, 휘발성 파일시스템)이 그대로 적용된다. AI-server는 이미지 처리와 LLM 호출이라는 지연에 민감한 작업을 하므로 스핀다운으로 인한 콜드스타트가 특히 치명적이다(LLM 응답 자체도 몇 초 걸리는데, 여기에 스핀업 1분이 더해지면 사용자 체감 지연이 심각해진다).
+**종전 지정은 Render Starter였으나 Cloudflare Containers로 변경한다.** AI 담당의 배포 환경 결정이며, **AI-server의 구현은 바뀌지 않는다** — 같은 Dockerfile(Python 3.12 + FastAPI)을 그대로 올린다. 백엔드가 알아야 할 변화는 `AI_SERVER_URL`의 도메인이 `*.workers.dev`가 된다는 것뿐이고, 내부 API 계약(§9.1)은 그대로다.
 
-**담당: AI 개발자.** 9월 5일까지 Render Starter 플랜 전환($7/월) 필수.
+앞단의 Cloudflare Worker가 항상 살아 있고 컨테이너를 깨워 요청을 전달하는 구조라, **심사위원 접속 시 연결 거부가 발생하지 않는다** — Render 무료 티어의 스핀다운(재기동 약 1분 동안 접근 불가)과 성격이 다르다.
+
+| 제약 | 내용 | 대회 영향 |
+| --- | --- | --- |
+| **Workers 유료 플랜 필수** | Containers는 Workers Paid($5/월) 전용 기능 | 9/5까지 전환 필요. 무료 플랜에는 기능 자체가 없다 |
+| **유휴 시 sleep** | 기본 10분 후 컨테이너 정지 | `sleepAfter` 연장 + 킵얼라이브로 방지. 잠들어도 콜드스타트 1~3초(Cloudflare 공식 수치)이며 URL은 살아 있다 |
+| **배포에 로컬 Docker 필요** | `wrangler deploy`가 이미지를 로컬 빌드 후 푸시 | 배포자 PC에 Docker Desktop 필요 |
+| 휘발성 파일시스템 | 재배포·재시작 시 로컬 파일 소실 | AI-server는 아무것도 저장하지 않으므로 영향 없음 (§7 무저장 원칙) |
+
+**Python Workers(Pyodide)로 포팅하지 않는다** — 베타 런타임이고, 가동시간이 결격 사유인 대회에서 베타에 의존하지 않는다.
+
+**담당: AI 개발자.** 9월 5일까지 Workers Paid 플랜 전환($5/월) 필수. 절차는 `../../ai-server/docs/deployment.md`.
 
 ## 8.4 Supabase 무료 티어 — 확인된 제약
 
@@ -671,11 +682,11 @@ record Session(
 | 프론트엔드 | Vercel/Netlify 등 정적 호스팅 배포 | $0 | 프론트엔드 | 개발 초기부터 |
 | 백엔드 | Render Starter 플랜 전환 | $7/월 | 백엔드 | **9월 5일까지** |
 | 백엔드 | Supabase 킵얼라이브 (GitHub Actions cron) | $0 | 백엔드 | 배포 즉시 |
-| AI-server | Render Starter 플랜 전환 | $7/월 | AI 개발자 | **9월 5일까지** |
-| AI-server | 외부 헬스체크(UptimeRobot 등) 등록 | $0 | AI 개발자 | 배포 즉시 |
+| AI-server | **Cloudflare Workers Paid 플랜 전환** (2026-08-25 변경) | $5/월 + 사용량 | AI 개발자 | **9월 5일까지** |
+| AI-server | 외부 헬스체크 등록 | $0 | AI 개발자 | 배포 즉시 |
 | 전체 | 9/7~9/11 매일 아침 3개 URL 모두 직접 확인 | $0 | 전원 (로테이션) | 심사 기간 |
 
-총 예상 인프라 비용은 월 **$14**(백엔드 + AI-server 각 $7, 프론트는 $0)입니다. **비용을 아끼려 프론트를 Render로 옮기거나 백엔드/AI-server 중 하나를 무료 티어로 남기지 않는다** — 스핀다운 리스크는 URL 미접근이라는 결격 사유와 직결되므로 협상 대상이 아니다.
+총 예상 인프라 비용은 월 **약 $12**(백엔드 Render Starter $7 + AI-server Cloudflare 약 $5~7, 프론트는 $0)입니다. **비용을 아끼려 프론트를 유료 호스팅으로 옮기거나 백엔드/AI-server 중 하나를 무료 티어로 남기지 않는다** — 스핀다운 리스크는 URL 미접근이라는 결격 사유와 직결되므로 협상 대상이 아니다.
 
 > **주의: GitHub Actions는 UTC로 실행된다.** KST 기준으로 계산할 때 9시간 차이를 반드시 반영한다. 킵얼라이브 워크플로는 `../03-infra-ops/deployment-and-uptime.md`에 서비스별로 정리되어 있다.
 
@@ -811,7 +822,7 @@ record Session(
 | 역할 | 담당 범위 | 배포 책임 |
 | --- | --- | --- |
 | **A · 백엔드** | Spring Boot 골격, 세션 관리, **TimelineService(정렬·병합·공백 탐지)**, ReadinessService(규칙 엔진), 공개 API, 내부 API 클라이언트(AI-server 호출), Supabase 연동 | 백엔드 서비스 배포·가동 (Render) |
-| **B · AI 개발자** | AI-server 전체(멀티모달 프롬프트 설계, 추출 스키마, DraftService, 사실 검증, 문장-근거 연결), 내부 API 서버 | AI-server 배포·가동 (Render) |
+| **B · AI 개발자** | AI-server 전체(멀티모달 프롬프트 설계, 추출 스키마, DraftService, 사실 검증, 문장-근거 연결), 내부 API 서버 | AI-server 배포·가동 (**Cloudflare Containers** — 2026-08-25 변경) |
 | **C · 프론트엔드** | 5단계 UI, 반응형, 접근성, **클라이언트 리사이즈·마스킹·blob 관리·PDF 병합**, 기획서·기능명세서 작성 | 프론트엔드 배포·가동 (정적 호스팅) |
 
 > **개정 (2026-08-23 이후)**: 배포·인프라 전체를 C(프론트) 담당으로 묶지 않고, **각자 자신이 개발한 서비스를 직접 배포·운영**한다. 문서(기획서·기능명세서) 작성은 여전히 C가 주도하되, 마감 압박이 큰 항목이니 필요하면 셋이 분담한다. 팀장이 C를 맡는 편이 좋다 — **문서 2종이 코드만큼 중요한 제출물**이기 때문이다.
@@ -849,7 +860,7 @@ FR-024 협박 대응            ← 이 서비스만의 차별점
 
 | 리스크 | 확률 | 영향 | 대응 |
 | --- | --- | --- | --- |
-| Render 스핀다운으로 URL 접근 불가 | 높음 | **치명적** | Starter 전환 (9/5까지 필수) |
+| 스핀다운·유휴 정지로 URL 접근 불가 | 높음 | **치명적** | 백엔드 Render Starter 전환 / AI-server Cloudflare Workers Paid 전환 (둘 다 9/5까지 필수) |
 | Supabase 일시정지 | 중 | **치명적** | 킵얼라이브 cron |
 | 이미지 판독 정확도 미달 | 중 | 높음 | 텍스트 입력 대체 경로 (FR-026) |
 | 문서 작성 시간 부족 | **높음** | **치명적** | 9/3~9/4 문서 전용일 사수. 코딩 금지 |
@@ -910,7 +921,7 @@ FR-024 협박 대응            ← 이 서비스만의 차별점
 | OI-04 | 이의제기 인용률 | 부재 확인 | 수치 사용 금지 |
 | OI-05 | 저축은행·상호금융 확대 시점 | "이후 확대" 외 미상 | 은행권 기준으로만 설계 |
 | AS-01 | LLM 멀티모달 API 사용 가능 | 확정 (팀 확인) | — |
-| AS-02 | Render + Supabase 조합 사용 | 확정 (팀 확인) | §8 대응 필수 |
+| AS-02 | 백엔드 Render + Supabase, AI-server Cloudflare Containers (2026-08-25 변경) | 확정 (팀 확인) | §8 대응 필수 |
 | AS-03 | 원본 이미지 서버 미보관(A안) | 확정 (팀 결정) | 제출 패키지의 이미지 페이지는 클라이언트 병합. §5.1·§9 참조 |
 
 ---

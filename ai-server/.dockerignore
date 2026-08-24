@@ -1,0 +1,20 @@
+# 컨테이너 이미지에 들어갈 필요가 없는 것들.
+# .venv를 빼지 않으면 빌드 컨텍스트가 수백 MB로 불어나 배포가 느려진다.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+
+# 런타임에 쓰지 않는다
+tests/
+docs/
+demo/
+requirements-dev.txt
+
+# Cloudflare Worker 쪽 파일 (컨테이너 안에서는 쓰지 않는다)
+worker/
+node_modules/
+wrangler.jsonc
+package.json
+package-lock.json
