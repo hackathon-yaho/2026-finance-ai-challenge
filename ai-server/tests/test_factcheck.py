@@ -128,6 +128,26 @@ def test_verify_drops_name_match_judgment_tc25():
     assert not kept and dropped == 1
 
 
+def test_verify_drops_outcome_predictions():
+    """은행 판단 예측은 어휘를 바꿔도 막혀야 한다.
+
+    평가 세트에서 "인용될 가능성이 높습니다"가 통과하는 것을 발견해 추가했다.
+    해제/승인 같은 특정 어휘만 막으면 같은 예측을 다른 단어로 쓴 문장이 샌다.
+    """
+    facts = factcheck.build_facts([make_card()], None)
+    predictions = [
+        "이의제기가 인용될 가능성이 높습니다.",
+        "지급정지가 곧 해제될 것으로 보입니다.",
+        "이 자료로는 기각될 수 있습니다.",
+        "자료가 충분하여 유리하게 작용할 것입니다.",
+        "해제될 확률이 높은 편입니다.",
+    ]
+    kept, dropped, _ = factcheck.verify(
+        [LLMDraftSentence(text=text, basis=["evt_1_1"]) for text in predictions], facts
+    )
+    assert not kept and dropped == len(predictions)
+
+
 def test_verify_keeps_plain_amount_statement():
     """금액 '평가'만 막는다 — 금액을 사실로 적는 문장은 살아남아야 한다."""
     facts = factcheck.build_facts([make_card()], None)
