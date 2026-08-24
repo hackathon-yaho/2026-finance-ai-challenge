@@ -11,10 +11,4 @@ tests/
 docs/
 demo/
 requirements-dev.txt
-
-# Cloudflare Worker 쪽 파일 (컨테이너 안에서는 쓰지 않는다)
-worker/
-node_modules/
-wrangler.jsonc
-package.json
-package-lock.json
+README.md

@@ -4,9 +4,3 @@ __pycache__/
 venv/
 .env
 .pytest_cache/
-
-# Cloudflare / Node
-node_modules/
-package-lock.json
-.wrangler/
-worker-configuration.d.ts
