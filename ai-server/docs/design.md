@@ -99,7 +99,7 @@ raw body 수신 (await request.body() — 디스크 스풀링 없음, 10MB 상�
 **응답 스키마** — 공개 API 카드 스키마와 동일 + 회신 3건으로 확정된 확장:
 - 카드별 `source_type` (`chat/bank/shipping/threat/autopay/unknown`)
 - 카드별 `counterparty_name` / `payer_name` (없으면 `null`, 추측 금지)
-- `field_confidence`에 `counterparty_name`/`payer_name` 키 추가
+- `field_confidence`에 `counterparty_name`/`payer_name` 키 추가. **이름이 `null`이면 신뢰도도 `null`** — LLM이 매긴 값을 후처리에서 덮어써 결정적으로 보장한다(계약 "신뢰도의 null" 절). `occurred_at`/`actor`/`amount`는 종전대로 3값 유지 — 프론트가 항상 배지로 렌더하므로 세 번째 상태를 만들지 않는다
 - `signals.quality_flags.amount_mismatch`: **항상 `false`** (백엔드 산출)
 - `event_id`: `evt_{image_index}_{n}` / 텍스트 경로 `evt_txt_{n}`
 
@@ -115,7 +115,11 @@ DraftRequest 수신 (events: confirmed 카드만 / reason / readiness / intake*)
   → DraftResponse: draftText, sentences[{sentenceId, text, evidenceRefs}],
                    checklist: [], factCheckPassed
 ```
-`*intake`는 `docs/request/backend/draft-intake-input.md` 회신 대기 중 — 확정 전에는 events만으로 동작하고, TC-06(빈 events)은 최소 안내문 골격으로 임시 처리.
+`*intake`는 **2026-08-25 확정**(`docs/response/ai/draft-intake-input.md` — 원안 전부 수용). `{when, amount, kind, usage}` 4필드이며 객체 전체·개별 필드 모두 `null` 가능하다. TC-06(빈 `events` + `intake`만)이 이 경로로 정상 동작한다.
+
+- **지급정지일 합성 이벤트는 `events`에 들어오지 않는다.** 문진에서 온 사실은 전부 `intake`로만 온다 — 이 분리가 FR-045의 근거 유형 구분과 일치한다. (타임라인 표시·공백 탐지에서는 백엔드가 합성 이벤트를 계속 쓴다. `/internal/draft` 입력에서만 빠진다.)
+- **`history`·`dueNotice*`는 전달되지 않는다.** 준비도 판정 전용 값이고, 사용자에게 불리한 과거 이력을 본인이 제출하는 문서에 적어 넣지 않기 위해서다(TC-29).
+- `intake.amount`는 **사실 기재 전용**이다. "소액이므로 유리하다" 류의 평가 문장을 만들지 않는다(PRD §14 OI-01 — '소액' 기준은 은행 내규로 비공개).
 
 - **제목·메타정보·서명란은 LLM이 아니라 고정 템플릿**이 만든다(FR-040의 출력 구성 중 변형되면 안 되는 부분). LLM은 본문 사실 문장만 만든다.
 - `factCheckPassed=false`여도 **200 정상 응답**. 재생성 드라이브는 계약대로 백엔드가 한다(1회 재호출). AI-server는 무상태이므로 재호출 = 새로운 독립 생성.
@@ -175,7 +179,12 @@ DraftRequest 수신 (events: confirmed 카드만 / reason / readiness / intake*)
    서술하되, basis에 intake를 명시한다.
 8. 이름 표기가 자료 간 다른 경우 그 차이를 해석·평가하지 않는다. 각 자료의
    표기를 그대로 서술할 수만 있다.
+9. 과거의 지급정지 이력이나 이번 건과 무관한 다른 사건을 서술하지 않는다.
+10. 금액에 대한 평가를 하지 않는다("소액이므로", "금액이 크지 않아").
+    금액은 사실로만 적는다.
 ```
+
+> 9·10은 백엔드 회신(`docs/response/ai/draft-intake-input.md` §1)의 요청 조항이다. **프롬프트에만 두지 않고 §5-2의 금칙어 검사에도 넣었다** — 프롬프트 준수는 확률적인데, 이 두 문장은 한 번만 새어나가도 사용자가 은행에 불리한 문서를 내게 되기 때문이다.
 
 - 사용자 메시지 = 사실 목록(이벤트를 `id / 일시 / 행위자 / 요약 / 금액 / source_type / 이름` 표로 직렬화) + `reason`(한국어 라벨 매핑) + `readiness`별 톤 지시(예: `BANK_CHECK_REQUIRED`면 낙관 표현 금지 강조 — 값 재해석이 아니라 **문장 톤 제약으로만** 사용).
 - structured output: `{"sentences": [{"text": "...", "basis": ["evt_2_1", "intake:when"]}]}` — **LLM이 문장 단위로, 근거를 스스로 명시하며** 생성한다. 문장 분리를 사후에 하는 것보다 근거 연결이 정확하다.
@@ -191,7 +200,7 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 | ② 근거 매칭 | `basis`의 모든 id가 실제 입력(events/intake/user_text)에 존재하는가 | id 존재 검사 |
 | ②′ 값 대조 | 문장 안의 날짜·금액이 근거 이벤트의 값과 일치하는가 | 정규식으로 문장 내 날짜(`YYYY년 M월 D일`, `M월 D일`, `M/D` 등)·금액(`450,000원`, `45만원` 등) 추출 → 근거 이벤트의 `occurred_at`·`amount`와 대조. **근거에 없는 날짜·금액이 문장에 있으면 탈락** (TC-08 차단 지점) |
 | ③ 미매칭 삭제 | ②·②′ 탈락 문장은 자동 삭제 | 삭제 목록 기록(카운트만 로그) |
-| ④ 결론 서술 차단 | 금지 표현 블록리스트: "배송 완료"(근거 이벤트가 배송 완료를 직접 보이지 않는 한), "정상 판매", "정상 거래", "무관하", "결백", "반증", "증명한다", "기각", "해제 가능성", "선처", "간곡히" 등 | 부분 문자열·형태 변형 매칭. 걸리면 문장 삭제 |
+| ④ 결론 서술 차단 | 금지 표현 블록리스트 4계열 — ⓐ 결론·예측: "배송 완료", "정상 거래", "결백", "반증", "증명한다", "기각", "해제 가능성", "선처" 등 / ⓑ **과거 지급정지 이력**: "지급정지 이력", "이전에도 지급정지" 등(TC-29) / ⓒ **금액 평가**: "소액이므로", "금액이 크지 않" 등(PRD §14 OI-01) / ⓓ **이름 대조 판정**: "일치하지 않", "불일치", "명의가 다르" 등(TC-25) | 부분 문자열·형태 변형 매칭. 걸리면 문장 삭제 |
 | ⑤ 본인 진술 표기 | basis가 `intake:*` 또는 user_text 카드뿐인 문장 | `evidenceRefs`를 `[{type:"intake"}]` / `[{type:"user_text"}]`로 산출 → 프론트가 "본인 진술" 배지 렌더 |
 | ⑥ 재생성 1회 제한 | AI-server는 단일 패스. 재생성은 백엔드가 재호출로 1회 드라이브 | 무상태 유지 |
 
@@ -271,7 +280,9 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 
 | 항목 | 상태 | 대응 |
 | --- | --- | --- |
-| `/internal/draft`의 `intake` 입력 | ⏳ 백엔드 회신 대기 (`docs/request/backend/draft-intake-input.md`) | 확정 전 TC-06은 최소 골격 임시 처리 |
+| `/internal/draft`의 `intake` 입력 | ✅ 2026-08-25 확정 — 원안 수용 (`docs/response/ai/draft-intake-input.md`) | 구현 완료. TC-06 임시 처리 해제 |
+| payer-name §2 절충안 | ✅ 2026-08-25 확정 — **원문 추출**, 부분 마스킹 기각 | 구현 그대로 유지. 데모 세트의 `박OO` 표기도 원문 형태로 교체 |
+| 배포 플랫폼·`AI_SERVER_URL` | ⏳ **미정 — 현재 최우선 블로커** | 백엔드가 8/26 수신 대기 중(킵얼라이브·`AiClient` 설정). 무엇을 쓰든 심사 기간 무중단·`/internal/health` 공개가 조건. 확정 시 `docs/03-infra-ops/deployment-and-uptime.md` 먼저 수정 |
 | `source_region`(bbox) 정밀도 | LLM 비전 특성상 근사값 | F7-05 P0(열기+스크롤)에는 충분. 평가 세트에서 실측 공유. 정밀 하이라이트(P1)는 기대치 조정 |
 | 이름 추출 실측 정확도 | 미실측 | 8/28까지 평가 세트로 실측 → payer-name 회신 문서에 수치 추가 |
 | payer-name §2 절충안 | ⏳ 백엔드 결정 대기 | 기각 시 부분 마스킹 후처리로 전환 (판별력 저하 감수는 팀 결정) |

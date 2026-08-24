@@ -7,34 +7,37 @@
 ## Phase A1 — 스켈레톤 (8/25, 로드맵 "킥오프·스켈레톤" 잔여일)
 
 - [ ] FastAPI 프로젝트 골격 + `requirements.txt` + Dockerfile (design.md §2 구조)
-- [ ] `GET /internal/health` (무인증) — `{"status":"UP"}`
-- [ ] `X-Internal-Token` 검증 dependency (401, 상수 시간 비교) — 계약 체크리스트 "AI-server 측 401 검증 구현" 해소
-- [ ] pydantic 스키마: 카드·신호·draft 요청/응답 (계약 = 코드)
-- [ ] Render 배포 (무료 티어로 우선) → **`AI_SERVER_URL` 백엔드 전달** (킵얼라이브 Secrets)
-- [ ] UptimeRobot 등록
+- [x] `GET /internal/health` (무인증) — `{"status":"UP"}`
+- [x] `X-Internal-Token` 검증 dependency (401, 상수 시간 비교) — 계약 체크리스트 "AI-server 측 401 검증 구현" 해소
+- [x] pydantic 스키마: 카드·신호·draft 요청/응답 (계약 = 코드)
+- [ ] **배포 → `AI_SERVER_URL` 백엔드 전달** (킵얼라이브 Secrets) — ⚠️ **플랫폼 미확정 상태의 최우선 블로커.** 백엔드가 8/26 수신 대기 중(`../../docs/05-planning/roadmap.md`). 공용 문서(`../../docs/03-infra-ops/deployment-and-uptime.md`)는 Render Starter를 지정하고 있으나 실제 플랫폼은 미정 — **다른 플랫폼으로 정하면 공용 문서를 먼저 고치고 팀에 공유**한다(매몰 방지 원칙). 플랫폼과 무관한 조건: 심사 기간(9/7 11:00~9/11 23:59) 스핀다운 없음, `/internal/health` 외부 공개, HTTPS
+- [ ] 외부 헬스 모니터링 등록
 
 ## Phase A2 — 추출 (8/25~8/28, 로드맵 "코어 기능")
 
-- [ ] `POST /internal/extract` 이미지 경로: raw body 수신 → LLM 판독 → 카드 응답 (design.md §3-3, §4)
-- [ ] structured outputs 스키마 + 시스템 프롬프트 (§4의 11개 조항)
-- [ ] `source_type` / `counterparty_name` / `payer_name` / `field_confidence` / `source_region` 산출
-- [ ] `signals` 산출: `threat_detected` / `delivery_evidence` / `life_activity` / `blurry` / `missing_date` (`amount_mismatch`는 항상 false)
-- [ ] 텍스트 경로 (`application/json`, rawText) — `occurred_at` confidence 전부 `low` 강제
-- [ ] PII 후처리 검증 (`pii.py`) + 단위 테스트
-- [ ] 실패 처리: 재시도 1회·타임아웃·QUOTA_EXCEEDED·refusal 폴백 (§7)
-- [ ] 이미지 참조 즉시 해제 확인 (디스크·로그에 흔적 없음 — `privacy-and-safety.md` AI 체크리스트)
-- [ ] 샘플 캡처로 인젝션 방어 검증 (TC-10 사전 확인)
-- [ ] **8/28까지: 이름 추출 정확도 실측 → `docs/response/backend/payer-name-extraction.md`에 수치 추가**
+- [x] `POST /internal/extract` 이미지 경로: raw body 수신 → LLM 판독 → 카드 응답 (design.md §3-3, §4)
+- [x] structured outputs 스키마 + 시스템 프롬프트 (§4의 11개 조항)
+- [x] `source_type` / `counterparty_name` / `payer_name` / `field_confidence` / `source_region` 산출 — **이름이 `null`이면 신뢰도도 `null`** 로 덮어쓰는 불변식 포함 (2026-08-25 회신 §6)
+- [x] `signals` 산출: `threat_detected` / `delivery_evidence` / `life_activity` / `blurry` / `missing_date` (`amount_mismatch`는 항상 false)
+- [x] 텍스트 경로 (`application/json`, rawText) — `occurred_at` confidence 전부 `low` 강제
+- [x] PII 후처리 검증 (`pii.py`) + 단위 테스트
+- [x] 실패 처리: 재시도 1회·타임아웃·QUOTA_EXCEEDED·refusal 폴백 (§7)
+- [x] 이미지 참조 즉시 해제 확인 (디스크·로그에 흔적 없음 — `privacy-and-safety.md` AI 체크리스트)
+- [ ] 샘플 캡처로 인젝션 방어 검증 (TC-10 사전 확인) — **실 LLM 연동 후**
+- [ ] **8/28까지: 이름 추출 정확도 실측 → `docs/response/backend/payer-name-extraction.md`에 수치 추가** — **실 LLM 연동 후**
+- [ ] 제3자 이름 미추출 검증 (`privacy-and-safety.md` AI 체크리스트 신설 항목) — **실 LLM 연동 후**
 
 ## Phase A3 — 소명서 (8/29~8/31, 로드맵 "문서 생성")
 
-- [ ] `POST /internal/draft`: 사실 목록 직렬화 → LLM 문장 생성 (basis 포함) (design.md §5-1)
-- [ ] FactChecker 결정적 검증기 + 단위 테스트 (LLM 없이): 근거 매칭·날짜/금액 대조·금지 표현 차단·본인 진술 태깅·factCheckPassed 판정 (§5-2)
-- [ ] 협박 수신 사실 문단 고정 템플릿 삽입 (F10-04, §5-3)
-- [ ] 제목·메타·서명란 결정적 템플릿 조립
-- [ ] `evidenceRefs` 산출 (evidence/intake/user_text), `checklist: []`
-- [ ] `intake` 입력 반영 (백엔드 회신 도착 시 — `../../docs/request/backend/draft-intake-input.md`)
-- [ ] TC-06·TC-08 시나리오 수동 검증
+- [x] `POST /internal/draft`: 사실 목록 직렬화 → LLM 문장 생성 (basis 포함) (design.md §5-1)
+- [x] FactChecker 결정적 검증기 + 단위 테스트 (LLM 없이): 근거 매칭·날짜/금액 대조·금지 표현 차단·본인 진술 태깅·factCheckPassed 판정 (§5-2)
+- [x] 협박 수신 사실 문단 고정 템플릿 삽입 (F10-04, §5-3)
+- [x] 제목·메타·서명란 결정적 템플릿 조립
+- [x] `evidenceRefs` 산출 (evidence/intake/user_text), `checklist: []`
+- [x] `intake` 입력 반영 — **2026-08-25 확정** (`../../docs/response/ai/draft-intake-input.md`, 원안 수용)
+- [x] 금칙어에 과거 이력(TC-29)·금액 평가(OI-01)·이름 대조 판정(TC-25) 계열 추가 (회신 §1 요청)
+- [x] TC-06·TC-08 회귀 테스트 (`tests/test_api.py`, `tests/test_factcheck.py`)
+- [ ] 실 LLM 문장 품질 확인 (TC-01·03·06 육안 검증) — **실 LLM 연동 후**
 
 ## Phase A4 — 완성도·품질 (9/1~9/2, 로드맵 "완성도")
 
@@ -46,7 +49,7 @@
 
 ## Phase A5 — 인프라 확정 (9/5, 로드맵 "인프라 확정")
 
-- [ ] **Render Starter 전환 ($7/월)** — 협상 불가
+- [ ] **스핀다운 없는 유료 티어 전환** — 협상 불가. 공용 문서 기준값은 Render Starter($7/월)이며, 다른 플랫폼으로 정했다면 그 플랫폼의 상시 가동 요금제. 어느 쪽이든 **9/5까지 확정**
 - [ ] 헬스체크·킵얼라이브 동작 확인 (스핀다운 없는 상태 검증)
 - [ ] 동시 4 요청 부하 확인 (10장 업로드 시나리오 3회)
 - [ ] 환경변수 최종 점검 (`INTERNAL_TOKEN` 일치, 키 유효기간)

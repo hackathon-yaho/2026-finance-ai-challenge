@@ -42,12 +42,13 @@ def _to_cards(
         payer_name, hits = pii.scrub_name(event.payer_name)
         pii_hits += hits
 
+        # 값이 없는 이름의 신뢰도는 버린다 — LLM이 뭘 매겼든 null이 계약값이다.
         confidence = FieldConfidence(
             occurred_at="low" if force_low_time else event.confidence.occurred_at,
             actor=event.confidence.actor,
             amount=event.confidence.amount,
-            counterparty_name=event.confidence.counterparty_name,
-            payer_name=event.confidence.payer_name,
+            counterparty_name=event.confidence.counterparty_name if counterparty_name else None,
+            payer_name=event.confidence.payer_name if payer_name else None,
         )
         region = None
         if event.source_region is not None and not force_low_time:

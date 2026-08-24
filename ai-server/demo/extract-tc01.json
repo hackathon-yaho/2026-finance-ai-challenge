@@ -16,7 +16,7 @@
         "actor": "high",
         "amount": "high",
         "counterparty_name": "high",
-        "payer_name": "high"
+        "payer_name": null
       },
       "source_region": { "x": 0.08, "y": 0.22, "w": 0.84, "h": 0.18 },
       "confirmation_status": "pending"
@@ -37,7 +37,7 @@
         "actor": "high",
         "amount": "high",
         "counterparty_name": "high",
-        "payer_name": "high"
+        "payer_name": null
       },
       "source_region": { "x": 0.08, "y": 0.63, "w": 0.7, "h": 0.12 },
       "confirmation_status": "pending"
@@ -57,7 +57,7 @@
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
+        "counterparty_name": null,
         "payer_name": "high"
       },
       "source_region": { "x": 0.06, "y": 0.31, "w": 0.88, "h": 0.14 },
@@ -78,8 +78,8 @@
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
-        "payer_name": "high"
+        "counterparty_name": null,
+        "payer_name": null
       },
       "source_region": { "x": 0.1, "y": 0.18, "w": 0.8, "h": 0.22 },
       "confirmation_status": "pending"
@@ -99,8 +99,8 @@
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
-        "payer_name": "high"
+        "counterparty_name": null,
+        "payer_name": null
       },
       "source_region": { "x": 0.06, "y": 0.44, "w": 0.88, "h": 0.1 },
       "confirmation_status": "pending"

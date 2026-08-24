@@ -25,11 +25,18 @@ class Identifiers(BaseModel):
 
 
 class FieldConfidence(BaseModel):
+    """이름 신뢰도는 값이 없으면 None이다 (계약 "신뢰도의 null" 절).
+
+    "값이 없는데 높은 신뢰도"라는 조합은 성립하지 않는다. 불변식은 extraction._to_cards가
+    결정적으로 강제한다 — LLM에게 맡기면 비결정적이 된다.
+    occurred_at/actor/amount는 프론트가 항상 배지로 렌더하므로 3값을 유지한다.
+    """
+
     occurred_at: Confidence
     actor: Confidence
     amount: Confidence
-    counterparty_name: Confidence = "high"
-    payer_name: Confidence = "high"
+    counterparty_name: Confidence | None = None
+    payer_name: Confidence | None = None
 
 
 class QualityFlags(BaseModel):

@@ -9,13 +9,13 @@
       "summary": "10,000원 입금 (1차)",
       "amount": 10000,
       "counterparty_name": null,
-      "payer_name": "박OO",
+      "payer_name": "박서준",
       "identifiers": { "tracking_no": null, "account_last4": "5510" },
       "field_confidence": {
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
+        "counterparty_name": null,
         "payer_name": "medium"
       },
       "source_region": { "x": 0.06, "y": 0.24, "w": 0.88, "h": 0.1 },
@@ -30,13 +30,13 @@
       "summary": "10,000원 입금 (2차)",
       "amount": 10000,
       "counterparty_name": null,
-      "payer_name": "박OO",
+      "payer_name": "박서준",
       "identifiers": { "tracking_no": null, "account_last4": "5510" },
       "field_confidence": {
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
+        "counterparty_name": null,
         "payer_name": "medium"
       },
       "source_region": { "x": 0.06, "y": 0.36, "w": 0.88, "h": 0.1 },
@@ -51,13 +51,13 @@
       "summary": "10,000원 입금 (3차)",
       "amount": 10000,
       "counterparty_name": null,
-      "payer_name": "박OO",
+      "payer_name": "박서준",
       "identifiers": { "tracking_no": null, "account_last4": "5510" },
       "field_confidence": {
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
+        "counterparty_name": null,
         "payer_name": "medium"
       },
       "source_region": { "x": 0.06, "y": 0.48, "w": 0.88, "h": 0.1 },
@@ -78,8 +78,8 @@
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
-        "payer_name": "high"
+        "counterparty_name": null,
+        "payer_name": null
       },
       "source_region": { "x": 0.06, "y": 0.3, "w": 0.88, "h": 0.11 },
       "confirmation_status": "pending"
@@ -99,8 +99,8 @@
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
-        "payer_name": "high"
+        "counterparty_name": null,
+        "payer_name": null
       },
       "source_region": { "x": 0.1, "y": 0.35, "w": 0.8, "h": 0.24 },
       "confirmation_status": "pending"

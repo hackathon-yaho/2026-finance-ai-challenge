@@ -1,4 +1,9 @@
-# 데모 응답 세트 (v1 · 2026-08-25)
+# 데모 응답 세트 (v1.1 · 2026-08-25)
+
+> **v1.1 변경** (백엔드 회신 `docs/response/ai/draft-intake-input.md` 반영)
+> - 이름이 `null`인 카드의 `field_confidence.counterparty_name`/`payer_name`을 **`null`로 정정** (18곳). v1은 값이 없는데 `"high"`로 나가고 있었습니다
+> - `extract-tc03.json`·`draft-tc03.json`의 `박OO` → **`박서준`**. 부분 마스킹 기각이 확정됐는데 데모가 마스킹된 이름을 보여주면 백엔드가 반대로 구현할 수 있습니다
+> - `tests/test_demo_set.py` 신설 — 이 폴더가 계약 스키마와 어긋나면 테스트가 깨집니다
 
 오프라인 데모 모드(F11-03)용 사전 응답 세트의 **원본**입니다. 백엔드가 `backend/src/main/resources/demo/`로 복사해 `DEMO_MODE=true`일 때 AI-server 호출 없이 그대로 반환합니다. 요청·회신: `docs/request/ai/demo-response-set.md` ↔ `docs/response/backend/demo-response-set.md`.
 

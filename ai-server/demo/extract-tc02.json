@@ -15,7 +15,7 @@
         "occurred_at": "high",
         "actor": "high",
         "amount": "high",
-        "counterparty_name": "high",
+        "counterparty_name": null,
         "payer_name": "high"
       },
       "source_region": { "x": 0.06, "y": 0.28, "w": 0.88, "h": 0.13 },

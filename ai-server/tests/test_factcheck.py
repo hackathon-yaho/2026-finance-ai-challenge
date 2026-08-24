@@ -92,6 +92,52 @@ def test_verify_drops_threat_based_sentence():
     assert not kept and dropped == 1
 
 
+def test_verify_drops_past_suspension_history_tc29():
+    """history는 전달되지 않지만, 새어나가면 사용자에게 불리하므로 문장 단에서도 막는다."""
+    facts = factcheck.build_facts([make_card()], None)
+    kept, dropped, _ = factcheck.verify(
+        [
+            LLMDraftSentence(text="본인은 과거 지급정지된 이력이 있습니다.", basis=["evt_1_1"]),
+            LLMDraftSentence(text="이전에도 지급정지를 겪은 바 있습니다.", basis=["evt_1_1"]),
+        ],
+        facts,
+    )
+    assert not kept and dropped == 2
+
+
+def test_verify_drops_amount_evaluation_oi01():
+    """'소액' 기준은 은행 내규로 비공개다 — 금액을 평가하는 문장은 삭제한다."""
+    facts = factcheck.build_facts([make_card()], None)
+    kept, dropped, _ = factcheck.verify(
+        [
+            LLMDraftSentence(text="450,000원은 소액이므로 문제되지 않습니다.", basis=["evt_1_1"]),
+            LLMDraftSentence(text="금액이 크지 않은 거래였습니다.", basis=["evt_1_1"]),
+        ],
+        facts,
+    )
+    assert not kept and dropped == 2
+
+
+def test_verify_drops_name_match_judgment_tc25():
+    """이름 대조는 백엔드가 한다. 삼각사기 피해자는 원래 불일치한다."""
+    facts = factcheck.build_facts([make_card()], None)
+    kept, dropped, _ = factcheck.verify(
+        [LLMDraftSentence(text="구매자와 송금인의 이름이 일치하지 않습니다.", basis=["evt_1_1"])],
+        facts,
+    )
+    assert not kept and dropped == 1
+
+
+def test_verify_keeps_plain_amount_statement():
+    """금액 '평가'만 막는다 — 금액을 사실로 적는 문장은 살아남아야 한다."""
+    facts = factcheck.build_facts([make_card()], None)
+    kept, dropped, _ = factcheck.verify(
+        [LLMDraftSentence(text="450,000원이 입금되었습니다.", basis=["evt_1_1"])],
+        facts,
+    )
+    assert len(kept) == 1 and dropped == 0
+
+
 def test_intake_facts_and_ref_type():
     facts = factcheck.build_facts([], IntakeFacts(when="2026-08-20", amount=450000, kind="goods"))
     kept, dropped, _ = factcheck.verify(

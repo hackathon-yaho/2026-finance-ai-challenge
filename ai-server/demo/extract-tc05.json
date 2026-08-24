@@ -16,7 +16,7 @@
         "actor": "high",
         "amount": "high",
         "counterparty_name": "medium",
-        "payer_name": "high"
+        "payer_name": null
       },
       "source_region": { "x": 0.08, "y": 0.3, "w": 0.8, "h": 0.16 },
       "confirmation_status": "pending"
@@ -36,8 +36,8 @@
         "occurred_at": "medium",
         "actor": "high",
         "amount": "low",
-        "counterparty_name": "high",
-        "payer_name": "low"
+        "counterparty_name": null,
+        "payer_name": null
       },
       "source_region": { "x": 0.06, "y": 0.33, "w": 0.88, "h": 0.14 },
       "confirmation_status": "pending"
