@@ -24,14 +24,14 @@ public class IntakeServiceImpl implements IntakeService {
     @Override
     public IntakeResponse save(Session session, IntakeRequest request) {
         Map<String, String> intake = session.getIntake();
-        putIfPresent(intake, "when", request.when());
-        putIfPresent(intake, "dueNoticeStatus", request.dueNoticeStatus());
-        putIfPresent(intake, "dueNoticeDate", request.dueNoticeDate());
-        putIfPresent(intake, "amount", request.amount() == null ? null : String.valueOf(request.amount()));
-        putIfPresent(intake, "kind", request.kind());
-        putIfPresent(intake, "history", request.history() == null ? null : String.valueOf(request.history()));
-        putIfPresent(intake, "usage", request.usage());
-        putIfPresent(intake, "deliveryMethod", request.deliveryMethod());
+        setOrClear(intake, "when", request.when());
+        setOrClear(intake, "dueNoticeStatus", request.dueNoticeStatus());
+        setOrClear(intake, "dueNoticeDate", request.dueNoticeDate());
+        setOrClear(intake, "amount", request.amount() == null ? null : String.valueOf(request.amount()));
+        setOrClear(intake, "kind", request.kind());
+        setOrClear(intake, "history", request.history() == null ? null : String.valueOf(request.history()));
+        setOrClear(intake, "usage", request.usage());
+        setOrClear(intake, "deliveryMethod", request.deliveryMethod());
 
         String dueNoticeStatus = intake.get("dueNoticeStatus");
         String dueNoticeDate = intake.get("dueNoticeDate");
@@ -46,9 +46,12 @@ public class IntakeServiceImpl implements IntakeService {
         return new IntakeResponse(true, NEXT_STAGE, deadline);
     }
 
-    private void putIfPresent(Map<String, String> intake, String key, String value) {
+    /** 전체 교체 의미 — 프론트가 문진 전체를 매번 다시 보내므로, null은 "이전 값 유지"가 아니라 "지움"이다. */
+    private void setOrClear(Map<String, String> intake, String key, String value) {
         if (value != null) {
             intake.put(key, value);
+        } else {
+            intake.remove(key);
         }
     }
 }

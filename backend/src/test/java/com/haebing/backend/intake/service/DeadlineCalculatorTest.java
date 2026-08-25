@@ -23,6 +23,17 @@ class DeadlineCalculatorTest {
     }
 
     @Test
+    void 기한이_지났으면_경과_안내로_대체하고_일수는_음수그대로_반환() {
+        DeadlineResponse result = calculator.calculate("2026-04-10", "notified", "2026-05-01", today);
+
+        assertThat(result.date()).isEqualTo("2026-07-01");
+        assertThat(result.daysLeft()).isEqualTo(-55); // 2026-08-25 -> 2026-07-01, 음수 자체는 프론트에 유용해 그대로 내려준다
+        assertThat(result.notice())
+                .doesNotContain("-55일") // FR-014 — 계산 실패처럼 읽히는 문구 금지
+                .isEqualTo("공고일부터 2개월이 지난 것으로 보입니다. (2026-07-01) 기한 경과 여부와 이후 절차는 금융회사와 전문가 확인이 필요합니다.");
+    }
+
+    @Test
     void 공고_전이면_날짜없이_확인_안내만() {
         DeadlineResponse result = calculator.calculate("2026-08-01", "not_yet", null, today);
 

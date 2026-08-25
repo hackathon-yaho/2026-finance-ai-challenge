@@ -25,7 +25,8 @@ public class PackageServiceImpl implements PackageService {
 
     private static final int MAX_FIELD_LENGTH = 100;
     private static final Map<String, String> SOURCE_TYPE_LABELS = Map.of(
-            "chat", "대화", "bank", "입금 내역", "shipping", "배송", "threat", "협박", "autopay", "자동이체", "unknown", "기타"
+            "chat", "대화", "bank", "입금 내역", "shipping", "배송", "threat", "협박", "autopay", "자동이체",
+            "unknown", "기타", ExtractedEvent.SOURCE_TYPE_INTAKE, "본인 입력"
     );
 
     @Override
@@ -41,7 +42,7 @@ public class PackageServiceImpl implements PackageService {
             builder.addCoverPage();
             builder.addPage1(request.applicant(), request.account(), LocalDate.now());
             builder.addPage2(buildStatementText(session, excluded), footer);
-            builder.addPage3(buildTimelineRows(confirmed), footer);
+            builder.addPage3(buildTimelineRows(withIntakeDueDateEvent(session, confirmed)), footer);
             builder.addPage4(buildEvidenceRows(confirmed), footer);
             return builder.build();
         } catch (IOException e) {
@@ -49,10 +50,30 @@ public class PackageServiceImpl implements PackageService {
         }
     }
 
-    /** 2면 — excludedSentenceIds(요청 시점)와 이미 제외된 문장(session) 둘 다 뺀다. 존재하지 않는 id는 무시한다. */
+    /**
+     * 3면 전용 — `/api/timeline`(TimelineServiceImpl)과 같은 지급정지일 합성 카드를 여기서도 넣는다.
+     * 2026-08-26 계약 확정(local-integration-findings.md §4): 미리보기(3면)와는 같아야 하지만,
+     * 4면(증빙목록)은 실제로 올린 자료만 다루므로 이 카드를 넣지 않는다 — 그래서 `confirmed`(4면용)가 아니라
+     * 별도 리스트로만 합성한다.
+     */
+    private List<ExtractedEvent> withIntakeDueDateEvent(Session session, List<ExtractedEvent> confirmed) {
+        String when = session.getIntake().get("when");
+        if (when == null || when.isBlank()) return confirmed;
+        if (confirmed.stream().anyMatch(e -> ExtractedEvent.EVENT_ID_INTAKE_WHEN.equals(e.eventId()))) return confirmed;
+
+        List<ExtractedEvent> withSynthetic = new java.util.ArrayList<>(confirmed);
+        withSynthetic.add(ExtractedEvent.intakeDueDateEvent(when));
+        return withSynthetic;
+    }
+
+    /**
+     * 2면 — 이 요청의 excludedSentenceIds만 본다(2026-08-26 프론트 회신으로 확정: 요청 값이 최종).
+     * session의 StoredSentence.excluded()는 /api/draft·/api/draft/revise 응답 배열에서만 쓰고 여기서는 안 본다 —
+     * 프론트가 제외 토글마다 revise를 부르지 않고 다운로드 직전 이 필드 하나로 최종 목록을 보내는 구조이기 때문이다.
+     * 존재하지 않는 id는 무시한다.
+     */
     private String buildStatementText(Session session, Set<String> excludedSentenceIds) {
         return session.getSentences().stream()
-                .filter(s -> !s.excluded())
                 .filter(s -> !excludedSentenceIds.contains(s.sentenceId()))
                 .map(StoredSentence::text)
                 .reduce((a, b) -> a + " " + b)

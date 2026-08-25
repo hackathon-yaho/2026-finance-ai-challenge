@@ -45,8 +45,9 @@
 | [legal-form-and-package.md](legal-form-and-package.md) | ✅ **완결** (08-25 ② 회신 / 백엔드 답변 완료) | **법정 서식 대조** — 11필드 수용, 서명 안내 구현. **부족자료 체크리스트 제출본 제외 + 표지 채택**. 4면은 **A(올린 자료 목차)** 로 확정 |
 | [honest-disclosure-fixes.md](honest-disclosure-fixes.md) | ✅ **완결** (08-25 회신 / 백엔드 답변 완료) | **고지 문구 3건** — 전부 반영·구현. **"최대 3년"은 1차 출처 확보 실패 → 숫자 없이 확정** (2차 출처끼리 최대/최소가 엇갈림) |
 | [image-delivery-spec.md](image-delivery-spec.md) | ✅ 회신 완료 (08-25) | 전송 이미지 해상도·포맷 — **738×1600 · PNG · 약 135KB**, 1600px 리사이즈 적용됨 |
-| [evidence-timeline-schema-additions.md](evidence-timeline-schema-additions.md) | ✅ 회신 완료 (08-26) | Phase 3 계약 보완 4건 — **전부 수용**, API 클라이언트 반영 완료. `imageIndex`는 **세션 누적 기준**임을 확인 요청 |
+| [evidence-timeline-schema-additions.md](evidence-timeline-schema-additions.md) | ✅ **완결** (08-26 회신 / 백엔드 답변 완료) | Phase 3 계약 보완 4건 — **전부 수용**. `imageIndex`는 **세션 누적 기준 맞음**(백엔드는 값을 그대로 통과시킬 뿐). 중복 인덱스는 막지 않음 |
 | [readiness-checklist-catalog-diffs.md](readiness-checklist-catalog-diffs.md) | ✅ 회신 완료 (08-26) | Phase 4 체크리스트 차이 2건 — **둘 다 문서가 맞음**. 목 카탈로그 정정 완료, 화면 변경 불필요 |
-| [draft-revise-and-package-notes.md](draft-revise-and-package-notes.md) | ✅ 회신 완료 (08-26) | Phase 5 — 배열에서 빼는 방식 수용, `DRAFT_FAILED` 반영. **제외 경로가 둘(`revise` / `excludedSentenceIds`)이라 어느 쪽이 최종인지 확인 요청** |
+| [draft-revise-and-package-notes.md](draft-revise-and-package-notes.md) | ✅ **완결** (08-26 ② 회신 / 백엔드 답변 완료) | Phase 5 — 배열에서 빼는 방식 수용, `DRAFT_FAILED` 반영. **`excludedSentenceIds`가 최종 확정**(순수 제외엔 `revise` 불필요) + `DRAFT_FAILED` 후 세션·확인 카드 유지 확정 |
+| [local-integration-findings.md](local-integration-findings.md) | ✅ **완결** (08-26 회신 / 백엔드 답변 완료) | **로컬 연동 버그 6건 전부 수정.** CORS 프리플라이트 500(연동 차단 블로커)·기한 경과 문구·문진 재전송 병합·`evt_intake_when`(`source_type: intake` 신설, 3면 포함·4면 제외)·AI-server 미설정 400→502·`gradlew` 실행 권한 |
 
-> **2026-08-26 기준 대기 중인 요청이 없습니다.** 9건 전부 회신을 마쳤습니다. 프론트가 백엔드에 물어둔 것은 **확인 3건**입니다 — ① `imageIndex`가 세션 누적 기준인지 ② `excludedSentenceIds`가 제외의 최종 소스인지(순수 제외에 `revise`를 부르지 않아도 되는지) ③ `DRAFT_FAILED` 후 세션·확인 카드가 유지되는지. **②는 8/29 미리보기 연동 전에 답이 필요합니다** — 아니라면 제외 토글마다 서버를 불러야 해서 화면 구조가 달라집니다.
+> **2026-08-26 기준 대기 중인 요청이 없습니다.** 10건 전부 회신을 마쳤고, 프론트가 물어둔 확인 3건에도 전부 답했습니다.

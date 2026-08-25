@@ -1,5 +1,14 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-26 ②, 백엔드)** — 근거: `../request/backend/local-integration-findings.md` (프론트 로컬 연동 회신)
+> - **`source_type`에 `intake` 신설(7번째 값)** — 문진 지급정지일을 백엔드가 합성한 카드용. AI가 아니라 백엔드가 만드는 유일한 카드 출처다. `/api/timeline`과 서버 PDF 3면 둘 다에 포함하고(미리보기·제출본 일치), **4면(증빙목록)에서는 제외**한다 — 증빙자료가 아니라서다
+> - **`/api/intake`가 전체 교체(PUT류) 의미임을 명시** — 이전엔 "일부 필드만 와도 정상"으로 문서화돼 있었는데, 프론트가 매번 문진 전체를 재전송하는 것으로 확인돼(로컬 연동 회신) 정정. `null`로 온 필드는 지운다
+> - **`/api/package/text`의 `excludedSentenceIds`가 최종** — `/api/draft/revise`의 세션 상태(`excluded`)는 그 응답 배열에서만 쓰고, PDF 생성은 이 요청 값만 본다(프론트가 제외 토글마다 `revise`를 부르지 않아도 되게)
+> - **`DRAFT_FAILED` 후에도 세션·확인된 카드는 그대로 유지됨을 확정** — `storeResult()`가 AI 호출 실패 시 전혀 실행되지 않는 구조라 원래도 그랬다
+> - **AI-server 연결 자체가 안 되는 상황(URL 미설정 등)도 `EXTRACTION_FAILED`/`DRAFT_FAILED`(502)로 통일** — 종전엔 `400 INVALID_REQUEST` + 내부 예외 메시지 노출
+> - CORS 프리플라이트(`OPTIONS`)가 세션 검사를 통과하지 못해 `500`이 나던 버그 수정 (계약 변경 아님, 구현 버그)
+> - 기한 경과 시 `notice`가 "-56일 남았습니다"로 나가던 문구를 FR-014에 맞게 정정 (계약 변경 아님, 구현 버그)
+
 > **수정 기록 (2026-08-26, 백엔드)** — Phase 5 구현
 > - **`DRAFT_FAILED`(502) 오류 코드 신설** — `/api/draft`가 AI-server 재시도 1회 후에도 실패하면 이 코드로 내려간다
 > - **`/api/draft/revise`의 `sentences` 응답에서 제외(`excluded:true`)된 문장은 배열 자체에서 빠진다** — 별도 플래그가 없는 계약이라, "최종 문서에서 빠질 문장"이라는 뜻을 배열에서 없애는 것으로 표현했다
@@ -198,7 +207,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
     {
       "event_id": "evt_2_1",
       "source_image_index": 2,
-      "source_type": "chat | bank | shipping | threat | autopay | unknown",
+      "source_type": "chat | bank | shipping | threat | autopay | unknown | intake",
       "occurred_at": "2026-09-02T14:12:00+09:00",
       "actor": "self | counterparty | system",
       "summary": "물품대금 700,000원 입금",
@@ -235,7 +244,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 
 | 필드 | 프론트가 쓰는 곳 |
 | --- | --- |
-| `source_type` | 카드 유형 배지. 값은 `chat / bank / shipping / threat / autopay / unknown` 6종이며, **`unknown`은 정상 값**입니다(AI가 추측하지 않고 내린 값) — 오류로 처리하지 마세요 |
+| `source_type` | 카드 유형 배지. 값은 `chat / bank / shipping / threat / autopay / unknown / intake` 7종. `unknown`은 정상 값입니다(AI가 추측하지 않고 내린 값) — 오류로 처리하지 마세요. **`intake`는 AI가 아니라 백엔드가 문진 응답(지급정지일)으로 합성한 카드**입니다(`event_id: "evt_intake_when"`, `source_image_index: null`) — `/api/timeline`과 서버 PDF 3면에는 있지만 **4면(증빙목록)에는 없습니다**. `source_type`으로 걸러내세요(`event_id` 문자열 파싱 금지) |
 | `counterparty_name` | 확인 카드(F4-06)에 **수정 가능한 필드로 노출**. 대화 상대 표시명 |
 | `payer_name` | 같음. 입금 내역의 입금자 표기 |
 
@@ -599,6 +608,7 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.10 (2026-08-26 ②)**: 프론트 로컬 연동 회신 반영. `source_type`에 `intake`(7번째 값) 신설 — 3면 포함·4면 제외. `/api/intake` 전체 교체 의미 명시. `excludedSentenceIds`가 PDF 제외의 최종 소스임을 명시. `DRAFT_FAILED` 후 세션·확인 카드 유지 확정. AI-server 연결 실패도 502로 통일(내부 예외 메시지 비노출). CORS 프리플라이트 500·기한 경과 문구는 구현 버그 수정(계약 변경 아님)
 - **v1.9 (2026-08-26)**: Phase 5 구현. `DRAFT_FAILED`(502) 오류 코드 신설. `/api/draft/revise`에서 제외된 문장은 응답 배열에서 빠지는 것으로 명시
 - **v1.8 (2026-08-25 ④)**: Phase 3 구현. `/api/evidence`에 `imageIndex` 신설, `gaps` 항목 스키마 신설, `/api/evidence/confirm`의 `confirmed: false` = 삭제 명시, 병합 승인 구현 방식 명시
 - **v1.7 (2026-08-25 ③)**: `/api/evidence/text`의 `rawText` 마스킹 주체를 프론트로 명시. `UNCONFIRMED_FIELDS` 게이팅을 값이 존재하는 카드에만 적용하도록 정정

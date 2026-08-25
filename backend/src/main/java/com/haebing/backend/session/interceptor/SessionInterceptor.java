@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
+import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Map;
@@ -46,6 +47,12 @@ public class SessionInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        // 브라우저 CORS 프리플라이트는 X-Session-Hash를 절대 싣지 않는다(CORS 규격) — 세션 검사 없이 통과시킨다.
+        // 그렇지 않으면 SESSION_EXPIRED가 미처리 예외로 새어나가 프리플라이트가 500이 되고, 브라우저가 본 요청 자체를 막는다.
+        if (CorsUtils.isPreFlightRequest(request)) {
+            return true;
+        }
+
         MDC.put(MDC_ENDPOINT, request.getMethod() + " " + request.getRequestURI());
 
         if ("POST".equalsIgnoreCase(request.getMethod()) && "/api/session".equals(request.getRequestURI())) {

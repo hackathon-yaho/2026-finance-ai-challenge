@@ -1,8 +1,11 @@
 # [프론트 → 백엔드] 백엔드를 로컬로 띄워 연동해봤습니다 — 브라우저에서 호출이 전부 막힙니다
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/frontend/local-integration-findings.md`에 들어옵니다.
-> **막고 있는 작업**: **§1이 프론트 연동 전체를 막습니다.** `/api/session`과 `/actuator/health`를 제외한 모든 호출이 브라우저에서 실패합니다. 나머지 항목은 막지 않습니다.
+> **상태: ✅ 회신 완료 (2026-08-26) — 전부 해결**
+> - 회신: `../../response/frontend/local-integration-findings.md`
+> - **결론 요약**: 6건 전부 수정 완료. §1(CORS 프리플라이트 500)·§5(AI-server 미설정 400) 최우선 처리, §4(`evt_intake_when`)는 `source_type: "intake"` 신설로 계약에 정식 편입(3면 포함·4면 제외)
+> - **남은 것**: 없음
+>
+> 아래 본문은 **요청 당시 원문**입니다. 확정된 최신 값은 계약 문서를 보세요.
 
 - 작성: 프론트엔드 · 2026-08-26
 - 확인 환경: 로컬 (`postgresql@16` + `sh gradlew bootRun`, `CORS_ALLOWED_ORIGINS=http://localhost:5173`), 프론트 `http://localhost:5173`, Chrome

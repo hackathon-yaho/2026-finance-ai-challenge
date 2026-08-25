@@ -114,6 +114,22 @@ class AiClientImplTest {
     }
 
     @Test
+    void aiServerUrlUnconfigured_mapsTo502NotRaw400WithoutLeakingInternalMessage() {
+        // AI_SERVER_URL이 빈 값이면 RestClient가 상대 경로만으로 요청을 실행하려다
+        // IllegalArgumentException("URI with undefined scheme")을 던진다 (local-integration-findings.md §5).
+        RestClient unconfigured = RestClient.create();
+        AiClientImpl badClient = new AiClientImpl(unconfigured, unconfigured, "test-token", demoFixtures, false);
+
+        assertThatThrownBy(() -> badClient.extractFromImage(new byte[]{1}, 0, "image/png"))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.EXTRACTION_FAILED);
+                    assertThat(be.getMessage()).doesNotContain("URI").doesNotContain("scheme");
+                });
+    }
+
+    @Test
     void demoMode_true_returnsFixtureWithoutCallingNetwork() {
         AiClientImpl demoClient = new AiClientImpl(sharedClient, sharedClient, "test-token", demoFixtures, true);
 

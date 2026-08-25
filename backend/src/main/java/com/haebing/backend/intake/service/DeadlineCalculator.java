@@ -17,7 +17,10 @@ public class DeadlineCalculator {
         if ("notified".equals(dueNoticeStatus) && dueNoticeDate != null && !dueNoticeDate.isBlank()) {
             LocalDate deadline = LocalDate.parse(dueNoticeDate).plusMonths(2);
             long daysLeft = ChronoUnit.DAYS.between(today, deadline);
-            String notice = "이의제기 기한까지 %d일 남았습니다. (%s)".formatted(daysLeft, deadline);
+            // FR-014 — 기한 경과가 확실해도 "불가능"으로 단정하지 않는다. "-56일 남았습니다"는 계산 실패처럼 읽혀 금지.
+            String notice = daysLeft < 0
+                    ? "공고일부터 2개월이 지난 것으로 보입니다. (%s) 기한 경과 여부와 이후 절차는 금융회사와 전문가 확인이 필요합니다.".formatted(deadline)
+                    : "이의제기 기한까지 %d일 남았습니다. (%s)".formatted(daysLeft, deadline);
             return new DeadlineResponse(deadline.toString(), daysLeft, notice);
         }
 

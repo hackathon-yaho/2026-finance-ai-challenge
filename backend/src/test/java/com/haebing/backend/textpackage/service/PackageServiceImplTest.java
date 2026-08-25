@@ -81,6 +81,30 @@ class PackageServiceImplTest {
     }
 
     @Test
+    void excludedSentenceIds_isTheSoleAuthorityForPage2_sessionLevelExcludedIsIgnored() throws java.io.IOException {
+        // 2026-08-26 프론트 회신(draft-revise-and-package-notes.md §2) — excludedSentenceIds가 최종이다.
+        // revise로 세션에 excluded=true가 남아 있어도, 이 요청이 그 id를 안 보내면 PDF에는 포함돼야 한다.
+        Session session = session();
+        session.replaceSentences(List.of(
+                new StoredSentence("s1", "포함될문장", false, false),
+                new StoredSentence("s2", "세션에서만제외된문장", true, false), // revise로 excluded=true, 하지만 요청엔 없음
+                new StoredSentence("s3", "요청으로제외된문장", false, false)
+        ), List.of());
+
+        byte[] pdf = service.generate(session, new PackageRequest(null, null, List.of("s3")));
+
+        String text = extractText(pdf);
+        assertThat(text).contains("포함될문장", "세션에서만제외된문장");
+        assertThat(text).doesNotContain("요청으로제외된문장");
+    }
+
+    private String extractText(byte[] pdf) throws java.io.IOException {
+        try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
+            return new org.apache.pdfbox.text.PDFTextStripper().getText(doc);
+        }
+    }
+
+    @Test
     void confirmedCardsOnly_pendingCardExcludedFromPackage() {
         Session session = session();
         session.upsertCard(new ExtractedEvent("evt_1", 0, "chat", "2026-09-01T00:00:00+09:00", "self", "확인됨", 1000L,

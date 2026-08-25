@@ -132,6 +132,12 @@ public class AiClientImpl implements AiClient {
         } catch (ResourceAccessException e) {
             // 우리 쪽 커넥션/읽기 타임아웃 — 재시도 대상.
             throw new AiRetryableException(ErrorCode.TIMEOUT, fallback, e);
+        } catch (IllegalArgumentException e) {
+            // AI_SERVER_URL 미설정/오설정 — RestClient가 URI를 만들다 던진다. 연결 실패와 같은 층위라
+            // 계약상 4xx가 아니라 502/504 계열(primaryFailureCode)로 묶는다. 내부 예외 메시지는 노출하지 않는다
+            // (docs/request/backend/local-integration-findings.md §5).
+            log.error("[AiClient] AI-server 연결 실패(설정 오류로 추정): {}", e.getMessage());
+            throw new AiRetryableException(primaryFailureCode, fallback, e);
         }
     }
 

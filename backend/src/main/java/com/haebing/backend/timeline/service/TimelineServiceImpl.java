@@ -67,14 +67,9 @@ public class TimelineServiceImpl implements TimelineService {
     private void addSyntheticDueDateEvent(Session session, List<ExtractedEvent> events) {
         String when = session.getIntake().get("when");
         if (when == null || when.isBlank()) return;
-        if (events.stream().anyMatch(e -> "evt_intake_when".equals(e.eventId()))) return;
+        if (events.stream().anyMatch(e -> ExtractedEvent.EVENT_ID_INTAKE_WHEN.equals(e.eventId()))) return;
 
-        events.add(new ExtractedEvent(
-                "evt_intake_when", null, "unknown", when, "self", "지급정지일 (본인 입력)", null, null, null,
-                null,
-                new com.haebing.backend.session.FieldConfidence("low", "low", "low", null, null),
-                null, ExtractedEvent.USER_CONFIRMED
-        ));
+        events.add(ExtractedEvent.intakeDueDateEvent(when));
     }
 
     /** F5-03 증거 공백 탐지 3종. */

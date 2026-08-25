@@ -19,6 +19,6 @@
 | [persistent-badge-placement.md](persistent-badge-placement.md) | ✅ 회신 완료 (2026-08-25) | 해소 — A안 채택, 명세 정정 완료 |
 | [page4-ordering.md](page4-ordering.md) | ✅ 회신 완료 (2026-08-25) | 해소 — B안 채택, 텍스트 카드 "본인 서술", 원본 번호 1-base(프론트 변환) |
 | [page3-and-biz-notice.md](page3-and-biz-notice.md) | ✅ 회신 완료 (2026-08-26) | 해소 — 3면도 `confirmed` 카드만(A), F10-05 트리거 단순화(A) |
-| [local-integration-findings.md](local-integration-findings.md) | ⏳ 회신 대기 (2026-08-26) | **로컬 연동 결과 6건. §1 CORS 프리플라이트 500이 프론트 연동 전체를 막습니다** — 브라우저에서 `/api/session`·`/actuator/health` 외 호출 불가 |
+| [local-integration-findings.md](local-integration-findings.md) | ✅ 회신 완료 (2026-08-26) | 해소 — 6건 전부 수정. CORS 프리플라이트 500·AI-server 미설정 400·`evt_intake_when` 계약 편입 등 |
 
-> **2026-08-26 기준 회신 대기 1건** — `local-integration-findings.md`. **§1은 블로커입니다.**
+> **2026-08-26 기준 대기 중인 요청이 없습니다.**
