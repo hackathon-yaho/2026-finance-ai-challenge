@@ -1,5 +1,8 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-26 ④, 백엔드)** — 근거: `../request/backend/h2c-upgrade-breaks-ai-call.md` (프론트 로컬 3층 실연동 신고)
+> - **평문 HTTP로 AI-server를 호출할 때 h2c(HTTP/2 cleartext) 업그레이드를 시도하지 않음을 명시.** 종전 `RestClient`가 JDK `HttpClient` 기본 협상에 맡겨 uvicorn(h2c 미지원)과 붙으면 요청 본문이 통째로 유실됐다. `AiServerConfig`가 이제 클라이언트를 **HTTP/1.1로 고정**한다(계약 변경 아님, 구현 버그 수정) — `DEMO_MODE=true`에서는 이 경로 자체가 실행되지 않아 지금까지 드러나지 않았다
+
 > **수정 기록 (2026-08-26 ③, 백엔드)** — 아래 `amount` 부호 확정 건 확인, 코드 변경 없음
 > - 백엔드는 `amount`를 항상 **크기 비교(동등 비교)·포맷 출력**에만 씁니다(`TimelineServiceImpl`의 충돌 탐지, `EvidenceServiceImpl`의 `distinctAmounts`, `PackageServiceImpl`의 "%,d원" 포맷). 부호를 읽거나 가정하는 코드가 없어 **고칠 곳이 없습니다**
 

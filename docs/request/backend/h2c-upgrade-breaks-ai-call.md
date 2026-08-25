@@ -1,8 +1,11 @@
 # [프론트 → 백엔드] 평문 HTTP로 AI-server를 부르면 요청 본문이 통째로 유실됩니다
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/frontend/h2c-upgrade-breaks-ai-call.md`에 들어옵니다.
-> **막고 있는 작업**: 로컬에서 **백엔드↔AI-server 실연동이 전혀 안 됩니다.** 판독·소명서 생성이 모두 500입니다. 프론트는 임시 프록시로 우회해 두었지만 저장소에 넣을 성질의 것이 아닙니다.
+> **상태: ✅ 회신 완료 (2026-08-26) — 전부 해결**
+> - 회신: `../../response/frontend/h2c-upgrade-breaks-ai-call.md`
+> - **결론 요약**: §4 A안(JDK HttpClient를 HTTP/1.1로 고정) 그대로 적용. `AiServerConfigH2cVerifyTest`로 h2c 업그레이드 헤더 미발생 확인
+> - **남은 것**: 프론트가 임시 프록시 제거 후 `DEMO_MODE=false` 로컬 3층 재확인
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 프론트엔드 · 2026-08-26
 - 확인 환경: 로컬 4층 (Postgres + 백엔드 `DEMO_MODE=false` + AI-server `uvicorn` + Vite), `AI_SERVER_URL=http://localhost:8000`
