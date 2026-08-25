@@ -227,13 +227,21 @@ const BANK_RECORD: ChecklistEntry = {
   sources: ["bank"],
 }
 
+/**
+ * **물품 거래(goods)에만 있다.** 금감원 표준 소명자료 표에도 물품 거래 행에만 있고,
+ * `reason-type-rules.md` §2-1이 "용역·급여, 채권 회수, 기타 유형의 체크리스트에는 넣지
+ * 않는다"고 못 박고 있다. 종전에는 4개 유형 전부에 라벨만 바꿔 두었는데, 백엔드 Phase 4
+ * 구현이 문서를 따라 `service`/`debt`/`unclear` 응답에서는 이 항목을 아예 내리지 않는다
+ * (`docs/request/frontend/readiness-checklist-catalog-diffs.md` §1).
+ *
+ * 사용자가 갖다 낼 것이 없는 항목이다. 대조는 백엔드가 하고, 불일치는 위험 신호가
+ * 아니라 "설명이 필요한 항목"이다 (TC-25).
+ */
 const PAYER_MATCH: ChecklistEntry = {
   id: "payer_match",
   label: "구매자–송금인 일치 여부",
   tier: "fss",
   fulfillBy: "derived",
-  // 사용자가 갖다 낼 것이 없는 항목이다. 대조는 백엔드가 하고, 불일치는 위험 신호가
-  // 아니라 "설명이 필요한 항목"이다 (reason-type-rules.md §2-1, TC-25).
   whenMissing: "silent",
   note: "올리신 대화와 입금 내역에서 저희가 대조해요.",
 }
@@ -257,13 +265,13 @@ export const EVIDENCE_CATALOG: Record<ReasonType, ChecklistEntry[]> = {
       id: "goods.trade_doc",
       label: "거래 사실을 보이는 서류",
       tier: "fss",
-      fulfillBy: "upload",
-      // 개인 중고거래자는 셋 다 없는 것이 정상이고, 사후에 만들면 증거 조작이다.
-      whenMissing: "notice",
-      // 목 단계에서는 sources를 비워 둔다. 이 셋을 구분하려면 카드의 `source_type`이
-      // 필요한데 목 증거 유형(chat/bank/shipping/autopay/threat)에는 대응값이 없다.
-      // 없는 대응을 임의로 이어붙이면 백엔드가 이 파일을 참조 구현으로 읽을 때 틀린 매핑을
-      // 그대로 옮기게 된다. 실제 판정은 백엔드가 카드로 한다.
+      // **업로드가 아니라 자가 진술이다** (백엔드 Phase 4 구현, 2026-08-26).
+      // ① 카드의 `source_type` 6종에 이 서류를 가리키는 값이 없어 애초에 `upload` 판정이
+      //    성립하지 않는다 — 종전에 `sources`를 비워둔 채로 둔 이유가 그것이었다.
+      // ② `notice`("보완 요청 사유가 될 수 있어요")는 가서 받아오라는 뉘앙스인데,
+      //    이 서류는 사후에 만들면 증거 조작이다. 없는 것이 정상인 항목을 재촉하지 않는다.
+      fulfillBy: "self",
+      whenMissing: "silent",
       anyOf: [
         { id: "goods.trade_doc.contract", label: "계약서" },
         { id: "goods.trade_doc.tax_invoice", label: "세금계산서" },
@@ -325,7 +333,6 @@ export const EVIDENCE_CATALOG: Record<ReasonType, ChecklistEntry[]> = {
       whenMissing: "notice",
       sources: ["chat"],
     },
-    { ...PAYER_MATCH, label: "일을 맡긴 사람–송금인 일치 여부" },
     ...SUPPORTING_ENTRIES,
   ],
   // 채권 회수·미확정은 금감원 표준이 존재하지 않는다. 공통 최소 자료를 참고 안내로만
@@ -350,7 +357,6 @@ export const EVIDENCE_CATALOG: Record<ReasonType, ChecklistEntry[]> = {
       whenMissing: "silent",
       note: "차용증이 없어도 괜찮아요. 송금 기록과 대화로도 대여 사실을 보일 수 있어요.",
     },
-    { ...PAYER_MATCH, label: "빌려준 상대–송금인 일치 여부" },
     ...SUPPORTING_ENTRIES,
   ],
   unclear: [
@@ -364,7 +370,6 @@ export const EVIDENCE_CATALOG: Record<ReasonType, ChecklistEntry[]> = {
       sources: ["chat"],
     },
     { ...BANK_RECORD },
-    { ...PAYER_MATCH, label: "상대방–송금인 일치 여부" },
     ...SUPPORTING_ENTRIES,
   ],
 }

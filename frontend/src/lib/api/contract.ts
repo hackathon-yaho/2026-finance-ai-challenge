@@ -67,11 +67,19 @@ export interface EvidenceResponse {
   qualityFlags: Record<string, QualityFlags>
 }
 
-export interface ConfirmRequest {
-  cardId: string
-  confirmed: boolean
-  corrections?: Record<string, unknown>
-}
+/**
+ * 카드 확인·수정·삭제가 **한 엔드포인트**다 (계약 v1.8).
+ *
+ * `confirmed: false`는 "확인하지 않음"이 아니라 **카드 삭제**다 — F4-06 처리 ④의 "카드 삭제"에
+ * 대응하는 필드가 계약에 따로 없어 이 값으로 정해졌다. 미확인 상태로 두는 것은 아무것도
+ * 보내지 않는 것이고, `corrections`는 `confirmed: true`일 때만 의미가 있다.
+ *
+ * 유니온으로 나눠 둔 이유는 `{ confirmed: false, corrections: {...} }`처럼 **서버가 무시할 값을
+ * 실어 보내는 코드가 타입에서 걸리게** 하기 위해서다.
+ */
+export type ConfirmRequest =
+  | { cardId: string; confirmed: true; corrections?: Record<string, unknown> }
+  | { cardId: string; confirmed: false }
 
 export interface ConfirmResponse {
   ok: boolean
@@ -88,9 +96,27 @@ export interface MergeCandidate {
   reason: string
 }
 
+/** 증거 공백 유형 (F5-03). 화면 분기는 `type`으로, 문구는 `label`을 그대로 쓴다. */
+export type GapType = "no_delivery_evidence" | "no_service_evidence" | "no_life_activity" | "no_chat_evidence"
+
+/**
+ * 증거 공백 한 건 (계약 v1.8에서 스키마 신설).
+ *
+ * **백엔드가 계산해 내려주는 값이다** — AI 신호(`delivery_evidence`·`life_activity`)와 문진
+ * 응답을 조합한 결과라 프론트가 다시 판정하지 않는다. 직거래(`deliveryMethod: "in_person"`)면
+ * `no_delivery_evidence`는 애초에 오지 않는다 (F5-03 직거래 예외).
+ */
+export interface EvidenceGap {
+  type: GapType
+  /** 그대로 노출할 문구. 프론트가 유형별 문구를 따로 갖지 않는다. */
+  label: string
+  /** F5-04 대체 증빙 제안. **빈 배열이 정상**이다 (`no_life_activity`) — 제안 영역을 통째로 감춘다. */
+  suggestions: string[]
+}
+
 export interface TimelineResponse {
   events: ExtractedCard[]
-  gaps: string[]
+  gaps: EvidenceGap[]
   /** **판단 결과가 아니라 제안**이다. 백엔드는 자동 병합하지 않는다. 컷되면 항상 빈 배열. */
   mergeCandidates: MergeCandidate[]
 }
