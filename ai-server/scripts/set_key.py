@@ -102,9 +102,24 @@ def prompt_secret(label: str, current: str | None, expect_prefix: str = "") -> s
         return value
 
 
+def show() -> int:
+    """등록된 항목만 마스킹해 보여준다 (입력받지 않는다)."""
+    values = read_env()
+    if not values:
+        print(r"등록된 값이 없습니다.  .\set-key.ps1  로 등록하세요.")
+        return 0
+    print("현재 .env에 등록된 항목:")
+    for key, value in values.items():
+        print(f"  {key:20s} {mask(value)}")
+    return 0
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    if "--show" in sys.argv:
+        return show()
 
     print("AI-server 키 등록\n" + "=" * 46)
     print(f"저장 위치: {ENV_PATH}")

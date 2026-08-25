@@ -21,15 +21,33 @@
 
 ## 실행
 
+### 키 등록 (PowerShell)
+
+**`ai-server` 폴더에서 아래 한 줄**이면 됩니다. 가상환경 생성·패키지 설치까지 알아서 합니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\set-key.ps1
+```
+
+> **`.\set-key.ps1`로 바로 실행하면 막힐 수 있습니다.** Windows 기본 실행 정책이 `Restricted`라 `.ps1` 실행을 금지하기 때문입니다. 위 `-ExecutionPolicy Bypass` 형태는 정책을 **바꾸지 않고** 그 실행에만 적용됩니다.
+>
+> 매번 길게 치기 싫으면 한 번만 정책을 풀어두면 됩니다 — `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` (관리자 권한 불필요). 그 뒤로는 `.\set-key.ps1`로 실행됩니다.
+
+등록된 값 확인 (입력받지 않고 마스킹해서 보여줍니다):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\set-key.ps1 -Show
+```
+
+### 서버 실행
+
 ```bash
 cd ai-server
 pip install -r requirements.txt
-
-# 키 등록 — 한 번만 하면 됩니다. 값은 .env에 저장되고 저장소에 올라가지 않습니다.
-python scripts/set_key.py
-
 uvicorn app.main:app --port 8000
 ```
+
+PowerShell 없이 직접 등록하려면 `python scripts/set_key.py` (같은 화면입니다).
 
 ### 키 등록 방식
 
@@ -54,6 +72,7 @@ uvicorn app.main:app --port 8000
 | `app/` | 서버 코드 (라우터 / 서비스 / LLM / 결정적 검증기) |
 | `demo/` | 오프라인 데모 모드용 사전 응답 세트 — 백엔드가 `src/main/resources/demo/`로 복사 |
 | `evals/` | AI 품질 평가 세트 (F11-05) — 합성 이미지 + 채점 러너 |
+| `set-key.ps1` | **PowerShell 키 등록 런처** — 가상환경·패키지까지 알아서 준비 |
 | `scripts/` | `set_key.py` — API 키를 CLI로 입력받아 `.env`에 저장 |
 | `docs/` | [design.md](docs/design.md) 설계 · [plan.md](docs/plan.md) 실행 계획 · [deployment.md](docs/deployment.md) 배포 절차 |
 
