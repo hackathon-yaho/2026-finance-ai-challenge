@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react"
-import { EVIDENCE_META } from "../../data"
-import { getAmountInfo } from "../../lib/amount"
+import { ConfirmCard } from "../ConfirmCard"
 import { UploadPanel } from "../UploadPanel"
-import type { EvidenceId, EvidenceState, TimelineEvent, UploadedFile, ViewerId } from "../../types"
+import type { CardEdits, EvidenceId, EvidenceState, ExtractedCard, TimelineEvent, UploadedFile, ViewerId } from "../../types"
 
 const STICKY_HEADER_OFFSET = 72 // 56px top bar + a little breathing room
 
@@ -10,16 +9,19 @@ interface EvidenceStageProps {
   /** 문진의 거래 성격 — 사유별 업로드 안내(F3-07)로 내려보낸다. */
   kind: string | null
   evidence: EvidenceState
-  bankConfirmed: boolean
+  cards: ExtractedCard[]
+  blockingCount: number
+  unconfirmedCount: number
   wide: boolean
   analyzing: boolean
   analyzed: boolean
   timelineRunId: number
   timeline: TimelineEvent[]
-  amount: number | null
   onToggle: (id: EvidenceId) => void
   onAddThreat: () => void
-  onConfirmBank: () => void
+  onConfirmCard: (eventId: string) => void
+  onEditCard: (eventId: string, patch: CardEdits) => void
+  onRemoveCard: (eventId: string) => void
   onAnalyze: () => void
   onOpenViewer: (id: ViewerId) => void
   filesReady: boolean
@@ -47,16 +49,19 @@ function LoadingDots() {
 export function EvidenceStage({
   kind,
   evidence,
-  bankConfirmed,
+  cards,
+  blockingCount,
+  unconfirmedCount,
   wide,
   analyzing,
   analyzed,
   timelineRunId,
   timeline,
-  amount,
   onToggle,
   onAddThreat,
-  onConfirmBank,
+  onConfirmCard,
+  onEditCard,
+  onRemoveCard,
   onAnalyze,
   onOpenViewer,
   filesReady,
@@ -70,7 +75,6 @@ export function EvidenceStage({
   onProceedFromUpload,
   onBackToUpload,
 }: EvidenceStageProps) {
-  const amountInfo = getAmountInfo(amount)
   const timelineRef = useRef<HTMLDivElement>(null)
   const wasAnalyzing = useRef(false)
 
@@ -141,59 +145,31 @@ export function EvidenceStage({
         </div>
       )}
 
+      {blockingCount > 0 && (
+        <div className="rounded-2xl bg-warning-subtle px-4 py-3.5 text-[13px] leading-normal text-warning">
+          판독 신뢰도가 낮은 자료 {blockingCount}건을 확인해야 다음 단계로 갈 수 있어요.
+        </div>
+      )}
+
+      {/* F4-06 — 확인 없이 소명서를 만들면 틀린 서류가 은행에 간다. 확인한 카드만 문서에 들어간다. */}
       <div className={wide ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
-        {EVIDENCE_META.map((card) => {
-          const on = evidence[card.id]
-          const needsConfirm = card.id === "bank" && on && !bankConfirmed
-          const badgeLabel = needsConfirm ? "확인 필요" : card.badge
-
-          return (
-            <div
-              key={card.id}
-              className={`rounded-2xl border p-4 transition-all duration-200 ${
-                on ? "border-brand-subtle bg-brand-subtle" : "border-border bg-bg"
-              }`}
-            >
-              <div onClick={() => onToggle(card.id)} className="flex cursor-pointer items-center gap-3">
-                <div
-                  className={`flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md border-[1.5px] text-[13px] font-bold text-white ${
-                    on ? "border-brand bg-brand" : "border-neutral bg-bg opacity-0"
-                  }`}
-                >
-                  ✓
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[15px] font-semibold tracking-tight">{card.title}</div>
-                  <div className="mt-0.5 text-xs tabular-nums text-muted">{card.meta}</div>
-                </div>
-                <div
-                  className={`flex-none rounded-md px-2 text-[11px] font-semibold leading-[22px] ${
-                    needsConfirm ? "bg-warning-subtle text-warning" : "bg-surface text-muted"
-                  }`}
-                >
-                  {badgeLabel}
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onOpenViewer(card.viewer)}
-                  className="h-11 rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink"
-                >
-                  원본 보기
-                </button>
-                {needsConfirm && (
-                  <button type="button" onClick={onConfirmBank} className="h-11 rounded-xl bg-ink px-4 text-[15px] font-semibold text-white">
-                    {amountInfo.formatted} 맞아요
-                  </button>
-                )}
-              </div>
-              {needsConfirm && <p className="mt-2.5 text-xs leading-normal text-warning">금액 인식 신뢰도가 낮아요. 확인하지 않으면 소명서에 넣지 않아요.</p>}
-            </div>
-          )
-        })}
+        {cards.map((card) => (
+          <ConfirmCard
+            key={card.event_id}
+            card={card}
+            onConfirm={onConfirmCard}
+            onEdit={onEditCard}
+            onRemove={onRemoveCard}
+            onOpenViewer={onOpenViewer}
+          />
+        ))}
       </div>
+
+      {unconfirmedCount > 0 && blockingCount === 0 && (
+        <p className="text-[13px] leading-normal text-muted">
+          확인하지 않은 자료 {unconfirmedCount}건은 문서에 포함되지 않아요. 그대로 진행할 수 있어요.
+        </p>
+      )}
 
       {!evidence.threat && (
         <button type="button" onClick={onAddThreat} className="h-10 self-start rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink">

@@ -1,6 +1,7 @@
 import { BottomCta } from "./components/BottomCta"
 import { DateSheet } from "./components/DateSheet"
 import { ImageLightbox } from "./components/ImageLightbox"
+import { LegalFormSheet } from "./components/LegalFormSheet"
 import { MaskingSheet } from "./components/MaskingSheet"
 import { DraftStage } from "./components/stages/DraftStage"
 import { EvidenceStage } from "./components/stages/EvidenceStage"
@@ -37,8 +38,24 @@ function App() {
   const wide = width >= 720
   const pad = width >= 640 ? 24 : 20
 
+  // F4-06 게이팅 — 날짜·금액이 low 신뢰도인 미확인 카드가 남아 있으면 Stage 3으로 넘기지 않는다.
+  // 확인되지 않은 값으로 준비도가 산출되면 틀린 서류가 은행에 간다.
+  // 백엔드도 같은 조건을 서버에서 검사해 `/api/readiness`를 409로 거부한다 — 이건 UX 쪽 방어선이다.
+  const cardsBlock = flow.blockingCount > 0
+
   const ctaDisabled =
-    (stage === 1 && !flow.intakePageAnswered) || (stage === 2 && !flow.analyzed) || (stage === 4 && !flow.draftShown)
+    (stage === 1 && !flow.intakePageAnswered) ||
+    (stage === 2 && (!flow.analyzed || cardsBlock)) ||
+    (stage === 4 && !flow.draftShown)
+
+  // 단계 인디케이터로 건너뛰는 경로도 같은 조건으로 막는다 (F1-04).
+  const handleStepClick = (n: number) => {
+    if (n >= 3 && stage < 3 && cardsBlock) {
+      flow.showToast(`판독 신뢰도가 낮은 자료 ${flow.blockingCount}건을 먼저 확인해주세요`)
+      return
+    }
+    flow.go(n)
+  }
 
   const handleCta = () => {
     if (stage === 5) {
@@ -54,7 +71,7 @@ function App() {
 
   return (
     <div className="flex min-h-dvh flex-col font-sans text-ink antialiased" style={{ letterSpacing: "-0.005em" }}>
-      <TopBar stage={stage} width={width} onBack={flow.back} onStepClick={flow.go} />
+      <TopBar stage={stage} width={width} onBack={flow.back} onStepClick={handleStepClick} />
 
       <div className="flex-1">
         <div className="mx-auto max-w-[720px]" style={{ padding: `${pad}px ${pad}px 132px` }}>
@@ -81,16 +98,19 @@ function App() {
               <EvidenceStage
                 kind={flow.intake.kind}
                 evidence={flow.evidence}
-                bankConfirmed={flow.bankConfirmed}
+                cards={flow.cards}
+                blockingCount={flow.blockingCount}
+                unconfirmedCount={flow.unconfirmedCount}
                 wide={wide}
                 analyzing={flow.analyzing}
                 analyzed={flow.analyzed}
                 timelineRunId={flow.timelineRunId}
                 timeline={flow.timeline}
-                amount={flow.intake.amount}
                 onToggle={flow.toggle}
                 onAddThreat={flow.addThreat}
-                onConfirmBank={flow.confirmBank}
+                onConfirmCard={flow.confirmCard}
+                onEditCard={flow.editCard}
+                onRemoveCard={flow.removeCard}
                 onAnalyze={flow.analyze}
                 onOpenViewer={flow.openViewer}
                 filesReady={flow.filesReady}
@@ -127,7 +147,7 @@ function App() {
                 droppedCount={flow.droppedCount}
                 onGenerate={flow.makeDraft}
                 onOpenViewer={flow.openViewer}
-                onExportPackage={() => flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")}
+                onExportPackage={flow.openLegalForm}
               />
             )}
 
@@ -184,6 +204,19 @@ function App() {
           queueLabel={null}
           onConfirm={flow.confirmEditFile}
           onCancel={flow.cancelEditFile}
+        />
+      )}
+
+      {flow.legalFormOpen && (
+        <LegalFormSheet
+          width={width}
+          initial={flow.legalForm}
+          onSubmit={(values) => {
+            flow.submitLegalForm(values)
+            // 미리보기(S04-2)는 8/29~8/31 작업이다. 그때까지 다음 단계 안내만 띄운다.
+            flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")
+          }}
+          onClose={flow.closeLegalForm}
         />
       )}
 

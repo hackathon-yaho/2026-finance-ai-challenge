@@ -23,6 +23,65 @@ export interface IntakeAnswers {
 
 export type EvidenceId = "autopay" | "chat" | "bank" | "shipping" | "threat"
 
+// ── 추출 카드 (api-contract.md `/api/evidence` 응답 스키마) ──────────────────
+// 필드명을 계약 그대로(snake_case) 둔다. API를 붙일 때 변환 코드를 짜지 않기 위해서다.
+
+export type Confidence = "high" | "medium" | "low"
+
+/** 6종. `unknown`은 **정상 값**이다 — AI가 추측하지 않고 내린 값이므로 오류로 처리하지 않는다. */
+export type SourceType = "chat" | "bank" | "shipping" | "threat" | "autopay" | "unknown"
+
+export type CardActor = "self" | "counterparty" | "system"
+
+export type ConfirmationStatus = "pending" | "user_confirmed" | "user_corrected"
+
+/**
+ * 이름 2종은 `null`을 허용한다 — 값이 없는데 신뢰도가 "high"인 조합은 성립하지 않는다.
+ * `occurred_at`·`actor`·`amount`는 3값 고정 (프론트가 배지로 항상 렌더하는 값).
+ */
+export interface FieldConfidence {
+  occurred_at: Confidence
+  actor: Confidence
+  amount: Confidence
+  counterparty_name: Confidence | null
+  payer_name: Confidence | null
+}
+
+/** 0~1 정규화 좌표. LLM 비전이 낸 **근사 좌표**라 정밀 하이라이트를 전제하지 않는다. */
+export interface SourceRegion {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface ExtractedCard {
+  /** 불투명 문자열. 형식(`evt_{n}_{m}`)을 파싱해 의미를 꺼내 쓰지 않는다. */
+  event_id: string
+  source_image_index: number | null
+  source_type: SourceType
+  occurred_at: string | null
+  actor: CardActor
+  summary: string
+  amount: number | null
+  /** 대화 상대 표시명. `null`이 흔하다 — 잘린 캡처·마스킹. "읽기 실패"로 표시하지 않는다 */
+  counterparty_name: string | null
+  /** 입금 내역의 입금자 표기. 위와 같음 */
+  payer_name: string | null
+  identifiers: { tracking_no: string | null; account_last4: string | null }
+  field_confidence: FieldConfidence
+  source_region: SourceRegion | null
+  confirmation_status: ConfirmationStatus
+}
+
+/** 사용자가 인라인 수정할 수 있는 필드만. 확인 불가한 값은 임의로 채우지 않고 미상으로 둔다. */
+export interface CardEdits {
+  occurred_at?: string | null
+  amount?: number | null
+  counterparty_name?: string | null
+  payer_name?: string | null
+}
+
 export type EvidenceState = Record<EvidenceId, boolean>
 
 export type ViewerId = "chat" | "bank" | "shipping" | "threat"

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { INTAKE_PAGES, QUESTIONS } from "../data"
+import { blockingCards, buildCards, confirmedEvidence, evidenceIdOf, pendingCards } from "../lib/cards"
+import type { CardState } from "../lib/cards"
 import { buildChecklist } from "../lib/checklist"
+import { EMPTY_LEGAL_FORM } from "../lib/legalForm"
+import type { LegalFormValues } from "../lib/legalForm"
 import { buildDraftLines } from "../lib/draft"
 import { getAmountInfo } from "../lib/amount"
 import { getDeadline } from "../lib/deadline"
@@ -9,6 +13,7 @@ import { computeReadiness } from "../lib/readiness"
 import { buildTimeline } from "../lib/timeline"
 import { MAX_UPLOADS, REJECT_MESSAGE, validateImageFile } from "../lib/upload"
 import type {
+  CardEdits,
   DueNoticeStatus,
   EvidenceId,
   EvidenceState,
@@ -41,7 +46,8 @@ export function useHaebingFlow() {
   // 열려 있는 날짜 선택 시트가 어느 문항의 것인지. 시트 자체는 App이 그린다.
   const [dateSheet, setDateSheet] = useState<"when" | "notice" | null>(null)
   const [evidence, setEvidence] = useState<EvidenceState>(INITIAL_EVIDENCE)
-  const [bankConfirmed, setBankConfirmed] = useState(false)
+  // 카드별 확인·수정 상태. 판독 결과 자체는 lib/cards가 만들고, 사용자가 손댄 것만 여기 쌓인다.
+  const [cardStates, setCardStates] = useState<Record<string, CardState>>({})
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzed, setAnalyzed] = useState(false)
   const [timelineRunId, setTimelineRunId] = useState(0)
@@ -49,6 +55,9 @@ export function useHaebingFlow() {
   // fulfillBy: "self" 항목(신분증·재직증명서 등)은 서비스에 올리지 않으므로 보유 여부를
   // 판정할 방법이 없다. 사용자가 직접 표시한 것만 충족으로 본다.
   const [selfHeld, setSelfHeld] = useState<ReadonlySet<string>>(() => new Set())
+  // 별지 제4호서식 11필드 (S04-1). 값은 PDF 생성에만 쓰고 어디에도 저장하지 않는다.
+  const [legalForm, setLegalForm] = useState<LegalFormValues>(EMPTY_LEGAL_FORM)
+  const [legalFormOpen, setLegalFormOpen] = useState(false)
   const [drafting, setDrafting] = useState(false)
   const [draftShown, setDraftShown] = useState(false)
   const [viewer, setViewer] = useState<ViewerId | null>(null)
@@ -180,13 +189,35 @@ export function useHaebingFlow() {
     setDraftShown(false)
   }, [])
 
+  /** 카드 빼기 = 그 자료를 없는 것으로 둔다. 타임라인 공백 액션으로 다시 넣을 수 있다. */
+  const removeCard = useCallback(
+    (eventId: string) => {
+      const id = evidenceIdOf(eventId)
+      if (id) toggle(id)
+    },
+    [toggle],
+  )
+
   const addThreat = useCallback(() => {
     setEvidence((prev) => ({ ...prev, threat: true }))
     setDraftShown(false)
   }, [])
 
-  const confirmBank = useCallback(() => {
-    setBankConfirmed(true)
+  const confirmCard = useCallback((eventId: string) => {
+    setCardStates((prev) => ({
+      ...prev,
+      // 이미 고친 카드를 다시 확인해도 "사용자 수정" 표기는 유지한다.
+      [eventId]: { status: prev[eventId]?.edits && Object.keys(prev[eventId].edits).length > 0 ? "user_corrected" : "user_confirmed", edits: prev[eventId]?.edits ?? {} },
+    }))
+    setDraftShown(false)
+  }, [])
+
+  /** 값을 고치면 확인까지 한 것으로 본다 — 고친 사람이 그 값을 본 것이다 (F4-06 ②③). */
+  const editCard = useCallback((eventId: string, patch: CardEdits) => {
+    setCardStates((prev) => ({
+      ...prev,
+      [eventId]: { status: "user_corrected", edits: { ...prev[eventId]?.edits, ...patch } },
+    }))
     setDraftShown(false)
   }, [])
 
@@ -211,6 +242,13 @@ export function useHaebingFlow() {
   const toggleHistory = useCallback(() => {
     setHistoryOverride((prev) => (prev === true ? false : true))
     setDraftShown(false)
+  }, [])
+
+  const openLegalForm = useCallback(() => setLegalFormOpen(true), [])
+  const closeLegalForm = useCallback(() => setLegalFormOpen(false), [])
+  const submitLegalForm = useCallback((values: LegalFormValues) => {
+    setLegalForm(values)
+    setLegalFormOpen(false)
   }, [])
 
   const makeDraft = useCallback(() => {
@@ -335,11 +373,13 @@ export function useHaebingFlow() {
     setIntake(INITIAL_INTAKE)
     setDateSheet(null)
     setEvidence(INITIAL_EVIDENCE)
-    setBankConfirmed(false)
+    setCardStates({})
     setAnalyzing(false)
     setAnalyzed(false)
     setHistoryOverride(null)
     setSelfHeld(new Set())
+    setLegalForm(EMPTY_LEGAL_FORM)
+    setLegalFormOpen(false)
     setDrafting(false)
     setDraftShown(false)
     setViewer(null)
@@ -365,31 +405,34 @@ export function useHaebingFlow() {
   const hasHistory = historyOverride === null ? intake.history === "있어요" : historyOverride
   const deadline = useMemo(() => getDeadline(intake), [intake])
 
+  const cards = useMemo(() => buildCards(evidence, intake.amount, cardStates), [evidence, intake.amount, cardStates])
+  const blocking = useMemo(() => blockingCards(cards), [cards])
+  const unconfirmedCount = useMemo(() => pendingCards(cards).length, [cards])
+  // 확인된 카드만 준비도·체크리스트·소명서의 입력이 된다 (F6-03).
+  const confirmed = useMemo(() => confirmedEvidence(cards), [cards])
+  const bankConfirmed = confirmed.bank
+
   // 체크리스트가 준비도의 입력이다 — Stage 3과 Stage 4가 같은 값을 봐야 한다.
   const checklist = useMemo(
-    () => buildChecklist(intake.kind, evidence, bankConfirmed, selfHeld),
-    [intake.kind, evidence, bankConfirmed, selfHeld],
+    () => buildChecklist(intake.kind, confirmed, true, selfHeld),
+    [intake.kind, confirmed, selfHeld],
   )
   const readiness = useMemo(
-    () => computeReadiness(intake, checklist, evidence.bank && !bankConfirmed, historyOverride),
-    [intake, checklist, evidence.bank, bankConfirmed, historyOverride],
+    () => computeReadiness(intake, checklist, blocking.length > 0, historyOverride),
+    [intake, checklist, blocking.length, historyOverride],
   )
   const timeline = useMemo(
     () => (analyzed ? buildTimeline(evidence, intake.amount, bankConfirmed) : []),
     [analyzed, evidence, intake.amount, bankConfirmed],
   )
+  // 확인된 카드만 소명서에 들어간다 (F4-06 "미확인 카드의 날짜·금액이 본문에 나타나지 않음").
   const draftLines = useMemo(
-    () => (draftShown ? buildDraftLines(intake, evidence, bankConfirmed) : []),
-    [draftShown, intake, evidence, bankConfirmed],
+    () => (draftShown ? buildDraftLines(intake, confirmed, true) : []),
+    [draftShown, intake, confirmed],
   )
-  const confirmedCount = useMemo(() => {
-    const base = (["chat", "shipping", "autopay"] as EvidenceId[]).filter((id) => evidence[id]).length
-    return base + (evidence.bank && bankConfirmed ? 1 : 0) + (evidence.threat ? 1 : 0)
-  }, [evidence, bankConfirmed])
-  const droppedCount = useMemo(() => {
-    const missing = (["chat", "bank", "shipping", "autopay"] as EvidenceId[]).filter((id) => !evidence[id]).length
-    return missing + (evidence.bank && !bankConfirmed ? 1 : 0)
-  }, [evidence, bankConfirmed])
+  const confirmedCount = cards.length - unconfirmedCount
+  // 확인하지 않아 문서에서 빠진 자료 수. 사용자가 "왜 문장이 적지?"를 알 수 있어야 한다.
+  const droppedCount = unconfirmedCount
 
   const activeUpload = pendingQueue[0] ?? null
   const lightboxFile = useMemo(
@@ -424,8 +467,13 @@ export function useHaebingFlow() {
     evidence,
     toggle,
     addThreat,
+    cards,
+    confirmCard,
+    editCard,
+    removeCard,
+    blockingCount: blocking.length,
+    unconfirmedCount,
     bankConfirmed,
-    confirmBank,
     analyzing,
     analyzed,
     analyze,
@@ -435,6 +483,11 @@ export function useHaebingFlow() {
     toggleHistory,
     selfHeld,
     toggleSelfHeld,
+    legalForm,
+    legalFormOpen,
+    openLegalForm,
+    closeLegalForm,
+    submitLegalForm,
     drafting,
     draftShown,
     makeDraft,
