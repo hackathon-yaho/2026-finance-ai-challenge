@@ -129,6 +129,13 @@ export const DELIVERY_BY_LABEL: Record<string, DeliveryMethod> = {
   "해당 없어요": "not_applicable",
 }
 
+/** 계좌 사용 선택지 → 계약의 `usage`. */
+export const USAGE_BY_LABEL: Record<string, "main" | "occasional" | "rare"> = {
+  "주 거래 계좌예요": "main",
+  "가끔 써요": "occasional",
+  "거의 안 써요": "rare",
+}
+
 /** 문진의 한국어 선택지 → api-contract의 `reason` 4종. */
 export const REASON_BY_KIND: Record<string, ReasonType> = {
   "중고 물건 판매": "goods",

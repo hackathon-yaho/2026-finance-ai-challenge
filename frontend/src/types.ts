@@ -138,6 +138,13 @@ export interface DraftLine {
   badge: string | null
   ref: ViewerId | null
   note?: string
+  /**
+   * 이 문장의 근거가 된 **원본 이미지 인덱스** (F7-05, 계약의 `evidenceRefs[].imageIndex`).
+   *
+   * 0-base이고 브라우저 메모리의 업로드 배열 위치와 같다. `null`이면 이미지 근거가 없는
+   * 문장이다(문진·본인 진술) — **없는 것이 정상이므로 오류로 다루지 않는다.**
+   */
+  imageIndex?: number | null
 }
 
 /** api-contract의 `reason` 4종. 문진의 한국어 선택지는 REASON_BY_KIND로 여기에 매핑한다. */

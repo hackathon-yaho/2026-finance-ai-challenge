@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { INTAKE_PAGES, QUESTIONS, REASON_BY_KIND, isFieldVisible } from "../data"
+import { DELIVERY_BY_LABEL, INTAKE_PAGES, QUESTIONS, REASON_BY_KIND, USAGE_BY_LABEL, isFieldVisible } from "../data"
 import {
   applyCardStates,
   blockingCards,
@@ -11,7 +11,7 @@ import {
 } from "../lib/cards"
 import type { CardState } from "../lib/cards"
 import { buildChecklist } from "../lib/checklist"
-import { EMPTY_LEGAL_FORM } from "../lib/legalForm"
+import { EMPTY_LEGAL_FORM, toPackageRequest } from "../lib/legalForm"
 import type { LegalFormValues } from "../lib/legalForm"
 import { buildDraftLines, buildDraftLinesFromCards } from "../lib/draft"
 import { getAmountInfo } from "../lib/amount"
@@ -21,7 +21,11 @@ import { computeReadiness } from "../lib/readiness"
 import { buildTimeline, buildTimelineFromCards } from "../lib/timeline"
 import { buildTextCards, scrubPii } from "../lib/textEntry"
 import { MAX_UPLOADS, REJECT_MESSAGE, validateImageFile } from "../lib/upload"
-import type { ExtractedCard } from "../types"
+import { buildPackagePdf } from "../lib/pdf"
+import * as api from "../lib/api"
+import { toDeadlineInfo, toDraftLines, toReadinessResult, toSubmitTimeline, toTimelineEvents } from "../lib/api/adapt"
+import type { ChecklistItem, DraftLine, ExtractedCard, ReadinessResult, TimelineEvent } from "../types"
+import type { DeadlineInfo } from "../lib/deadline"
 import type {
   CardEdits,
   DueNoticeStatus,
@@ -47,6 +51,37 @@ const INITIAL_INTAKE: IntakeAnswers = {
   usage: null,
 }
 const INITIAL_EVIDENCE: EvidenceState = { autopay: true, chat: true, bank: true, shipping: true, threat: false }
+
+/**
+ * 서버가 준 값. **하나라도 차 있으면 그 자리의 목 계산을 덮는다.**
+ *
+ * 목을 지우지 않고 남겨 둔 이유: `VITE_API_BASE_URL`이 비어 있으면 백엔드 없이도 화면이
+ * 끝까지 돌아야 한다. 배포본이 백엔드보다 먼저 뜨는 구간이 있고, 데모에서 백엔드가 죽어도
+ * 화면은 살아 있어야 한다. 판정 규칙의 단일 소스는 서버지만(`reason-type-rules.md`),
+ * **연결되지 않은 상태에서 빈 화면을 보여주는 것보다 목이 낫다.**
+ */
+interface ServerState {
+  deadline: DeadlineInfo | null
+  cards: ExtractedCard[] | null
+  timeline: TimelineEvent[] | null
+  submitTimeline: TimelineEvent[] | null
+  checklist: ChecklistItem[] | null
+  readiness: ReadinessResult | null
+  draftLines: DraftLine[] | null
+  /** `/api/evidence/confirm` 응답. 준비도 신호 문구가 이 값을 쓴다. */
+  unconfirmedCount: number | null
+}
+
+const EMPTY_SERVER: ServerState = {
+  deadline: null,
+  cards: null,
+  timeline: null,
+  submitTimeline: null,
+  checklist: null,
+  readiness: null,
+  draftLines: null,
+  unconfirmedCount: null,
+}
 
 export function useHaebingFlow() {
   const [stage, setStage] = useState(0)
@@ -111,6 +146,62 @@ export function useHaebingFlow() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [lightboxFileId, setLightboxFileId] = useState<string | null>(null)
   const [editingFileId, setEditingFileId] = useState<string | null>(null)
+
+  /** `VITE_API_BASE_URL`이 설정돼 있으면 실제 호출, 아니면 목. 실행 중에 바뀌지 않는다. */
+  const live = useRef(api.isApiConfigured()).current
+  const [server, setServer] = useState<ServerState>(EMPTY_SERVER)
+  const [sessionReady, setSessionReady] = useState(!live)
+  // `runLive`가 `restart`보다 위에 있어야 하는데 서로를 참조한다. ref로 끊는다.
+  const restartRef = useRef<(() => void) | null>(null)
+  /** 이미 `/api/evidence`로 보낸 파일 수. 다음 `imageIndex`의 시작점이기도 하다. */
+  const sentCount = useRef(0)
+
+  // 세션은 진입 시 한 번. 실패해도 화면을 막지 않는다 — 목으로라도 끝까지 가는 편이 낫다.
+  useEffect(() => {
+    if (!live) return
+    let cancelled = false
+    api
+      .createSession()
+      .catch(() => null)
+      .then(() => {
+        if (!cancelled) setSessionReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [live])
+
+  const showToast = useCallback((message: string) => {
+    setToast(message)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 2000)
+  }, [])
+
+  /**
+   * 서버 호출 한 건을 감싼다.
+   *
+   * **오류를 삼키지 않는다** — `message`는 서버가 단일 소스인 문구라 그대로 띄우고,
+   * 우리가 순화하지 않는다. `SESSION_EXPIRED`(410)만 특별히 다룬다: 세션이 사라지면
+   * 그 뒤 호출이 전부 같은 오류를 내므로 처음으로 되돌린다. **원본 이미지는 서버에 없었으니
+   * 다시 올려야 한다는 것까지 말해준다** — 그걸 모르면 사용자는 자료가 남아 있는 줄 안다.
+   */
+  const runLive = useCallback(
+    async <T,>(call: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await call()
+      } catch (error) {
+        const message = api.isApiError(error) ? error.message : api.DEFAULT_MESSAGE.UNKNOWN
+        if (api.isApiError(error) && error.code === "SESSION_EXPIRED") {
+          setServer(EMPTY_SERVER)
+          restartRef.current?.()
+        }
+        showToast(message)
+        return null
+      }
+    },
+    [showToast],
+  )
+
 
   useEffect(() => {
     const urls = liveUrls.current
@@ -236,12 +327,26 @@ export function useHaebingFlow() {
   }, [])
 
   /** 카드 빼기 = 그 자료를 없는 것으로 둔다. 타임라인 공백 액션으로 다시 넣을 수 있다. */
+  /**
+   * 카드 삭제 (F4-06 처리 ④). 서버에서는 `confirmed: false`가 삭제다 (계약 v1.8).
+   *
+   * 목에서는 증거 유형 토글을 끄는 것으로 흉내 냈다 — 유형당 카드가 하나뿐이라 성립하던
+   * 근사다. 서버 카드는 한 이미지에서 여러 장이 나오므로 `event_id` 단위로 지운다.
+   */
   const removeCard = useCallback(
     (eventId: string) => {
+      if (live) {
+        setServer((prev) => ({ ...prev, cards: prev.cards?.filter((c) => c.event_id !== eventId) ?? null }))
+        void runLive(() =>
+          api.deleteCard(eventId).then((res) => setServer((prev) => ({ ...prev, unconfirmedCount: res.unconfirmedCount }))),
+        )
+        setDraftShown(false)
+        return
+      }
       const id = evidenceIdOf(eventId)
       if (id) toggle(id)
     },
-    [toggle],
+    [live, runLive, toggle],
   )
 
   const addThreat = useCallback(() => {
@@ -249,32 +354,85 @@ export function useHaebingFlow() {
     setDraftShown(false)
   }, [])
 
-  const confirmCard = useCallback((eventId: string) => {
-    setCardStates((prev) => ({
-      ...prev,
-      // 이미 고친 카드를 다시 확인해도 "사용자 수정" 표기는 유지한다.
-      [eventId]: { status: prev[eventId]?.edits && Object.keys(prev[eventId].edits).length > 0 ? "user_corrected" : "user_confirmed", edits: prev[eventId]?.edits ?? {} },
-    }))
-    setDraftShown(false)
-  }, [])
+  /**
+   * 카드 상태를 화면에 **먼저** 반영하고 서버에 보낸다.
+   *
+   * 낙관적 갱신이 맞다고 본 이유: 확인은 사용자가 "이 값이 맞다"고 선언하는 행위지 서버가
+   * 판정하는 것이 아니다. 왕복을 기다리면 체크 하나 누를 때마다 화면이 멈춘다. 실패하면
+   * `runLive`가 오류를 띄우고, 다음 단계(`/api/readiness`)가 서버 기준으로 다시 막는다.
+   */
+  const pushCardState = useCallback(
+    (eventId: string, edits: CardEdits) => {
+      if (!live) return
+      const corrections = Object.fromEntries(Object.entries(edits).filter(([, v]) => v !== undefined))
+      void runLive(() =>
+        api
+          .confirmCard({ cardId: eventId, confirmed: true, corrections })
+          .then((res) => setServer((prev) => ({ ...prev, unconfirmedCount: res.unconfirmedCount }))),
+      )
+    },
+    [live, runLive],
+  )
+
+  const confirmCard = useCallback(
+    (eventId: string) => {
+      setCardStates((prev) => ({
+        ...prev,
+        // 이미 고친 카드를 다시 확인해도 "사용자 수정" 표기는 유지한다.
+        [eventId]: { status: prev[eventId]?.edits && Object.keys(prev[eventId].edits).length > 0 ? "user_corrected" : "user_confirmed", edits: prev[eventId]?.edits ?? {} },
+      }))
+      setDraftShown(false)
+      setCardStates((prev) => {
+        pushCardState(eventId, prev[eventId]?.edits ?? {})
+        return prev
+      })
+    },
+    [pushCardState],
+  )
 
   /** 값을 고치면 확인까지 한 것으로 본다 — 고친 사람이 그 값을 본 것이다 (F4-06 ②③). */
-  const editCard = useCallback((eventId: string, patch: CardEdits) => {
-    setCardStates((prev) => ({
-      ...prev,
-      [eventId]: { status: "user_corrected", edits: { ...prev[eventId]?.edits, ...patch } },
-    }))
-    setDraftShown(false)
-  }, [])
+  const editCard = useCallback(
+    (eventId: string, patch: CardEdits) => {
+      setCardStates((prev) => ({
+        ...prev,
+        [eventId]: { status: "user_corrected", edits: { ...prev[eventId]?.edits, ...patch } },
+      }))
+      setDraftShown(false)
+      setCardStates((prev) => {
+        pushCardState(eventId, { ...prev[eventId]?.edits, ...patch })
+        return prev
+      })
+    },
+    [pushCardState],
+  )
 
   const analyze = useCallback(() => {
     setAnalyzing(true)
+    if (live) {
+      void runLive(() => api.getTimeline())
+        .then((res) => {
+          if (res) {
+            setServer((prev) => ({
+              ...prev,
+              timeline: toTimelineEvents(res),
+              // 제출본 3면은 확인된 카드만, 공백 없이 (F8-01).
+              submitTimeline: toSubmitTimeline(res),
+            }))
+          }
+        })
+        .finally(() => {
+          setAnalyzing(false)
+          setAnalyzed(true)
+          setTimelineRunId((id) => id + 1)
+        })
+      return
+    }
     setTimeout(() => {
       setAnalyzing(false)
       setAnalyzed(true)
       setTimelineRunId((id) => id + 1)
     }, 850)
-  }, [])
+  }, [live, runLive])
 
   /**
    * 직접 첨부 항목(신분증·재직증명서 등)의 보유 표시.
@@ -285,13 +443,24 @@ export function useHaebingFlow() {
    * 사용자가 소명서를 읽다가 "신분증 있어요"를 누르면 초안이 통째로 사라지고 다시
    * 만들어야 했다. 체크리스트는 이 토글로 즉시 갱신된다.
    */
-  const toggleSelfHeld = useCallback((id: string) => {
-    setSelfHeld((prev) => {
-      const next = new Set(prev)
-      if (!next.delete(id)) next.add(id)
-      return next
-    })
-  }, [])
+  const toggleSelfHeld = useCallback(
+    (id: string) => {
+      setSelfHeld((prev) => {
+        const next = new Set(prev)
+        const held = !next.delete(id)
+        if (held) next.add(id)
+        if (live) {
+          // 응답은 **갱신된 전체 체크리스트**다 — 택일 그룹은 옵션 하나가 바뀌면 그룹
+          // 상태도 바뀌므로 부분 갱신이 성립하지 않는다.
+          void runLive(() =>
+            api.setSelfHeld(id, held).then((res) => setServer((s) => ({ ...s, checklist: res.checklist }))),
+          )
+        }
+        return next
+      })
+    },
+    [live, runLive],
+  )
 
   const toggleHistory = useCallback(() => {
     setHistoryOverride((prev) => (prev === true ? false : true))
@@ -325,11 +494,22 @@ export function useHaebingFlow() {
 
   const makeDraft = useCallback(() => {
     setDrafting(true)
+    if (live) {
+      void runLive(() => api.generateDraft())
+        .then((res) => {
+          if (res) setServer((prev) => ({ ...prev, draftLines: toDraftLines(res), checklist: res.checklist }))
+        })
+        .finally(() => {
+          setDrafting(false)
+          setDraftShown(true)
+        })
+      return
+    }
     setTimeout(() => {
       setDrafting(false)
       setDraftShown(true)
-    }, 1000)
-  }, [])
+    }, 900)
+  }, [live, runLive])
 
   const openViewer = useCallback((id: ViewerId, note?: string | null) => {
     setViewer(id)
@@ -341,11 +521,6 @@ export function useHaebingFlow() {
     setViewerNote(null)
   }, [])
 
-  const showToast = useCallback((message: string) => {
-    setToast(message)
-    if (toastTimer.current) clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 2000)
-  }, [])
 
   const addFiles = useCallback(
     async (fileList: FileList) => {
@@ -406,25 +581,60 @@ export function useHaebingFlow() {
 
   const closeTextEntry = useCallback(() => setTextEntryOpen(false), [])
 
-  const submitTextEntry = useCallback((raw: string) => {
-    // 보내기 전에 가린다 — 이미지에서 사용자가 직접 가린 뒤 전송하는 것과 같은 원칙이다.
-    const { text } = scrubPii(raw)
-    const cards = buildTextCards(text)
-    setTextCards(cards)
-    setEntryMode("text")
-    setTextEntryOpen(false)
-    setCardStates({})
-    setFilesReady(true)
-    setAnalyzed(false)
-    setDraftShown(false)
-  }, [])
+  const submitTextEntry = useCallback(
+    (raw: string) => {
+      // 보내기 전에 가린다 — 이미지에서 사용자가 직접 가린 뒤 전송하는 것과 같은 원칙이다.
+      // **서버가 아니라 여기서 가린다** (FR-027 확정) — LLM이 애초에 보지 않는다.
+      const { text } = scrubPii(raw)
+      setTextCards(buildTextCards(text))
+      setEntryMode("text")
+      setTextEntryOpen(false)
+      setCardStates({})
+      setFilesReady(true)
+      setAnalyzed(false)
+      setDraftShown(false)
+      if (!live) return
+      void runLive(() =>
+        api.submitEvidenceText(text).then((res) => setServer((prev) => ({ ...prev, cards: res.cards }))),
+      )
+    },
+    [live, runLive],
+  )
 
   const proceedFromUpload = useCallback(() => {
     setEntryMode("upload")
     setFilesReady(true)
     setAnalyzed(false)
     setDraftShown(false)
-  }, [])
+    if (!live) return
+    // 연결돼 있으면 카드의 출처는 **오직 서버**다. 자료를 하나도 안 올렸으면 카드도 없다 —
+    // 여기서 빈 배열로 확정하지 않으면 목 카드 5장이 나와 **올린 적 없는 자료를 보여준다.**
+    setServer((prev) => ({ ...prev, cards: prev.cards ?? [] }))
+    /**
+     * **아직 안 보낸 것만 보낸다.** `[자료 더 올리기]`로 돌아왔다 다시 진행하면 이 함수가
+     * 또 불리는데, 매번 전체를 보내면 같은 이미지가 두 번 판독되고 카드가 두 벌 생긴다.
+     *
+     * `imageIndex`는 **세션 누적 배열 위치**다 (백엔드 확정 2026-08-26). 배치 안 순번을
+     * 쓰면 두 번째 묶음이 0부터 다시 시작해 카드의 `source_image_index`가 통째로 어긋난다.
+     * 그래서 배열 위치를 그대로 인덱스로 쓴다 — 이미 보낸 개수가 곧 다음 인덱스다.
+     */
+    const pending = uploadedFiles.slice(sentCount.current)
+    if (pending.length === 0) return
+    const offset = sentCount.current
+    sentCount.current = uploadedFiles.length
+    void runLive(async () => {
+      const uploads = await Promise.all(
+        pending.map(async (file, i) => ({ blob: await (await fetch(file.url)).blob(), imageIndex: offset + i })),
+      )
+      const results = await api.uploadEvidenceBatch(uploads)
+      const failed = results.filter((r) => r.status === "failed").length
+      // **한 장이 실패해도 나머지는 간다** (F4-05). 몇 장을 못 읽었는지는 말해준다.
+      if (failed > 0) showToast(`자료 ${failed}장을 읽지 못했어요. 읽은 것만 정리할게요`)
+      const fresh = results.flatMap((r) => r.data?.cards ?? [])
+      setServer((prev) => ({ ...prev, cards: [...(prev.cards ?? []), ...fresh] }))
+      return results
+    })
+  }, [live, runLive, showToast, uploadedFiles])
 
   const backToUpload = useCallback(() => {
     setFilesReady(false)
@@ -491,8 +701,31 @@ export function useHaebingFlow() {
     setUploadedFiles([])
     setLightboxFileId(null)
     setEditingFileId(null)
+    setServer(EMPTY_SERVER)
+    sentCount.current = 0
+    // 세션도 새로 판다. 이전 세션에 남은 카드가 다음 사용자의 준비도에 섞이면 안 된다.
+    if (live) void api.createSession().catch(() => null)
     window.scrollTo(0, 0)
-  }, [])
+  }, [live])
+
+  restartRef.current = restart
+
+  /**
+   * 제출 패키지 PDF. **텍스트 5면은 서버가, 원본 이미지 면은 브라우저가 만든다** (F8-01).
+   *
+   * 미리보기와 다운로드가 **같은 함수를 쓴다** — 따로 만들면 보여준 것과 받는 것이 갈린다.
+   * 서버가 없으면 원본 이미지 면만으로 만든다(목 경로). 그때 미리보기가 "지금은 증빙 원본
+   * 이미지 면만 보여요"라고 알린다.
+   */
+  const buildPackage = useCallback(async () => {
+    if (!live) return buildPackagePdf(null, uploadedFiles)
+    const serverPdf = await api.generatePackagePdf({
+      ...toPackageRequest(legalForm),
+      // 제외 문장의 **최종 소스는 이 값이다** (계약 v1.10). `revise`를 따로 부르지 않는다.
+      excludedSentenceIds: [...excludedSentences],
+    })
+    return buildPackagePdf(serverPdf, uploadedFiles)
+  }, [live, legalForm, excludedSentences, uploadedFiles])
 
   const amountInfo = useMemo(() => getAmountInfo(intake.amount), [intake.amount])
   // 숨어 있는 문항(F2-01a 조건부)은 답할 대상이 아니므로 완료 판정에서 뺀다.
@@ -507,16 +740,49 @@ export function useHaebingFlow() {
         .every((field) => isAnswered(intake, field)),
     [intakePage, intake],
   )
+  /**
+   * 문진을 서버에 올린다 — **다 답한 뒤 답이 바뀔 때마다.** 계약상 `/api/intake`는 전체 교체이므로
+   * (v1.10) 사용자가 요약 칩으로 돌아가 답을 고치면 그대로 다시 보내면 된다. `null`로 보낸
+   * 필드는 서버에서도 지워진다.
+   *
+   * **단계 이동이 아니라 "다 답했는가"로 거는 이유**: 기한 배너(FR-014)는 문진 화면에
+   * 떠 있고, 계산의 단일 소스는 서버다. 다음 단계로 넘어간 뒤에 덮으면 정작 배너를 보는
+   * 동안에는 목 값이 떠 있게 된다.
+   *
+   * 응답이 오기 전이나 실패했을 때는 같은 규칙을 계산해 둔 목이 자리를 지킨다.
+   */
+  useEffect(() => {
+    if (!live || !sessionReady || !allAnswered) return
+    void runLive(() =>
+      api
+        .saveIntake({
+          when: intake.when,
+          dueNoticeStatus: intake.noticeStatus ?? "unknown",
+          dueNoticeDate: intake.noticeDate,
+          amount: intake.amount,
+          kind: REASON_BY_KIND[intake.kind ?? ""] ?? "unclear",
+          history: intake.history === "있어요",
+          usage: USAGE_BY_LABEL[intake.usage ?? ""] ?? "occasional",
+          // 물품 거래가 아니면 `null`이다 (F2-01a).
+          deliveryMethod: DELIVERY_BY_LABEL[intake.delivery ?? ""] ?? null,
+        })
+        .then((res) => setServer((prev) => ({ ...prev, deadline: toDeadlineInfo(res) }))),
+    )
+  }, [live, sessionReady, allAnswered, intake, runLive])
+
   const intakeLastPage = intakePage === INTAKE_PAGES.length - 1
   const hasHistory = historyOverride === null ? intake.history === "있어요" : historyOverride
-  const deadline = useMemo(() => getDeadline(intake), [intake])
+  const deadline = useMemo(() => server.deadline ?? getDeadline(intake), [server.deadline, intake])
 
   const cards = useMemo(
     () =>
-      entryMode === "text"
+      // 서버가 준 카드에도 사용자의 확인·수정 상태를 그대로 입힌다.
+      server.cards
+        ? applyCardStates(server.cards, cardStates)
+        : entryMode === "text"
         ? applyCardStates(textCards, cardStates)
         : buildCards(evidence, intake.amount, cardStates),
-    [entryMode, textCards, evidence, intake.amount, cardStates],
+    [server.cards, entryMode, textCards, evidence, intake.amount, cardStates],
   )
   const blocking = useMemo(() => blockingCards(cards), [cards])
   const unconfirmedCount = useMemo(() => pendingCards(cards).length, [cards])
@@ -532,28 +798,54 @@ export function useHaebingFlow() {
 
   // 체크리스트가 준비도의 입력이다 — Stage 3과 Stage 4가 같은 값을 봐야 한다.
   const checklist = useMemo(
-    () => buildChecklist(intake.kind, confirmed, true, selfHeld),
-    [intake.kind, confirmed, selfHeld],
+    () => server.checklist ?? buildChecklist(intake.kind, confirmed, true, selfHeld),
+    [server.checklist, intake.kind, confirmed, selfHeld],
   )
   const readiness = useMemo(
     () =>
+      server.readiness ??
       computeReadiness(
         intake,
         checklist,
         { pending: unconfirmedCount, blocking: blocking.length },
         historyOverride,
       ),
-    [intake, checklist, unconfirmedCount, blocking.length, historyOverride],
+    [server.readiness, intake, checklist, unconfirmedCount, blocking.length, historyOverride],
   )
+
+  /**
+   * 준비도 점검 — Stage 3에 들어올 때 한 번.
+   *
+   * 저신뢰 미확인 카드가 남아 있으면 서버가 `409 UNCONFIRMED_FIELDS`로 거부한다.
+   * **프론트 차단(F4-06)과 별개의 방어선**이라 여기서 실패해도 정상이다 —
+   * `runLive`가 서버 문구를 그대로 띄우고, 화면은 목 판정으로 남는다.
+   */
+  useEffect(() => {
+    if (!live || !sessionReady || stage !== 3) return
+    void runLive(() => api.checkReadiness()).then((res) => {
+      if (res) {
+        setServer((prev) => ({
+          ...prev,
+          checklist: res.checklist,
+          readiness: toReadinessResult(res, prev.unconfirmedCount ?? 0, hasHistory),
+        }))
+      }
+    })
+    // `hasHistory`는 화면의 "켜 보기" 토글로 바뀌지만, 그때마다 서버를 다시 부르지 않는다 —
+    // 그 토글은 판정이 어떻게 달라지는지 보여주는 장치라 목 계산으로 충분하다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, sessionReady, stage, runLive])
   const timeline = useMemo(
     () =>
       !analyzed
         ? []
-        : // 텍스트 경로는 **사용자가 쓴 것만** 나와야 한다. 목 시나리오 문구를 섞지 않는다.
-          entryMode === "text"
-          ? buildTimelineFromCards(cards)
-          : buildTimeline(evidence, documentAmount, bankConfirmed),
-    [analyzed, entryMode, cards, evidence, documentAmount, bankConfirmed],
+        : server.timeline
+          ? server.timeline
+          : // 텍스트 경로는 **사용자가 쓴 것만** 나와야 한다. 목 시나리오 문구를 섞지 않는다.
+            entryMode === "text"
+            ? buildTimelineFromCards(cards)
+            : buildTimeline(evidence, documentAmount, bankConfirmed),
+    [server.timeline, analyzed, entryMode, cards, evidence, documentAmount, bankConfirmed],
   )
   /**
    * **제출본 3면에 실을 타임라인.** 화면 타임라인과 달리 확인된 카드만 담는다 — 2면은
@@ -568,25 +860,29 @@ export function useHaebingFlow() {
     () =>
       !analyzed
         ? []
-        : entryMode === "text"
-          ? buildTimelineFromCards(cards.filter((card) => card.confirmation_status !== "pending"))
-          : buildTimeline(confirmed, documentAmount, bankConfirmed),
-    [analyzed, entryMode, cards, confirmed, documentAmount, bankConfirmed],
+        : server.submitTimeline
+          ? server.submitTimeline
+          : entryMode === "text"
+            ? buildTimelineFromCards(cards.filter((card) => card.confirmation_status !== "pending"))
+            : buildTimeline(confirmed, documentAmount, bankConfirmed),
+    [server.submitTimeline, analyzed, entryMode, cards, confirmed, documentAmount, bankConfirmed],
   )
   // 확인된 카드만 소명서에 들어간다 (F4-06 "미확인 카드의 날짜·금액이 본문에 나타나지 않음").
   const draftLines = useMemo(
     () =>
       !draftShown
         ? []
-        : // 텍스트 경로는 목 시나리오 문장을 쓰지 않는다 — 사용자가 말하지 않은 시각이 섞인다.
-          entryMode === "text"
-          ? buildDraftLinesFromCards(
-              intake,
-              cards.filter((card) => card.confirmation_status !== "pending"),
-              documentAmount,
-            )
-          : buildDraftLines(intake, confirmed, true, documentAmount),
-    [draftShown, entryMode, intake, cards, confirmed, documentAmount],
+        : server.draftLines
+          ? server.draftLines
+          : // 텍스트 경로는 목 시나리오 문장을 쓰지 않는다 — 사용자가 말하지 않은 시각이 섞인다.
+            entryMode === "text"
+            ? buildDraftLinesFromCards(
+                intake,
+                cards.filter((card) => card.confirmation_status !== "pending"),
+                documentAmount,
+              )
+            : buildDraftLines(intake, confirmed, true, documentAmount),
+    [server.draftLines, draftShown, entryMode, intake, cards, confirmed, documentAmount],
   )
   const confirmedCount = cards.length - unconfirmedCount
   // 확인하지 않아 문서에서 빠진 자료 수. 사용자가 "왜 문장이 적지?"를 알 수 있어야 한다.
@@ -667,6 +963,8 @@ export function useHaebingFlow() {
     readiness,
     timeline,
     submitTimeline,
+    buildPackage,
+    live,
     draftLines,
     checklist,
     confirmedCount,

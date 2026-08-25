@@ -17,10 +17,28 @@
 
 ## 현재 상태
 
-**백엔드 API 연동 전 단계입니다.** 백엔드가 공개 API를 아직 구현하지 않아, 화면은 목(mock)
-데이터로 동작합니다. 목을 만드는 곳은 `src/lib/`의 순수 함수들(`cards`, `checklist`,
-`readiness`, `timeline`, `draft`)이며, **API가 열리면 이 함수들의 반환값을 응답으로
-갈아끼우는 것이 연동 작업**입니다.
+**백엔드에 연결돼 있습니다.** `VITE_API_BASE_URL`이 설정돼 있으면 화면이 실제 API를
+호출하고, 비어 있으면 목(mock)으로 동작합니다. 이 갈림은 `useHaebingFlow`의 `live`
+하나로 정해지고, **화면 컴포넌트는 어느 쪽인지 모릅니다** — `lib/api/adapt.ts`가 서버
+응답을 목이 만들던 것과 같은 모양으로 옮기기 때문입니다.
+
+**목을 지우지 않은 이유**: 배포본이 백엔드보다 먼저 뜨는 구간이 있고, 데모에서 백엔드가
+죽어도 화면은 끝까지 돌아야 합니다. 연결되지 않은 상태에서 빈 화면을 보여주는 것보다
+목이 낫습니다. 다만 **연결된 뒤에는 목으로 되돌아가지 않습니다** — 자료를 하나도 올리지
+않았으면 카드도 0장이고, 목 카드 5장이 나오지 않습니다.
+
+| 단계 | 호출 |
+| --- | --- |
+| 진입 | `POST /api/session` (한 번, 실패해도 화면을 막지 않음) |
+| 문진 | `POST /api/intake` — **다 답한 뒤 답이 바뀔 때마다.** 기한(FR-014)은 서버가 단일 소스 |
+| 업로드 | `POST /api/evidence` — 동시 4, **아직 안 보낸 파일만**, `imageIndex`는 세션 누적 위치 |
+| 텍스트 입력 | `POST /api/evidence/text` — **가린 뒤** 보냄 |
+| 카드 확인·수정 | `POST /api/evidence/confirm` (낙관적 갱신). 삭제는 `confirmed: false` |
+| 자료 조립 | `GET /api/timeline` — 이벤트 + `gaps` |
+| 준비도 | `POST /api/readiness` — Stage 3 진입 시. 저신뢰 미확인이 남으면 서버가 409 |
+| 자가 진술 | `POST /api/checklist/self-held` — 응답은 갱신된 전체 체크리스트 |
+| 소명서 | `POST /api/draft` |
+| 제출 패키지 | `POST /api/package/text` → 브라우저가 원본 이미지 면을 붙여 병합 |
 
 이미 실제로 동작하는 것 (목이 아닌 것):
 
@@ -31,7 +49,8 @@
 | 형사 전환 신호 안내 (F9-02) — 해당자만 스스로 선택 | `components/stages/RoutesStage.tsx` |
 | 제출 패키지 PDF 병합·다운로드 | `lib/pdf.ts` |
 | 실제 문서 미리보기 (pdf.js 렌더) | `lib/pdfRender.ts` · `components/PdfPreview.tsx` |
-| 공개 API 클라이언트 (세션 헤더·오류 매핑·동시 4 상한) | `lib/api/` — **아직 화면에 연결하지 않음** |
+| 공개 API 클라이언트 (세션 헤더·오류 매핑·동시 4 상한) | `lib/api/` — 화면에 연결됨 |
+| 서버 응답 → 화면 모양 변환 | `lib/api/adapt.ts` |
 
 원본 이미지는 브라우저 메모리에만 있고 서버로 전송되지 않습니다.
 
