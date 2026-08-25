@@ -109,19 +109,16 @@ export function PreviewSheet({
    * 4면 증빙자료 목록 — 뒤에 붙는 원본 이미지 페이지의 목차다. **A안으로 확정**
    * (백엔드 회신 2026-08-25). `checklist`가 아니다 — 그건 보유/미보유 표시라 제출본에 넣지 않는다.
    *
-   * **정렬 기준이 아직 확정되지 않았다.** F8-01은 "5면 이미지 페이지 순서와 일치"라고 적지만
-   * 항목은 카드 단위다. 이미지 1장에서 카드가 여러 장 나오고(`evt_{image_index}_{n}`),
-   * 미확인 카드는 문서에서 빠지는데 그 이미지는 5면에 남으며, 텍스트 입력 카드는 이미지가
-   * 아예 없다 — 셋 다 1:1이 깨진다. 백엔드에 판단을 요청해 뒀다
-   * (`docs/request/backend/page4-ordering.md`).
-   *
-   * 그때까지는 **`source_image_index` 오름차순**으로 둔다 — 확정 후보 중 5면 순서에 가장
-   * 가깝고, 이미지가 없는 텍스트 카드는 뒤로 보낸다.
+   * **정렬은 카드 단위 + `source_image_index` 오름차순**이다 (B안, 2026-08-25 확정).
+   * 4면은 목차이지 이미지 목록이 아니다 — 이미지 1장에서 카드가 여러 장 나오므로
+   * (`evt_{image_index}_{n}`) 줄 수와 5면 장 수가 다른 것이 정상이고, **"원본 n번"** 으로
+   * 대조한다. 이미지가 없는 텍스트 입력 카드는 뒤로 보낸다.
    */
   const attachments = cards
     .filter((card) => card.confirmation_status !== "pending")
     .slice()
     .sort((a, b) => (a.source_image_index ?? Number.MAX_SAFE_INTEGER) - (b.source_image_index ?? Number.MAX_SAFE_INTEGER))
+  const hasOriginals = attachments.some((card) => card.source_image_index !== null)
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg">
@@ -295,7 +292,16 @@ export function PreviewSheet({
                   <li key={card.event_id} className="flex gap-2">
                     <span className="flex-none tabular-nums text-muted">{i + 1}.</span>
                     <span className="min-w-0 flex-1">
-                      <span className="font-semibold">{SOURCE_LABEL[card.source_type]}</span>
+                      <span className="font-semibold">
+                        {/* 이미지가 없는 카드(F3-04 텍스트 입력)는 자료 유형 자리에 "본인 서술"을
+                            쓴다 — 소명서 본문의 "본인 진술" 배지와 같은 취급이다. */}
+                        {card.source_image_index === null ? "본인 서술" : SOURCE_LABEL[card.source_type]}
+                      </span>
+                      {card.source_image_index !== null && (
+                        // 계약값은 0-base다. **표시할 때만 +1** 한다 — "원본 0번"이라고 쓸 수 없다.
+                        // 백엔드 PDF도 같은 규칙으로 +1 한다 (2026-08-25 확정).
+                        <span className="ml-2 text-[13px] text-muted">원본 {card.source_image_index + 1}번</span>
+                      )}
                       {card.occurred_at && (
                         <span className="ml-2 text-[13px] tabular-nums text-muted">
                           {card.occurred_at.slice(0, 10).replace(/-/g, ".")}
@@ -309,9 +315,14 @@ export function PreviewSheet({
             ) : (
               <p className="text-[13px] leading-normal text-muted">올린 자료가 없어 목록이 비어 있어요.</p>
             )}
-            <p className="mt-3 text-[13px] leading-normal text-muted">
-              이 목록 뒤에 원본 이미지가 <b>같은 순서로</b> 붙어요.
-            </p>
+            {/* B안이라 줄 수와 이미지 장 수가 다를 수 있다 — 한 장에서 여러 사실이 나오기 때문이다.
+                "같은 순서로 붙는다"고 쓰면 개수가 맞는다는 뜻으로 읽힌다.
+                텍스트 입력만 한 경우엔 붙을 이미지가 아예 없으므로 이 줄을 쓰지 않는다. */}
+            {hasOriginals && (
+              <p className="mt-3 text-[13px] leading-normal text-muted">
+                뒤에 원본 이미지가 붙어요. <b>"원본 n번"</b>이 몇 번째 이미지인지 가리켜요.
+              </p>
+            )}
           </Page>
 
           <div className="rounded-2xl bg-brand-subtle px-4 py-4">
