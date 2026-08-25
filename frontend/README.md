@@ -42,6 +42,25 @@
 됩니다**. `/api/evidence` 연동 때 카드가 실제 이미지 인덱스를 들고 오면 그때 `ImageLightbox`로
 잇습니다. 같이 붙일 것: 원본이 메모리에 없을 때 배지를 회색 처리하는 F7-05 예외.
 
+### 백엔드를 로컬에서 붙여 보기
+
+`docker` 없이 됩니다. 실제로 6단계를 전부 돌려 검증한 조합입니다 (2026-08-26).
+
+```bash
+brew install openjdk@21 postgresql@16
+LC_ALL=en_US.UTF-8 pg_ctl -D /opt/homebrew/var/postgresql@16 start
+psql -d postgres -c "CREATE ROLE haebing LOGIN PASSWORD 'haebing' SUPERUSER;"
+createdb -O haebing haebing
+psql -U haebing -d haebing -f ../backend/src/main/resources/db/migration.sql
+```
+
+백엔드는 `DEMO_MODE=true`로 띄우면 **AI 서버도 API 키도 필요 없습니다** — 고정 픽스처를
+돌려주고 LLM을 호출하지 않습니다(과금 없음). `SPRING_DATASOURCE_*`와
+`CORS_ALLOWED_ORIGINS=http://localhost:5173`을 주고 `sh gradlew bootRun`.
+
+프론트는 `frontend/.env.local`에 `VITE_API_BASE_URL=http://localhost:8080`을 넣습니다
+(`*.local`은 gitignore).
+
 ### API 연결하기
 
 `VITE_API_BASE_URL`이 비어 있으면 `lib/api`의 `isApiConfigured()`가 `false`이고 화면은 목으로

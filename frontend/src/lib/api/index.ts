@@ -62,7 +62,13 @@ export function uploadEvidence(
   signal?: AbortSignal,
 ): Promise<EvidenceResponse> {
   const form = new FormData()
-  form.append("files", file)
+  // **파일명을 반드시 붙인다.** 백엔드는 확장자 화이트리스트로 먼저 거르는데(F3-02 검증 ①),
+  // 이름 없는 Blob을 넣으면 브라우저가 `blob`으로 보내 확장자가 없어 통째로 스킵된다
+  // (`유효한 이미지 파일이 없습니다` → 400). 마스킹 결과는 항상 Blob이라 늘 이 경로다.
+  //
+  // **사용자 파일명을 쓰지 않는다.** `카톡_김철수_20260901.png`처럼 개인정보가 섞인다 —
+  // 4면에 파일명을 넣지 않기로 한 것과 같은 이유고, 판독에 파일명은 쓰이지 않는다.
+  form.append("files", file, `evidence-${imageIndex}.${file.type === "image/jpeg" ? "jpg" : "png"}`)
   // 응답 도착 순서로 백엔드가 번호를 매기면 우리 blob 배열과 어긋난다 — 동시 4개가
   // 각자 다른 속도로 돌아오기 때문이다. 카드의 `source_image_index`가 곧 이 값이라,
   // 어긋나면 "원본 보기"와 4면 "원본 n번"이 통째로 다른 이미지를 가리킨다.
