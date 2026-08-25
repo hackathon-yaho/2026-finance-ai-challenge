@@ -5,10 +5,17 @@ import type { DueNoticeStatus, IntakeAnswers, IntakeField } from "../../types"
 import { AmountField } from "../intake/AmountField"
 import { DateField } from "../intake/DateField"
 
-// 문항 번호는 페이지가 나뉘어도 스펙 F2-01의 ①~⑥을 그대로 따라간다.
-function findQuestion(id: IntakeField) {
-  const index = QUESTIONS.findIndex((question) => question.id === id)
-  return { question: QUESTIONS[index], no: index + 1 }
+/**
+ * 문항 번호는 **화면에 실제로 보이는 문항 기준**으로 1부터 이어 붙인다.
+ *
+ * 종전에는 `QUESTIONS` 배열의 고정 위치를 썼는데, 조건부 문항(F2-01a 거래 방식)이 숨으면
+ * 사용자에게 4 → 6 → 7로 보였다. 거래 성격 4개 중 3개(용역·채권 회수·모름)가 그 경로라
+ * 대부분의 사용자가 빠진 번호를 봤다. 번호는 명세의 문항 ID가 아니라 화면의 순서 표시다.
+ */
+function findQuestion(id: IntakeField, kind: string | null) {
+  const visible = QUESTIONS.filter((question) => isFieldVisible(question.id, kind))
+  const index = visible.findIndex((question) => question.id === id)
+  return { question: visible[index], no: index + 1 }
 }
 
 interface IntakeStageProps {
@@ -65,7 +72,7 @@ export function IntakeStage({
           <div className="text-[13px] font-semibold text-muted">앞서 답한 내용 · 탭하면 고칠 수 있어요</div>
           <div className="flex flex-wrap gap-2">
             {priorFields.map(({ id, page: target }) => {
-              const { question } = findQuestion(id)
+              const { question } = findQuestion(id, intake.kind)
               const value = summaryValue(intake, id)
               return (
                 <button
@@ -98,7 +105,7 @@ export function IntakeStage({
 
       {/* F2-01a — 거래 방식은 물품 거래일 때만 나타난다. */}
       {current.fields.filter((id) => isFieldVisible(id, intake.kind)).map((id) => {
-        const { question, no } = findQuestion(id)
+        const { question, no } = findQuestion(id, intake.kind)
         return (
           <div key={question.id} className="flex flex-col gap-3">
             <div className="flex items-start gap-2.5">

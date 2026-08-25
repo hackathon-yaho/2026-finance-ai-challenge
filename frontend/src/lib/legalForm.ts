@@ -74,7 +74,25 @@ export function writeField(values: LegalFormValues, field: LegalFormField, value
   return { ...values, [group]: { ...values[group], [key]: value } }
 }
 
-const BIRTH_DATE = /^\d{4}-\d{2}-\d{2}$/
+const BIRTH_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/**
+ * 형식만 맞으면 `1990-13-99`도 통과했다. 생년월일은 **법정 서식에 그대로 실리는 값**이라
+ * 달력에 없는 날짜가 은행에 나가면 안 된다. 문자열을 되돌려 대조해 실제 날짜인지 본다
+ * (`new Date("1990-13-99")`는 Invalid Date, `1990-02-31`은 3월 3일로 굴러가므로 둘 다 걸린다).
+ */
+function isRealDate(value: string): boolean {
+  const match = BIRTH_DATE.exec(value)
+  if (!match) return false
+  const [, year, month, day] = match
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return false
+  return (
+    date.getUTCFullYear() === Number(year) &&
+    date.getUTCMonth() + 1 === Number(month) &&
+    date.getUTCDate() === Number(day)
+  )
+}
 
 /**
  * 형식 검증 (api-contract). **"선택"은 "비어도 된다"이지 "무엇이든 받는다"가 아니다.**
@@ -82,8 +100,9 @@ const BIRTH_DATE = /^\d{4}-\d{2}-\d{2}$/
  */
 export function validateField(field: LegalFormField, value: string): string | null {
   if (value.length > MAX_FIELD_LENGTH) return `${MAX_FIELD_LENGTH}자를 넘을 수 없어요`
-  if (field === "applicant.birthDate" && value !== "" && !BIRTH_DATE.test(value)) {
-    return "YYYY-MM-DD 형식으로 적어주세요 (예: 1990-01-01)"
+  if (field === "applicant.birthDate" && value !== "") {
+    if (!BIRTH_DATE.test(value)) return "YYYY-MM-DD 형식으로 적어주세요 (예: 1990-01-01)"
+    if (!isRealDate(value)) return "달력에 없는 날짜예요. 다시 확인해주세요"
   }
   return null
 }

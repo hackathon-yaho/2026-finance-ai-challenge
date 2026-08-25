@@ -203,6 +203,23 @@ export function pendingCards(cards: ExtractedCard[]): ExtractedCard[] {
   return cards.filter((card) => card.confirmation_status === "pending")
 }
 
+/**
+ * 확인된 입금 카드의 금액. 없으면 `null`.
+ *
+ * 문진의 "정지된 입금액"과 입금 내역 카드의 금액은 **같은 사실을 가리키는 두 값**이다.
+ * 목은 카드를 문진 값으로 만들지만, 사용자가 F4-06 카드에서 금액을 고치면 둘이 갈라진다.
+ * 그때 문서가 문진 값을 그대로 쓰면 **고친 값이 조용히 버려진다** — "AI가 70만 원을 10만
+ * 원으로 읽을 수 있다"는 F4-06의 존재 이유가 무력해진다. 확인된 카드 값이 이긴다.
+ *
+ * API를 붙이면 `/api/draft`가 서버에서 확인된 카드로 문장을 만들므로 이 함수는 사라진다.
+ */
+export function confirmedBankAmount(cards: ExtractedCard[]): number | null {
+  const card = cards.find(
+    (c) => c.source_type === "bank" && c.confirmation_status !== "pending" && c.amount !== null,
+  )
+  return card ? card.amount : null
+}
+
 /** 확인된 카드만 준비도·소명서의 입력이 된다 (F6-03 · F7-01). */
 export function confirmedEvidence(cards: ExtractedCard[]): EvidenceState {
   const out: EvidenceState = { autopay: false, chat: false, bank: false, shipping: false, threat: false }

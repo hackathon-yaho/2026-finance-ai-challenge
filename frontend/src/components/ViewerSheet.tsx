@@ -1,5 +1,16 @@
 import type { AmountInfo, ViewerId } from "../types"
 
+/**
+ * `[원본 보기]`가 여는 화면 — **아직 목이다.** 여기 그리는 대화·거래내역은 사용자가 올린
+ * 이미지가 아니라 재현 화면이다.
+ *
+ * F7-05가 정한 실제 동작은 "`imageIndex`로 자기 메모리의 blob 배열에서 해당 이미지를 찾아
+ * 표시"다. 지금 잇지 않는 이유는 목 카드의 `source_image_index`가 실제 올린 장수와 무관하게
+ * 0~4로 고정이라, 그대로 이으면 **엉뚱한 이미지를 출처라고 주장하게 되기 때문**이다.
+ * `/api/evidence` 연동으로 카드가 진짜 인덱스를 들고 오면 `ImageLightbox`로 잇는다.
+ * 그때 F7-05의 예외("원본이 메모리에 없으면 배지 회색 처리")도 함께 넣는다.
+ */
+
 interface ViewerSheetProps {
   viewer: ViewerId | null
   note: string | null
