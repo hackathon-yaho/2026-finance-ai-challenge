@@ -31,6 +31,8 @@ public class Session {
     private final Map<String, Boolean> cardConfirmed = new ConcurrentHashMap<>();
     private final Map<String, Boolean> selfHeldItems = new ConcurrentHashMap<>();
     private final List<SentenceEvidence> sentenceEvidence = new java.util.concurrent.CopyOnWriteArrayList<>();
+    /** 문장 텍스트·제외 여부의 현재 상태. `/api/draft`가 새로 채우고 `/api/draft/revise`가 갱신한다. */
+    private final List<StoredSentence> sentences = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final Map<String, QualityFlags> qualityFlags = new ConcurrentHashMap<>();
 
     /** F3-02 — 세션당 누적 10장 제한. 검증 통과한 이미지마다 1씩 늘린다 (추출 성공 여부와 무관). */
@@ -75,5 +77,31 @@ public class Session {
 
     public void removeCard(String eventId) {
         timeline.removeIf(c -> c.eventId().equals(eventId));
+    }
+
+    /** 새 소명서를 받으면 이전 문장·근거를 전부 교체한다. */
+    public void replaceSentences(List<StoredSentence> newSentences, List<SentenceEvidence> newEvidence) {
+        sentences.clear();
+        sentences.addAll(newSentences);
+        sentenceEvidence.clear();
+        sentenceEvidence.addAll(newEvidence);
+    }
+
+    public java.util.Optional<StoredSentence> findSentence(String sentenceId) {
+        return sentences.stream().filter(s -> s.sentenceId().equals(sentenceId)).findFirst();
+    }
+
+    public void updateSentence(StoredSentence updated) {
+        for (int i = 0; i < sentences.size(); i++) {
+            if (sentences.get(i).sentenceId().equals(updated.sentenceId())) {
+                sentences.set(i, updated);
+                return;
+            }
+        }
+    }
+
+    public void replaceSentenceEvidence(String sentenceId, List<SentenceEvidence> refs) {
+        sentenceEvidence.removeIf(e -> e.sentenceId().equals(sentenceId));
+        sentenceEvidence.addAll(refs);
     }
 }

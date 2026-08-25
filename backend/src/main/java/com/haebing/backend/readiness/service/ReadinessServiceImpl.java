@@ -48,6 +48,9 @@ public class ReadinessServiceImpl implements ReadinessService {
         List<String> conflicts = hasConflicts ? List.of(NoticeTexts.CONFLICT_AMOUNT_MISMATCH) : List.of();
         List<String> notices = buildNotices(hasUnconfirmedFields, blockingItemLabels(checklist), hasUnknownBankCriteria);
 
+        // Phase 5(/api/draft)가 재계산 없이 그대로 쓰도록 캐시한다 — Stage 3·4가 같은 값을 봐야 한다.
+        session.setReadiness(new com.haebing.backend.session.Readiness(reason, readiness));
+
         return new ReadinessResponse(reason, checklist, readiness, missingItems, conflicts, notices,
                 NoticeTexts.SMALL_AMOUNT_NOTICE, session.getSignals().threatDetected());
     }

@@ -1,5 +1,7 @@
 package com.haebing.backend.ai;
 
+import com.haebing.backend.ai.dto.DraftRequest;
+import com.haebing.backend.ai.dto.DraftResult;
 import com.haebing.backend.ai.dto.ExtractResult;
 import com.haebing.backend.ai.exception.AiRetryableException;
 import com.haebing.backend.common.global.ErrorCode;
@@ -26,50 +28,64 @@ public class AiClientImpl implements AiClient {
     // AI-server가 내부적으로 주는 fallback은 "text_input"이지만, 공개 응답에는 내부 경로를 노출하지 않는다.
     private static final String FALLBACK_TEXT_INPUT = "/api/evidence/text";
 
-    private final RestClient restClient;
+    private final RestClient extractRestClient;
+    private final RestClient draftRestClient;
     private final String internalToken;
 
-    public AiClientImpl(RestClient extractRestClient, @Value("${app.internal-token}") String internalToken) {
-        this.restClient = extractRestClient;
+    public AiClientImpl(RestClient extractRestClient, RestClient draftRestClient,
+                         @Value("${app.internal-token}") String internalToken) {
+        this.extractRestClient = extractRestClient;
+        this.draftRestClient = draftRestClient;
         this.internalToken = internalToken;
     }
 
     @Override
     public ExtractResult extractFromImage(byte[] imageBytes, int imageIndex, String contentType) {
-        return withRetry(() -> restClient.post()
+        return withRetry(() -> extractRestClient.post()
                 .uri(uriBuilder -> uriBuilder.path("/internal/extract").queryParam("image_index", imageIndex).build())
                 .contentType(MediaType.parseMediaType(contentType))
                 .header("X-Internal-Token", internalToken)
                 .body(imageBytes)
                 .retrieve()
-                .body(ExtractResult.class));
+                .body(ExtractResult.class), ErrorCode.EXTRACTION_FAILED, FALLBACK_TEXT_INPUT);
     }
 
     @Override
     public ExtractResult extractFromText(String rawText) {
-        return withRetry(() -> restClient.post()
+        return withRetry(() -> extractRestClient.post()
                 .uri("/internal/extract")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("X-Internal-Token", internalToken)
                 .body(new TextExtractRequest(rawText))
                 .retrieve()
-                .body(ExtractResult.class));
+                .body(ExtractResult.class), ErrorCode.EXTRACTION_FAILED, FALLBACK_TEXT_INPUT);
     }
 
-    private ExtractResult withRetry(Supplier<ExtractResult> call) {
+    @Override
+    public DraftResult draft(DraftRequest request) {
+        return withRetry(() -> draftRestClient.post()
+                .uri("/internal/draft")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-Internal-Token", internalToken)
+                .body(request)
+                .retrieve()
+                .body(DraftResult.class), ErrorCode.DRAFT_FAILED, null);
+    }
+
+    private <T> T withRetry(Supplier<T> call, ErrorCode primaryFailureCode, String fallback) {
         try {
-            return callOnce(call);
+            return callOnce(call, primaryFailureCode, fallback);
         } catch (AiRetryableException first) {
             log.warn("[AiClient] {} — 1회 재시도", first.getMessage());
             try {
-                return callOnce(call);
+                return callOnce(call, primaryFailureCode, fallback);
             } catch (AiRetryableException second) {
                 throw new BusinessException(second.getErrorCode(), null, second.getFallback());
             }
         }
     }
 
-    private ExtractResult callOnce(Supplier<ExtractResult> call) {
+    private <T> T callOnce(Supplier<T> call, ErrorCode primaryFailureCode, String fallback) {
         try {
             return call.get();
         } catch (HttpClientErrorException.TooManyRequests e) {
@@ -80,14 +96,14 @@ public class AiClientImpl implements AiClient {
             log.error("[AiClient] INTERNAL_TOKEN 불일치 — AI-server가 401을 반환했습니다");
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         } catch (HttpServerErrorException.BadGateway e) {
-            // EXTRACTION_FAILED(502) — 재시도 대상.
-            throw new AiRetryableException(ErrorCode.EXTRACTION_FAILED, FALLBACK_TEXT_INPUT, e);
+            // EXTRACTION_FAILED 또는 DRAFT_FAILED(둘 다 502) — 재시도 대상.
+            throw new AiRetryableException(primaryFailureCode, fallback, e);
         } catch (HttpServerErrorException.GatewayTimeout e) {
             // AI-server 내부 타임아웃(504) — 재시도 대상.
-            throw new AiRetryableException(ErrorCode.TIMEOUT, FALLBACK_TEXT_INPUT, e);
+            throw new AiRetryableException(ErrorCode.TIMEOUT, fallback, e);
         } catch (ResourceAccessException e) {
-            // 우리 쪽 커넥션/읽기 타임아웃(20초) — 재시도 대상.
-            throw new AiRetryableException(ErrorCode.TIMEOUT, FALLBACK_TEXT_INPUT, e);
+            // 우리 쪽 커넥션/읽기 타임아웃 — 재시도 대상.
+            throw new AiRetryableException(ErrorCode.TIMEOUT, fallback, e);
         }
     }
 

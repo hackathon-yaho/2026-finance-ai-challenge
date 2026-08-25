@@ -1,5 +1,9 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-26, 백엔드)** — Phase 5 구현
+> - **`DRAFT_FAILED`(502) 오류 코드 신설** — `/api/draft`가 AI-server 재시도 1회 후에도 실패하면 이 코드로 내려간다
+> - **`/api/draft/revise`의 `sentences` 응답에서 제외(`excluded:true`)된 문장은 배열 자체에서 빠진다** — 별도 플래그가 없는 계약이라, "최종 문서에서 빠질 문장"이라는 뜻을 배열에서 없애는 것으로 표현했다
+
 > **수정 기록 (2026-08-25 ④, 백엔드)** — Phase 3 구현 중 계약에 없던 부분을 채움
 > - **`POST /api/evidence`에 `imageIndex` 신설** — 1장씩 병렬 호출 시 응답 도착 순서가 원래 배열 순서와 달라, 프론트가 blob 배열 인덱스를 명시적으로 보내야 함
 > - **`gaps` 항목 스키마 신설** (`type`/`label`/`suggestions`) — 계약에 `gaps: []`만 있고 내용이 없었음
@@ -589,11 +593,13 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 | `UNCONFIRMED_FIELDS` | 날짜·금액**(값이 `null`이 아닌 경우에 한함)**이 `low` 신뢰도인 미확인 카드가 남은 채 `/api/readiness` 호출 (`409`) | 해당 카드 확인 화면으로 유도 |
 | `INVALID_FORM_FIELD` | `/api/package/text` 요청 바디의 필드가 길이·형식 제한을 위반 (`400`) | 해당 입력 칸에 사유 표시 (빈 값은 위반이 아님) |
 | `QUOTA_EXCEEDED` | LLM API 쿼터 초과 | 오프라인 데모 모드로 전환 (발표 대비, `../04-testing/test-cases-and-demo.md` 참조) |
+| `DRAFT_FAILED` | `/api/draft`가 AI-server 소명서 생성에 실패(내부 재시도 1회 후에도 실패) (`502`, 2026-08-26 신설) | "잠시 후 다시 시도해주세요" 안내. 재시도는 사용자가 다시 `/api/draft`를 호출하는 것으로 |
 
 ## 변경 이력
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.9 (2026-08-26)**: Phase 5 구현. `DRAFT_FAILED`(502) 오류 코드 신설. `/api/draft/revise`에서 제외된 문장은 응답 배열에서 빠지는 것으로 명시
 - **v1.8 (2026-08-25 ④)**: Phase 3 구현. `/api/evidence`에 `imageIndex` 신설, `gaps` 항목 스키마 신설, `/api/evidence/confirm`의 `confirmed: false` = 삭제 명시, 병합 승인 구현 방식 명시
 - **v1.7 (2026-08-25 ③)**: `/api/evidence/text`의 `rawText` 마스킹 주체를 프론트로 명시. `UNCONFIRMED_FIELDS` 게이팅을 값이 존재하는 카드에만 적용하도록 정정
 - **v1.6 (2026-08-25 ②)**: 프론트 회신 5건 반영. **`checklist` 스키마 전면 개정**(2필드 → 8필드, 택일 `options`·`whenMissing` 신설). **`POST /api/checklist/self-held`·`POST /api/draft/revise` 신설.** `/api/package/text` **8 → 11필드** + `excludedSentenceIds`, **면 구성 개정**(부족자료 체크리스트 제외·표지 신설·4면 출처 정정). `/api/intake`에 `deliveryMethod` 신설. `notices` 서버 단일 소스 명시. CORS에 프론트 프로덕션 도메인 등록

@@ -31,9 +31,9 @@
 | 4.2 | `POST /api/timeline/merge` | 3 | 구현 완료 |
 | 5.1 | `POST /api/readiness` | 4 | 구현 완료 |
 | 5.2 | `POST /api/checklist/self-held` | 4 | 구현 완료 |
-| 6.1 | `POST /api/draft` | 5 | 미구현 |
-| 6.2 | `POST /api/draft/revise` | 5 | 미구현 (2026-08-25 신설) |
-| 6.3 | `POST /api/package/text` | 5 | 미구현 |
+| 6.1 | `POST /api/draft` | 5 | 구현 완료 (AI-server 연동 미검증) |
+| 6.2 | `POST /api/draft/revise` | 5 | 구현 완료 |
+| 6.3 | `POST /api/package/text` | 5 | 구현 완료 — E2E 검증 완료 |
 | 7.1 | `GET /actuator/health` | 1 | 구현 완료 |
 
 상태 값: `미구현` → `구현 완료` → (계약이 바뀌면) `구현 완료 (YYYY-MM-DD 개정)`
@@ -553,7 +553,7 @@ Content-Type: application/json
 
 ### 6.1 `POST /api/draft` — 소명서 생성
 
-> 상태: **미구현** (Phase 5)
+> 상태: **구현 완료** (2026-08-26, Phase 5) — **AI-server 미배포로 실제 연동은 미검증.** `factCheckPassed==false` 재시도 로직·`confirmed` 카드 필터링은 단위테스트로 검증
 
 **설명**: 확인된 사실만으로 소명서 초안을 만들고, **각 문장이 어느 자료에서 나왔는지** 참조를 함께 돌려줍니다.
 
@@ -592,7 +592,7 @@ Content-Type: application/json
 
 ### 6.2 `POST /api/draft/revise` — 소명서 문장 수정·제외
 
-> 상태: **미구현** (Phase 5, 8/29~8/31) · 2026-08-25 신설
+> 상태: **구현 완료** (2026-08-26, Phase 5). **`excluded: true`인 문장은 응답 `sentences` 배열에서 빠집니다** — 계약에 별도 플래그가 없어 배열에서 제외하는 것으로 "최종 문서에서 뺀다"는 뜻을 표현했습니다(`api-contract.md` v1.9)
 
 **설명**: 미리보기(S04-2)에서 사용자가 문장을 고치거나 뺄 때 호출합니다.
 
@@ -648,7 +648,7 @@ Content-Type: application/json
 
 ### 6.3 `POST /api/package/text` — 제출 패키지 텍스트 면 PDF
 
-> 상태: **미구현** (Phase 5) · **2026-08-25 구성 개정**
+> 상태: **구현 완료** (2026-08-26, Phase 5) — Apache PDFBox + 나눔고딕. **실제 서버로 PDF를 생성해 5면 전부 육안 확인 완료**(한글 정상 렌더). AI-server 의존 없음 — E2E 검증됨
 
 **설명**: 제출 패키지의 **텍스트 면**(표지 + 1~4면)을 A4 PDF로 생성합니다.
 
@@ -739,6 +739,7 @@ API를 완료하거나 계약이 바뀔 때마다 한 줄씩 남깁니다. **"�
 
 | 날짜 | 대상 | 내용 |
 | --- | --- | --- |
+| 2026-08-26 ② | 6.1~6.3 | Phase 5 완료 — `/api/draft`(AI-server 호출, factCheckPassed 재시도 1회), `/api/draft/revise`(문장 수정 시 본인 진술로 다운그레이드), `/api/package/text`(PDFBox 표지+1~4면 생성, 나눔고딕). `DRAFT_FAILED` 오류 코드 신설. **PDF는 실제 생성해 5면 전부 육안 확인**, `/api/draft`만 AI-server 미배포로 미검증 |
 | 2026-08-26 | 5.1·5.2 | Phase 4 완료 — 결정적 규칙 엔진(`ReadinessService`, LLM 미사용), F6-01~06·F6-09 구현, 구매자–송금인 이름 대조(결정적), TC-01~06·21~23 단위테스트. 프론트 목(`EVIDENCE_CATALOG`) 대조 결과 **2곳은 문서를 따라 목과 다르게 구현** — `goods.trade_doc`(silent+self), `payer_match`(goods 전용). 상세는 5.1 절 참조 |
 | 2026-08-25 ③ | 3.1~4.2 | Phase 3 완료 — `AiClient`(raw body, 1회 재시도), 파일 검증(매직바이트), F4-07 금액 교차 대조, F4-06 게이팅·카드 확인/삭제, F5-01~04 타임라인 정렬·병합 후보·공백 탐지·대체 증빙. `imageIndex`·`gaps` 스키마를 `api-contract.md`에 신설. **AI-server 미배포로 실제 연동은 미검증** — 검증 항목은 아래 참조 |
 | 2026-08-25 ② | 1.1·1.2·2.1 | Phase 2 완료 — 인메모리 세션(16자 해시, 30분 슬라이딩 TTL), `X-Session-Hash` 인터셉터, 문진 증분 저장(부분 덮어쓰기 없음), FR-014 기한 계산. `/api/intake`의 필수 필드를 실제 구현(전부 선택 + `notified`↔`dueNoticeDate` 상호 검증)에 맞게 정정 |

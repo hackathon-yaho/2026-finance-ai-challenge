@@ -16,10 +16,20 @@ public class AiServerConfig {
 
     @Bean
     public RestClient extractRestClient(@Value("${app.ai-server-url:}") String aiServerUrl) {
+        return buildClient(aiServerUrl, Duration.ofSeconds(20));
+    }
+
+    /** docs/02-architecture/internal-api-contract.md "타임아웃 및 재시도" — /internal/draft는 15초. */
+    @Bean
+    public RestClient draftRestClient(@Value("${app.ai-server-url:}") String aiServerUrl) {
+        return buildClient(aiServerUrl, Duration.ofSeconds(15));
+    }
+
+    private RestClient buildClient(String aiServerUrl, Duration timeout) {
         ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.detect()
                 .build(ClientHttpRequestFactorySettings.defaults()
-                        .withConnectTimeout(Duration.ofSeconds(20))
-                        .withReadTimeout(Duration.ofSeconds(20)));
+                        .withConnectTimeout(timeout)
+                        .withReadTimeout(timeout));
         return RestClient.builder()
                 .baseUrl(aiServerUrl)
                 .requestFactory(factory)

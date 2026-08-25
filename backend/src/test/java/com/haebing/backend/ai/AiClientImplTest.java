@@ -43,7 +43,8 @@ class AiClientImplTest {
 
     private RestClient.Builder builder = RestClient.builder();
     private MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-    private AiClientImpl client = new AiClientImpl(builder.build(), "test-token");
+    private RestClient sharedClient = builder.build();
+    private AiClientImpl client = new AiClientImpl(sharedClient, sharedClient, "test-token");
 
     @Test
     void extractFromImage_success_parsesCardsSignalsQualityFlags() {
@@ -119,6 +120,43 @@ class AiClientImplTest {
         ExtractResult result = client.extractFromText("9월 2일에 45만원 입금받음");
 
         assertThat(result.cards()).hasSize(1);
+        server.verify();
+    }
+
+    @Test
+    void draft_success_parsesDraftTextAndSentences() {
+        String draftJson = """
+                { "draftText": "본문", "sentences": [{ "sentenceId": "s1", "text": "문장1", "evidenceRefs": [] }], "checklist": [], "factCheckPassed": true }
+                """;
+        server.expect(requestTo("/internal/draft"))
+                .andExpect(header("Content-Type", "application/json"))
+                .andExpect(header("X-Internal-Token", "test-token"))
+                .andRespond(withSuccess(draftJson, MediaType.APPLICATION_JSON));
+
+        var result = client.draft(new com.haebing.backend.ai.dto.DraftRequest(
+                java.util.List.of(), "goods", "SUBMISSION_READY", null));
+
+        assertThat(result.draftText()).isEqualTo("본문");
+        assertThat(result.sentences()).hasSize(1);
+        assertThat(result.factCheckPassed()).isTrue();
+        server.verify();
+    }
+
+    @Test
+    void draft_502TwiceInARow_throwsDraftFailedWithNoFallback() {
+        server.expect(requestTo("/internal/draft"))
+                .andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
+        server.expect(requestTo("/internal/draft"))
+                .andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
+
+        assertThatThrownBy(() -> client.draft(new com.haebing.backend.ai.dto.DraftRequest(
+                java.util.List.of(), "goods", "SUBMISSION_READY", null)))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.DRAFT_FAILED);
+                    assertThat(be.getFallback()).isNull();
+                });
         server.verify();
     }
 }

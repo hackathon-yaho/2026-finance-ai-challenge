@@ -18,6 +18,7 @@ public enum ErrorCode {
     UNCONFIRMED_FIELDS(HttpStatus.CONFLICT, "UNCONFIRMED_FIELDS", "확인이 필요한 카드가 남아 있습니다."),
     INVALID_FORM_FIELD(HttpStatus.BAD_REQUEST, "INVALID_FORM_FIELD", "입력값이 형식에 맞지 않습니다."),
     QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "QUOTA_EXCEEDED", "AI 서비스 사용량이 초과되었습니다."),
+    DRAFT_FAILED(HttpStatus.BAD_GATEWAY, "DRAFT_FAILED", "소명서 생성에 실패했습니다."),
 
     // api-contract.md 오류표에는 없는 항목 — GlobalExceptionHandler의 예외되지 않은 오류를 위한 fallback.
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "필수 파라미터가 없거나 형식이 올바르지 않습니다."),
