@@ -28,6 +28,7 @@
 | --- | --- |
 | 이미지 리사이즈·마스킹 (canvas, 장변 1600px) | `lib/mask.ts` · `components/MaskingSheet.tsx` |
 | 텍스트 경로의 개인정보 마스킹 (전송 전, 정규식) | `lib/textEntry.ts` |
+| 형사 전환 신호 안내 (F9-02) — 해당자만 스스로 선택 | `components/stages/RoutesStage.tsx` |
 | 제출 패키지 PDF 병합·다운로드 | `lib/pdf.ts` |
 | 실제 문서 미리보기 (pdf.js 렌더) | `lib/pdfRender.ts` · `components/PdfPreview.tsx` |
 | 공개 API 클라이언트 (세션 헤더·오류 매핑·동시 4 상한) | `lib/api/` — **아직 화면에 연결하지 않음** |

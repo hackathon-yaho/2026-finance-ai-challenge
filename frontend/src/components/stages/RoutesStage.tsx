@@ -1,10 +1,28 @@
+import { useState } from "react"
 import { ROUTES } from "../../data"
 
 interface RoutesStageProps {
   showBizNotice: boolean
 }
 
+/**
+ * F9-02 트리거 — **문진에 문항을 만들지 않는다.** "고소당하셨나요?" 같은 질문을 전면에
+ * 두면 해당 없는 사용자까지 불안해진다. 해당하는 사람만 스스로 고르게 둔다.
+ */
+const CRIMINAL_SIGNALS = [
+  { id: "witness", label: "참고인 조사 통보를 받았어요" },
+  { id: "handover", label: "계좌·체크카드·OTP를 다른 사람에게 준 적이 있어요" },
+]
+
 export function RoutesStage({ showBizNotice }: RoutesStageProps) {
+  const [signals, setSignals] = useState<ReadonlySet<string>>(() => new Set())
+  const toggle = (id: string) =>
+    setSignals((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
+
   return (
     <div className="stagger flex flex-col gap-6">
       <div>
@@ -47,6 +65,59 @@ export function RoutesStage({ showBizNotice }: RoutesStageProps) {
           <p className="mt-1 text-[13px] leading-normal text-muted">거래처에 결제 수단을 먼저 알리고, 카드 대금 입금 계좌와 자동이체 출금 계좌를 옮겨두세요.</p>
         </div>
       )}
+
+      {/* F9-02 형사 전환 신호 안내 (FR-052).
+          법 제7조 제1항 단서상 이의제기가 제한될 수 있는 경우를 알리되,
+          **서비스가 해당 여부를 판단하지 않는다.** 판단은 전문가와 수사기관의 몫이다. */}
+      <div className="rounded-2xl border border-border p-4">
+        <div className="text-[15px] font-semibold">혹시 이런 경우인가요?</div>
+        <p className="mt-1 text-[13px] leading-normal text-muted">
+          해당하지 않으면 넘어가셔도 돼요. 해당하는 경우에만 안내를 보여드려요.
+        </p>
+        <div className="mt-3 flex flex-col gap-2">
+          {CRIMINAL_SIGNALS.map((signal) => {
+            const on = signals.has(signal.id)
+            return (
+              <button
+                key={signal.id}
+                type="button"
+                role="checkbox"
+                aria-checked={on}
+                onClick={() => toggle(signal.id)}
+                className={`flex min-h-11 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left ${
+                  on ? "border-brand bg-brand-subtle" : "border-border"
+                }`}
+              >
+                <span
+                  className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded border-[1.5px] text-[11px] font-bold ${
+                    on ? "border-brand bg-brand text-white" : "border-neutral text-transparent"
+                  }`}
+                >
+                  ✓
+                </span>
+                <span className="min-w-0 flex-1 text-[13px] leading-normal">{signal.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {signals.size > 0 && (
+          <div className="animate-drop-in mt-3 rounded-xl bg-surface p-3.5">
+            <p className="text-[13px] leading-normal">
+              이런 경우에는 <b>소명의 성격이 달라집니다.</b> 통신사기피해환급법 제7조 제1항 단서에 따라, 계좌가
+              사기에 이용된 사실을 알았거나 중대한 과실로 알지 못했다고 인정되면 이의제기가 제한될 수 있어요.
+            </p>
+            <p className="mt-2 text-[13px] leading-normal">
+              <b>해당하는지는 저희가 판단하지 않아요.</b> 이 서비스의 범위를 벗어나는 문제라, 변호사 등 전문가와
+              먼저 상담하시기를 권해요. 사건 구조를 충분히 설명하지 못하면 참고인에서 입장이 달라지는 경우가
+              보고됩니다.
+            </p>
+            <p className="mt-2 text-xs leading-normal text-muted">
+              신고 접수증이나 수사 결과 통지서가 있으면 소명서 화면의 첨부 서류 목록에서 표시해두세요.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* 해제 이후 남는 불이익. "제출 준비 완료" 배지와 충돌하지 않도록 준비도 화면이 아니라
           제출 이후 단계에 둔다. 단정하지 않는 톤 — 해제 경로가 실제로 존재한다. */}
