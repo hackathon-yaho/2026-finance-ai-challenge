@@ -39,7 +39,15 @@ export type EvidenceId = "autopay" | "chat" | "bank" | "shipping" | "threat"
 export type Confidence = "high" | "medium" | "low"
 
 /** 6종. `unknown`은 **정상 값**이다 — AI가 추측하지 않고 내린 값이므로 오류로 처리하지 않는다. */
-export type SourceType = "chat" | "bank" | "shipping" | "threat" | "autopay" | "unknown"
+/**
+ * 카드 유형 7종 (계약 v1.10).
+ *
+ * `unknown`은 **정상 값**이다 — AI가 추측하지 않고 내린 값이라 오류로 다루지 않는다.
+ * `intake`는 **AI가 아니라 백엔드가 문진 응답(지급정지일)으로 합성한 카드**다
+ * (`event_id: "evt_intake_when"`, `source_image_index: null`). 증빙자료가 아니므로
+ * 타임라인(3면)에는 있지만 **증빙자료 목록(4면)에는 없다.**
+ */
+export type SourceType = "chat" | "bank" | "shipping" | "threat" | "autopay" | "unknown" | "intake"
 
 export type CardActor = "self" | "counterparty" | "system"
 

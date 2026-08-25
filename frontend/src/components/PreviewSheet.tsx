@@ -32,6 +32,8 @@ const SOURCE_LABEL: Record<SourceType, string> = {
   threat: "협박 메시지",
   autopay: "자동이체 내역",
   unknown: "미분류 자료",
+  // 4면에서 걸러내므로 여기 쓰이지 않는다. Record를 채우기 위해 둔다.
+  intake: "직접 답한 내용",
 }
 
 const APPLICANT_ORDER: LegalFormField[] = [
@@ -116,6 +118,10 @@ export function PreviewSheet({
    */
   const attachments = cards
     .filter((card) => card.confirmation_status !== "pending")
+    // `intake` 카드(백엔드가 문진 지급정지일로 합성)는 **증빙자료가 아니다.** 3면 타임라인에는
+    // 남지만 이 목록에는 넣지 않는다 — 올린 적 없는 항목이 "올린 자료의 목차"에 실리게 된다.
+    // 계약 v1.10에서 확정. `event_id` 문자열을 파싱하지 말고 이 필드로 거르라고 명시돼 있다.
+    .filter((card) => card.source_type !== "intake")
     .slice()
     .sort((a, b) => (a.source_image_index ?? Number.MAX_SAFE_INTEGER) - (b.source_image_index ?? Number.MAX_SAFE_INTEGER))
   const hasOriginals = attachments.some((card) => card.source_image_index !== null)

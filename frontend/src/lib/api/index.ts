@@ -103,6 +103,14 @@ export async function uploadEvidenceBatch(
   uploads: EvidenceUpload[],
   onSettled?: (result: BatchResult) => void,
 ): Promise<BatchResult[]> {
+  // 같은 `imageIndex`를 두 번 보내면 **백엔드가 막지 않는다** — 각각 판독해 카드가 두 벌
+  // 생기고, 4면 "원본 2번"이 서로 다른 카드 둘을 가리키게 된다 (백엔드 회신 2026-08-26).
+  // 정상 흐름에서는 나올 수 없는 값이라 조용히 흘려보내는 대신 여기서 터뜨린다.
+  const seen = new Set<number>()
+  for (const { imageIndex } of uploads) {
+    if (seen.has(imageIndex)) throw new Error(`imageIndex ${imageIndex}가 중복됐습니다`)
+    seen.add(imageIndex)
+  }
   return Promise.all(
     uploads.map(async ({ blob, imageIndex: index }) => {
       try {

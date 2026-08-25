@@ -48,6 +48,6 @@
 | [evidence-timeline-schema-additions.md](evidence-timeline-schema-additions.md) | ✅ **완결** (08-26 회신 / 백엔드 답변 완료) | Phase 3 계약 보완 4건 — **전부 수용**. `imageIndex`는 **세션 누적 기준 맞음**(백엔드는 값을 그대로 통과시킬 뿐). 중복 인덱스는 막지 않음 |
 | [readiness-checklist-catalog-diffs.md](readiness-checklist-catalog-diffs.md) | ✅ 회신 완료 (08-26) | Phase 4 체크리스트 차이 2건 — **둘 다 문서가 맞음**. 목 카탈로그 정정 완료, 화면 변경 불필요 |
 | [draft-revise-and-package-notes.md](draft-revise-and-package-notes.md) | ✅ **완결** (08-26 ② 회신 / 백엔드 답변 완료) | Phase 5 — 배열에서 빼는 방식 수용, `DRAFT_FAILED` 반영. **`excludedSentenceIds`가 최종 확정**(순수 제외엔 `revise` 불필요) + `DRAFT_FAILED` 후 세션·확인 카드 유지 확정 |
-| [local-integration-findings.md](local-integration-findings.md) | ✅ **완결** (08-26 회신 / 백엔드 답변 완료) | **로컬 연동 버그 6건 전부 수정.** CORS 프리플라이트 500(연동 차단 블로커)·기한 경과 문구·문진 재전송 병합·`evt_intake_when`(`source_type: intake` 신설, 3면 포함·4면 제외)·AI-server 미설정 400→502·`gradlew` 실행 권한 |
+| [local-integration-findings.md](local-integration-findings.md) | ✅ **완결** (08-26 회신 / 백엔드 답변 완료 / 프론트 반영 완료) | **로컬 연동 버그 6건 전부 수정.** CORS 프리플라이트 500(연동 차단 블로커)·기한 경과 문구·문진 재전송 병합·`evt_intake_when`(`source_type: intake` 신설, 3면 포함·4면 제외)·AI-server 미설정 400→502·`gradlew` 실행 권한 |
 
-> **2026-08-26 기준 대기 중인 요청이 없습니다.** 10건 전부 회신을 마쳤고, 프론트가 물어둔 확인 3건에도 전부 답했습니다.
+> **2026-08-26 기준 대기 중인 요청이 없습니다.** 10건 전부 회신을 마쳤고, 프론트가 물어둔 확인 3건에도 전부 답했습니다. 프론트는 `source_type: "intake"`를 반영했고(`../../response/backend/local-integration-findings.md`), **확인 1건**을 새로 물었습니다 — `intake` 카드가 항상 `user_confirmed`인지(`pending`이면 게이팅에 걸린 채 풀 방법이 없습니다).

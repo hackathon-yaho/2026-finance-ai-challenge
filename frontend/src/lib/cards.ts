@@ -225,7 +225,9 @@ export function confirmedEvidence(cards: ExtractedCard[]): EvidenceState {
   const out: EvidenceState = { autopay: false, chat: false, bank: false, shipping: false, threat: false }
   for (const card of cards) {
     if (card.confirmation_status === "pending") continue
-    if (card.source_type !== "unknown") out[card.source_type] = true
+    // `unknown`·`intake`는 증거 유형이 아니다 — 전자는 AI가 분류를 보류한 값이고,
+    // 후자는 백엔드가 문진으로 합성한 카드라 체크리스트를 채우는 근거가 될 수 없다.
+    if (card.source_type !== "unknown" && card.source_type !== "intake") out[card.source_type] = true
   }
   return out
 }

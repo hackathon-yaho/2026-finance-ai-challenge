@@ -19,6 +19,8 @@ const SOURCE_LABEL: Record<SourceType, string> = {
   autopay: "자동이체",
   // 추측하지 않고 내린 정상 값이다. 오류처럼 보이게 하지 않는다.
   unknown: "미분류",
+  // 백엔드가 문진 응답으로 만든 카드다. "판독했다"고 읽히면 안 된다.
+  intake: "직접 답한 내용",
 }
 
 /** autopay는 별도 뷰어가 없어 계좌 화면을 쓴다. */
@@ -29,6 +31,8 @@ const VIEWER: Record<SourceType, ViewerId> = {
   shipping: "shipping",
   threat: "threat",
   unknown: "chat",
+  // 볼 원본이 없다. `[원본 보기]` 자체를 숨기므로 이 값은 쓰이지 않는다.
+  intake: "chat",
 }
 
 /**
