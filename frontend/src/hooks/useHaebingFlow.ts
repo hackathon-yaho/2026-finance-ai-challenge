@@ -455,8 +455,14 @@ export function useHaebingFlow() {
     [intake.kind, confirmed, selfHeld],
   )
   const readiness = useMemo(
-    () => computeReadiness(intake, checklist, blocking.length > 0, historyOverride),
-    [intake, checklist, blocking.length, historyOverride],
+    () =>
+      computeReadiness(
+        intake,
+        checklist,
+        { pending: unconfirmedCount, blocking: blocking.length },
+        historyOverride,
+      ),
+    [intake, checklist, unconfirmedCount, blocking.length, historyOverride],
   )
   const timeline = useMemo(
     () => (analyzed ? buildTimeline(evidence, intake.amount, bankConfirmed) : []),

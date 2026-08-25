@@ -13,16 +13,27 @@ import type { ChecklistItem, IntakeAnswers, ReadinessResult } from "../types"
 export function computeReadiness(
   intake: IntakeAnswers,
   checklist: ChecklistItem[],
-  unconfirmed: boolean,
+  /** 아직 확인하지 않은 카드 수 · 그중 판독 신뢰도가 낮아 진행을 막는 카드 수 */
+  unconfirmed: { pending: number; blocking: number },
   historyOverride: boolean | null,
 ): ReadinessResult {
   // `필수증빙누락`은 blocks 항목만 본다. 금감원 표준 미충족은 여기에 들어가지 않는다.
   const blocking = blockingItems(checklist)
   const bankUnknown = historyOverride === null ? intake.history === "있어요" : historyOverride
 
+  /**
+   * `미확인필드` 신호 (reason-type-rules.md §3).
+   *
+   * **저신뢰 카드만이 아니라 미확인 카드 전부가 신호다** — "사용자가 확인하지 않은 카드
+   * 또는 낮은 신뢰도 필드가 남아 있음". 확인하지 않은 카드의 사실은 소명서에 들어가지
+   * 않으므로(F4-06), 그 상태를 "제출 준비 완료"라고 부르면 사용자가 **자기가 올린 자료의
+   * 절반만 담긴 서류**를 다 갖춘 것으로 오해한다.
+   */
+  const hasUnconfirmed = unconfirmed.pending > 0
+
   let key: ReadinessResult["key"]
   let label: string
-  if (unconfirmed || blocking.length > 0) {
+  if (hasUnconfirmed || blocking.length > 0) {
     key = "supplement"
     label = "증빙 보완 필요"
   } else if (bankUnknown) {
@@ -39,8 +50,13 @@ export function computeReadiness(
     criteria: [
       {
         name: "자료 확인",
-        ok: !unconfirmed,
-        desc: unconfirmed ? "입금 내역의 금액을 아직 확인하지 않았어요" : "올린 자료를 모두 확인했어요",
+        ok: !hasUnconfirmed,
+        desc:
+          unconfirmed.blocking > 0
+            ? `판독 신뢰도가 낮은 자료 ${unconfirmed.blocking}건을 확인해야 해요`
+            : hasUnconfirmed
+              ? `확인하지 않은 자료 ${unconfirmed.pending}건은 문서에 들어가지 않아요`
+              : "올린 자료를 모두 확인했어요",
       },
       {
         name: "필수 증빙",
