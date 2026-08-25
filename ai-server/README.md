@@ -23,7 +23,13 @@
 
 ### 키 등록 (PowerShell)
 
-**`ai-server` 폴더에서 아래 한 줄**이면 됩니다. 가상환경 생성·패키지 설치까지 알아서 합니다.
+**어느 폴더에 있든 되는 형태** — 경로를 그대로 복사해 쓰세요. 가상환경 생성·패키지 설치까지 알아서 합니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "<저장소경로>i-server\set-key.ps1"
+```
+
+`ai-server` 폴더로 먼저 이동했다면 아래처럼 짧게 쓸 수 있습니다.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\set-key.ps1

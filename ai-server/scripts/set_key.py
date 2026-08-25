@@ -106,7 +106,7 @@ def show() -> int:
     """등록된 항목만 마스킹해 보여준다 (입력받지 않는다)."""
     values = read_env()
     if not values:
-        print(r"등록된 값이 없습니다.  .\set-key.ps1  로 등록하세요.")
+        print("등록된 값이 없습니다. set-key.ps1 을 실행해 등록하세요.")
         return 0
     print("현재 .env에 등록된 항목:")
     for key, value in values.items():

@@ -77,6 +77,7 @@ if ($Show) {
 $code = $LASTEXITCODE
 Write-Host ""
 if ($code -eq 0) {
-    Write-Host "끝났습니다. 등록된 값 확인은  .\set-key.ps1 -Show" -ForegroundColor Green
+    Write-Host "끝났습니다. 등록된 값 확인:" -ForegroundColor Green
+    Write-Host "  powershell -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Show"
 }
 exit $code
