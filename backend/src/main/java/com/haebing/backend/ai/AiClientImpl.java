@@ -7,6 +7,7 @@ import com.haebing.backend.ai.dto.ExtractResult;
 import com.haebing.backend.ai.exception.AiRetryableException;
 import com.haebing.backend.common.global.ErrorCode;
 import com.haebing.backend.common.global.exception.BusinessException;
+import com.haebing.backend.session.ExtractedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -87,7 +88,7 @@ public class AiClientImpl implements AiClient {
 
     @Override
     public DraftResult draft(DraftRequest request) {
-        if (demoMode) return demoFixtures.draft();
+        if (demoMode) return demoFixtures.draft(validImageIndices(request));
         try {
             return withRetry(() -> draftRestClient.post()
                     .uri("/internal/draft")
@@ -99,7 +100,7 @@ public class AiClientImpl implements AiClient {
         } catch (BusinessException e) {
             if (e.getErrorCode() != ErrorCode.QUOTA_EXCEEDED) throw e;
             log.warn("[AiClient] QUOTA_EXCEEDED — 데모 응답으로 폴백 (F4-05)");
-            return demoFixtures.draft();
+            return demoFixtures.draft(validImageIndices(request));
         }
     }
 
@@ -153,6 +154,14 @@ public class AiClientImpl implements AiClient {
             log.error("[AiClient] AI-server 연결 실패(설정 오류로 추정): {}", e.getMessage());
             throw new AiRetryableException(primaryFailureCode, fallback, e);
         }
+    }
+
+    /** 데모 모드 전용 — 이 세션에서 실제로 존재하는 source_image_index 집합(demo-mode-fixture-ids.md §3). */
+    private java.util.Set<Integer> validImageIndices(DraftRequest request) {
+        return request.events().stream()
+                .map(ExtractedEvent::sourceImageIndex)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     private record TextExtractRequest(String rawText) {

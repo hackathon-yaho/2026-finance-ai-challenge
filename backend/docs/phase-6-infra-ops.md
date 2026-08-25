@@ -11,6 +11,7 @@
 **6-1 데모 모드**
 - `DemoFixtures`(`ai/demo/DemoFixtures.java`)가 `src/main/resources/demo/`의 6개 추출 픽스처 + `draft-tc01.json`을 기동 시 1회 로딩한다. `AiClientImpl`이 `demoMode=true`면 **RestClient를 아예 만들지 않고** 바로 반환한다 — 실측: `AI_SERVER_URL`을 비운 채 `DEMO_MODE=true`로 기동해 세션 생성→문진→증거 업로드→준비도→소명서→PDF 5단계를 전부 완주(로그에 AI-server 접속 시도 없음)
 - `imageIndex`는 6개 추출 픽스처에 `Math.floorMod`로 순환 배정한다(TC 매핑은 백엔드 재량이라고 명시돼 있어 파일명 고정 매핑 대신 이 방식을 택함). 소명서는 draft-tc01 고정 1종만 코드에서 쓴다 — `draft-tc03`·`draft-tc06`은 리소스에 복사만 해두고 아직 안 쓴다(필요해지면 사유별로 골라 쓰게 확장 가능)
+- **2026-08-26 프론트 로컬 연동 회신(`demo-mode-fixture-ids.md`)으로 발견**: 여러 이미지를 올리면 서로 다른 픽스처 파일의 `event_id`가 겹쳐(둘 다 `evt_0_1` 등) 확인 불가능한 카드가 남는 버그, `source_image_index`가 실제 `imageIndex`와 다른 버그, `/api/draft` 픽스처의 `evidenceRefs`가 실제 업로드 범위 밖 이미지를 가리키는 버그 — **3건 모두 반환 시점 재작성으로 수정**(픽스처 파일 자체는 그대로): `event_id`를 `evt_{imageIndex}_{순번}`으로 재발급, `source_image_index`를 실제 값으로 교체, 범위 밖 `evidenceRefs`는 `user_text`로 하향. `DemoFixturesTest`로 회귀 방지
 - **`QUOTA_EXCEEDED`(429)는 `DEMO_MODE` 값과 무관하게 항상 데모 응답으로 폴백한다** (F4-05) — `AiClientImpl`이 429를 잡아 재시도 없이 즉시 데모 픽스처를 반환. 단위 테스트 `extract_429_fallsBackToDemoFixtureWithoutRetry`로 확인
 - `/api/session` 응답의 `demoMode` 필드는 이미 Phase 1~2에서 구현돼 있었다(계약대로 프론트에 전달)
 - "실제 업로드와 데모 데이터를 섞지 않는다"·배지 표시는 화면 책임이라 백엔드 조치 없음

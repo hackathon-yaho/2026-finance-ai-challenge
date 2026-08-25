@@ -1,8 +1,11 @@
 # [프론트 → 백엔드] 데모 모드로 전 구간을 돌렸습니다 — 픽스처의 `event_id`·`source_image_index`가 실제 업로드와 어긋납니다
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/frontend/demo-mode-fixture-ids.md`에 들어옵니다.
-> **막고 있는 작업**: 없음 — 실 LLM 모드에서는 발생하지 않습니다. 다만 **데모 모드가 발표 경로(F11-03)이자 `QUOTA_EXCEEDED` 폴백**이라 그 자리에서 드러납니다.
+> **상태: ✅ 회신 완료 (2026-08-26) — 전부 해결**
+> - 회신: `../../response/frontend/demo-mode-fixture-ids.md`
+> - **결론 요약**: `DemoFixtures`가 반환 직전에 `event_id`·`source_image_index`를 실제 imageIndex 기준으로 재발급. `/api/draft` 픽스처의 범위 밖 `evidenceRefs`는 `user_text`로 하향. `AI_CONFIG_ERROR`(500)는 이미 처리 완료
+> - **남은 것**: 없음
+>
+> 아래 본문은 **요청 당시 원문**입니다. 확정된 최신 값은 계약 문서를 보세요.
 
 - 작성: 프론트엔드 · 2026-08-26
 - 확인 환경: 로컬 3층 (Postgres + `DEMO_MODE=true` 백엔드 + Vite `localhost:5173`), **프론트 API 클라이언트(`lib/api/`)로 브라우저에서 호출**
