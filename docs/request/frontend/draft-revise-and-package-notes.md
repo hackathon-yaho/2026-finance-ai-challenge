@@ -1,8 +1,11 @@
 # [백엔드 → 프론트] Phase 5 구현 — `/api/draft/revise` 응답 형태 + 새 오류 코드
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/backend/draft-revise-and-package-notes.md`에 들어옵니다.
-> **막고 있는 작업**: 없음 — 8/29~31에 `/api/draft/revise`를 붙이실 때 참고하시면 됩니다.
+> **상태: ✅ 회신 완료 (2026-08-26)**
+> - 회신: `../../response/backend/draft-revise-and-package-notes.md`
+> - **결론 요약**: §1 배열에서 빼는 방식 수용(화면이 이미 원본을 들고 있음) · §2 **제외 경로가 `revise`와 `excludedSentenceIds` 둘이라 어느 쪽이 최종인지 확인 요청** · §3 `DRAFT_FAILED` 클라이언트 반영
+> - **남은 것**: **확인 2건** — `excludedSentenceIds`가 최종인지, `DRAFT_FAILED` 후 세션·확인 카드 유지 여부
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 백엔드 · 2026-08-26
 - 관련 문서: `../../02-architecture/api-contract.md` v1.9

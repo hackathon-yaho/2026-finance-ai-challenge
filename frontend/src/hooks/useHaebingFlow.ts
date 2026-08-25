@@ -70,7 +70,17 @@ export function useHaebingFlow() {
   const [legalForm, setLegalForm] = useState<LegalFormValues>(EMPTY_LEGAL_FORM)
   const [legalFormOpen, setLegalFormOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-  /** 미리보기에서 뺀 문장. `/api/package/text` 요청의 `excludedSentenceIds`로 나간다. */
+  /**
+   * 미리보기에서 뺀 문장. `/api/package/text` 요청의 `excludedSentenceIds`로 나간다.
+   *
+   * **토글할 때마다 서버를 부르지 않는다.** 제외는 문장을 고치는 게 아니라 체크박스에
+   * 가까워서, 왕복하면 느리고 실패 처리만 늘어난다. 내려받기 직전에 최종 목록을 한 번
+   * 보낸다. `/api/draft/revise`는 **문장 텍스트를 실제로 고쳤을 때만** 부른다.
+   *
+   * 이 전제(=`excludedSentenceIds`가 제외의 최종 소스)는 백엔드에 확인을 요청해 뒀다
+   * (`docs/response/backend/draft-revise-and-package-notes.md` §2). 아니라면 토글마다
+   * 서버를 불러야 해서 이 상태의 성격이 달라진다.
+   */
   const [excludedSentences, setExcludedSentences] = useState<ReadonlySet<string>>(() => new Set())
   /**
    * 사용자가 미리보기를 거쳐 내려받은 시각. F8-01 하단 표기의 `{시각}`이 이 값이다.

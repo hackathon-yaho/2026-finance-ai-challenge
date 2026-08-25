@@ -12,6 +12,8 @@ export type ApiErrorCode =
   | "UNCONFIRMED_FIELDS"
   | "INVALID_FORM_FIELD"
   | "QUOTA_EXCEEDED"
+  /** `/api/draft` 생성 실패 (`502`, 계약 v1.9). **`fallback`이 없다** — 대체 경로가 없다. */
+  | "DRAFT_FAILED"
   /** 계약에 없는 상태(5xx·네트워크 끊김 등). 화면은 일반 오류로 다룬다. */
   | "UNKNOWN"
 
@@ -43,6 +45,7 @@ const KNOWN: ApiErrorCode[] = [
   "UNCONFIRMED_FIELDS",
   "INVALID_FORM_FIELD",
   "QUOTA_EXCEEDED",
+  "DRAFT_FAILED",
 ]
 
 export function toErrorCode(value: unknown): ApiErrorCode {
@@ -64,5 +67,7 @@ export const DEFAULT_MESSAGE: Record<ApiErrorCode, string> = {
   UNCONFIRMED_FIELDS: "판독 신뢰도가 낮은 자료를 먼저 확인해주세요.",
   INVALID_FORM_FIELD: "입력한 값의 형식을 확인해주세요.",
   QUOTA_EXCEEDED: "지금은 예시 데이터로 보여드릴게요.",
+  // 재시도 외에 할 수 있는 것이 없다. 사용자 탓으로 읽히는 문구를 쓰지 않는다.
+  DRAFT_FAILED: "소명서를 만들지 못했어요. 잠시 후 다시 시도해주세요. 확인한 자료는 그대로 있어요.",
   UNKNOWN: "잠시 문제가 생겼어요. 다시 시도해주세요.",
 }
