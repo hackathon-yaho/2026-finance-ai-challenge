@@ -271,6 +271,8 @@ function App() {
           excluded={flow.excludedSentences}
           onToggleExcluded={flow.toggleExcludedSentence}
           onRevise={flow.reviseSentence}
+          // 인쇄물에 붙는 5면 원본 (F8-02). 화면 미리보기에는 나오지 않는다.
+          files={flow.uploadedFiles}
           reviseWarning={flow.reviseWarning}
           // 미리보기와 다운로드가 **같은 함수**를 쓴다. 따로 만들면 보여준 것과 받는 것이 갈린다.
           buildPdf={flow.buildPackage}
@@ -287,8 +289,10 @@ function App() {
               flow.confirmPackage()
               flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")
             } catch {
-              // 병합 실패 시 폴백 — 원본을 개별로 저장하도록 안내한다 (PRD 리스크 레지스터).
-              flow.showToast("파일을 만들지 못했어요. 자료를 하나씩 저장해주세요")
+              // 병합 실패 시 폴백 — **인쇄로 보낸다** (F8-02). 종전에는 "자료를 하나씩
+              // 저장해주세요"였는데, 그러면 사용자가 신청서·진술서를 스스로 만들어야 한다.
+              // 인쇄는 같은 서류를 그대로 종이로 내보내는 길이라 대체가 된다.
+              flow.showToast("파일을 만들지 못했어요. 아래 [인쇄하기]로 종이에 뽑아 내실 수 있어요")
             }
           }}
           onClose={flow.closePreview}

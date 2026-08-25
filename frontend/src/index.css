@@ -292,3 +292,79 @@ button:not(:disabled) {
     transition-duration: 0.01ms !important;
   }
 }
+
+/**
+ * F8-02 화면 인쇄 — **PDF 생성이 실패했을 때의 대체 경로**다.
+ *
+ * 인쇄 대상은 앱 화면이 아니라 **제출본 미리보기 하나**다. 헤더·탭·버튼이 종이에 찍히면
+ * 은행에 낼 수 없는 서류가 된다. `.print-doc`만 남기고 나머지는 `visibility`로 지운다 —
+ * `display: none`으로 지우면 조상 레이아웃이 무너져 문서가 같이 사라진다.
+ */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  /** 화면에서는 숨기고 인쇄에만 나오는 것 — 5면 원본 이미지. */
+  .print-only {
+    display: block !important;
+  }
+
+  #root > * {
+    visibility: hidden;
+  }
+
+  .print-doc,
+  .print-doc * {
+    visibility: visible;
+  }
+
+  /**
+   * 미리보기는 `fixed` 시트 안의 스크롤 영역에 들어 있다. 그대로 두면 **화면에 보이는
+   * 만큼만 찍히고 나머지가 잘린다.** 인쇄할 때는 고정·스크롤을 풀어 흐름에 되돌린다.
+   */
+  .fixed:has(.print-doc) {
+    position: static !important;
+  }
+
+  /* 직계 부모만이 아니라 **스크롤을 가진 조상 전부**를 편다 — 미리보기는
+     시트 > 스크롤 영역 > 가운데 정렬 래퍼 > 문서 순으로 세 겹이다. */
+  :has(.print-doc),
+  .print-doc {
+    overflow: visible !important;
+    max-height: none !important;
+    max-width: none !important;
+    height: auto !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  /** 면 하나가 종이 한 장이다. 면이 중간에 잘리면 담당자가 서류를 이어 붙여 읽어야 한다. */
+  .print-page {
+    break-inside: avoid;
+    break-after: page;
+    border: 0;
+    border-radius: 0;
+    margin-bottom: 0;
+  }
+
+  .print-page:last-child {
+    break-after: auto;
+  }
+
+  /* 원본 이미지는 한 장에 하나씩, 넘치지 않게. */
+  .print-only .print-page img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}
+
+/** 인쇄 전용 블록은 화면에서 자리를 차지하지 않는다. */
+.print-only {
+  display: none;
+}

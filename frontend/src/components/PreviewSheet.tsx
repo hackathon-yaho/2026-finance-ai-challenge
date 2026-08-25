@@ -14,6 +14,8 @@ interface PreviewSheetProps {
   cards: ExtractedCard[]
   excluded: ReadonlySet<string>
   onToggleExcluded: (sentenceId: string) => void
+  /** 인쇄용 5면 원본 (F8-02). 화면에는 나오지 않는다. */
+  files: { id: string; url: string }[]
   /** 문장 자유 편집 (F7-08). `POST /api/draft/revise`로 간다. */
   onRevise: (sentenceId: string, text: string) => Promise<void>
   reviseWarning: string | null
@@ -57,7 +59,7 @@ const ACCOUNT_ORDER: LegalFormField[] = [
 
 function Page({ no, title, children }: { no: number; title: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border">
+    <section className="print-page overflow-hidden rounded-2xl border border-border">
       <div className="flex items-center gap-2 border-b border-border bg-subtle px-4 py-3">
         <span className="flex-none rounded-md bg-bg px-2 text-[11px] font-semibold leading-[22px] text-muted">
           {no}면
@@ -90,6 +92,7 @@ export function PreviewSheet({
   cards,
   excluded,
   onToggleExcluded,
+  files,
   onRevise,
   reviseWarning,
   onBackToEvidence,
@@ -135,7 +138,7 @@ export function PreviewSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg">
-      <div className="flex flex-none items-center gap-3 border-b border-border" style={{ padding: `14px ${pad}px` }}>
+      <div className="no-print flex flex-none items-center gap-3 border-b border-border" style={{ padding: `14px ${pad}px` }}>
         <div className="min-w-0 flex-1">
           <div className="text-[17px] font-bold tracking-tight">내려받기 전에 확인해주세요</div>
           <div className="mt-0.5 text-xs text-muted">은행에 낼 서류 그대로예요</div>
@@ -147,7 +150,7 @@ export function PreviewSheet({
 
       <div className="min-h-0 flex-1 overflow-y-auto" style={{ padding: `${pad}px ${pad}px 24px` }}>
         <div className="mx-auto flex max-w-[560px] flex-col gap-4">
-          <div className="flex gap-1 rounded-xl bg-surface p-1">
+          <div className="no-print flex gap-1 rounded-xl bg-surface p-1">
             {([
               ["summary", "정리해서 보기"],
               ["document", "실제 문서"],
@@ -169,10 +172,13 @@ export function PreviewSheet({
           {view === "document" ? (
             <PdfPreview build={build} textPagesPending={textPagesPending} />
           ) : (
-          <>
+          /* F8-02 — **PDF 생성이 실패했을 때의 대체 경로.** 이 묶음만 인쇄되고 화면 장치는
+             빠진다. 인쇄물이 PDF와 같은 서류가 되도록 5면 원본 이미지도 인쇄에만 붙인다 —
+             원본이 빠지면 "대체 경로"가 실제로 대체가 되지 않는다. */
+          <div className="print-doc flex flex-col gap-4">
           {/* 표지 — 부족자료 체크리스트를 뺀 자리에 들어간다 (spec.md F7-06).
               **못 갖춘 자료를 적지 않는다.** 적기 시작하면 체크리스트를 뺀 이유가 여기서 되살아난다. */}
-          <section className="overflow-hidden rounded-2xl border border-border">
+          <section className="print-page overflow-hidden rounded-2xl border border-border">
             <div className="flex items-center gap-2 border-b border-border bg-subtle px-4 py-3">
               <span className="flex-none rounded-md bg-bg px-2 text-[11px] font-semibold leading-[22px] text-muted">
                 표지
@@ -234,7 +240,7 @@ export function PreviewSheet({
           {/* F7-08 편집 범위 — 2면만 문장 수정·제외가 된다. 3·4면은 편집 불가이고,
               대신 3면 옆에 자료 확인으로 돌아가는 길을 둔다(막다른 길 방지). */}
           <Page no={2} title="사실관계 진술서">
-            <p className="text-[13px] leading-normal text-muted">
+            <p className="no-print text-[13px] leading-normal text-muted">
               틀린 문장은 고치고, 빼고 싶은 문장은 뺄 수 있어요. 뺀 문장은 서류에 들어가지 않아요.
             </p>
             <ul className="mt-3 flex flex-col gap-2">
@@ -243,7 +249,7 @@ export function PreviewSheet({
                 const editing = editingId === line.id
                 if (editing) {
                   return (
-                    <li key={line.id} className="flex flex-col gap-2">
+                    <li key={line.id} className="no-print flex flex-col gap-2">
                       <textarea
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
@@ -293,7 +299,7 @@ export function PreviewSheet({
                           setEditingId(line.id)
                           setEditText(line.text)
                         }}
-                        className="h-11 flex-none rounded-lg border border-border px-3 text-xs font-semibold text-muted"
+                        className="no-print h-11 flex-none rounded-lg border border-border px-3 text-xs font-semibold text-muted"
                       >
                         고치기
                       </button>
@@ -301,7 +307,7 @@ export function PreviewSheet({
                     <button
                       type="button"
                       onClick={() => onToggleExcluded(line.id)}
-                      className={`h-11 flex-none rounded-lg border px-3 text-xs font-semibold ${
+                      className={`no-print h-11 flex-none rounded-lg border px-3 text-xs font-semibold ${
                         off ? "border-brand text-brand" : "border-border text-muted"
                       }`}
                     >
@@ -313,12 +319,12 @@ export function PreviewSheet({
             </ul>
             {/* 서버가 준 문구를 그대로 쓴다. 문장은 지우지 않고 살린 채로 무엇을 잃었는지만 알린다. */}
             {reviseWarning && (
-              <p className="mt-3 rounded-xl bg-warning-subtle p-3 text-[13px] leading-normal text-warning">
+              <p className="no-print mt-3 rounded-xl bg-warning-subtle p-3 text-[13px] leading-normal text-warning">
                 {reviseWarning}
               </p>
             )}
             {included.length === 0 && (
-              <p className="mt-3 text-[13px] leading-normal text-warning">
+              <p className="no-print mt-3 text-[13px] leading-normal text-warning">
                 문장을 모두 뺐어요. 진술서가 비어 있는 채로 나가요.
               </p>
             )}
@@ -338,8 +344,9 @@ export function PreviewSheet({
                   </li>
                 ))}
             </ul>
-            {/* 편집을 막기만 하면 막다른 길이 된다 — 고칠 곳을 알려준다 (F7-04 경로). */}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            {/* 편집을 막기만 하면 막다른 길이 된다 — 고칠 곳을 알려준다 (F7-04 경로).
+                화면에서만 필요한 길이라 인쇄물에는 넣지 않는다. */}
+            <div className="no-print mt-3 flex flex-wrap items-center gap-2">
               <p className="min-w-0 flex-1 text-[13px] leading-normal text-muted">
                 값이 다르면 자료 확인으로 돌아가 고칠 수 있어요.
               </p>
@@ -409,7 +416,20 @@ export function PreviewSheet({
                 ))}
             </ul>
           </div>
-          </>
+
+          {/* 5면 — **인쇄할 때만 나온다.** 화면에서는 위쪽 카드 목록으로 이미 봤고, 여기서
+              다시 크게 늘어놓으면 미리보기가 길어지기만 한다. 인쇄물에는 있어야 한다. */}
+          {files.length > 0 && (
+            <div className="print-only">
+              {files.map((file, i) => (
+                <div key={file.id} className="print-page">
+                  <div className="mb-2 text-[13px] font-semibold">원본 {i + 1}번</div>
+                  <img src={file.url} alt={`원본 ${i + 1}번`} className="w-full" />
+                </div>
+              ))}
+            </div>
+          )}
+          </div>
           )}
         </div>
       </div>
@@ -425,6 +445,17 @@ export function PreviewSheet({
           >
             이대로 내려받기
           </button>
+          {/* F8-02 — PDF가 안 만들어질 때 쓰는 길. 눈에 띄게 두지 않되 **찾을 수는 있어야**
+              한다. 여기서 막히면 사용자는 아무것도 못 내고 끝난다. */}
+          {view === "summary" && (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="mt-2 h-11 w-full rounded-xl border border-border text-[13px] font-semibold text-muted"
+            >
+              내려받기가 안 되면 인쇄하기
+            </button>
+          )}
         </div>
       </div>
     </div>
