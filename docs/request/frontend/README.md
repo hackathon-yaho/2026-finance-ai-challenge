@@ -40,7 +40,7 @@
 | 문서 | 상태 | 내용 |
 | --- | --- | --- |
 | [pdf-ownership-and-open-contracts.md](pdf-ownership-and-open-contracts.md) | ✅ 회신 완료 (08-24) | PDF 생성 주체·미정 계약 |
-| [draft-preview-and-edit.md](draft-preview-and-edit.md) | ✅ 회신 완료 (08-25 ②) | 다운로드 전 미리보기·수정 — **전부 8/29~31**. 백엔드 확인 3건(4면 정체·revise 일정·면별 항목 기준) |
+| [draft-preview-and-edit.md](draft-preview-and-edit.md) | ✅ 회신 완료 (08-25 ③) | 다운로드 전 미리보기·수정 — **전부 8/29~31**. "실제 문서" 미리보기 구현 완료. 백엔드 확인 3건 |
 | [evidence-structure-revision.md](evidence-structure-revision.md) | ✅ 회신 완료 (08-25) | **증빙 구조 8건 전부** — 자료구조·업로드 안내·수사자료 구현 완료, 직거래 A안. §4는 B안 권장(백엔드 판단) |
 | [legal-form-and-package.md](legal-form-and-package.md) | ✅ 회신 완료 (08-25 ②) | **법정 서식 대조** — 11필드 수용, 서명 안내 구현, **6종 → 5종 동의**. 4면도 같은 문제일 수 있어 확인 요청 |
 | [honest-disclosure-fixes.md](honest-disclosure-fixes.md) | ✅ 회신 완료 (08-25) | **고지 문구 3건** — 전부 반영·구현. "최대 3년" 숫자는 1차 출처 확인 대기 |

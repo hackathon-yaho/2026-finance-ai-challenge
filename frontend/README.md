@@ -9,11 +9,34 @@
 - React 19 + TypeScript
 - Vite 8
 - Tailwind CSS v4 (`@tailwindcss/vite` 플러그인, `src/index.css`의 `@theme` 블록에 디자인 토큰 정의)
+- `pdf-lib` — 제출 패키지 PDF 병합 (F7-06 프론트 몫)
+- `pdfjs-dist` — 내려받기 전 실제 문서 미리보기
 - oxlint (린터)
+
+`pdf-lib`·`pdfjs-dist`는 **지연 로딩**합니다. 마지막 단계에서만 쓰는 코드라 첫 화면 번들에 넣지 않습니다.
 
 ## 현재 상태
 
-백엔드·AI-server 연동 전 단계의 UI 프로토타입입니다. 문진 응답, 증거 판독, 타임라인, 소명서 초안은 모두 `src/hooks/useHaebingFlow.ts`가 클라이언트에서 생성한 목(mock) 데이터로 동작합니다. 이미지 마스킹만 실제 `<canvas>` 처리이며, 마스킹된 이미지는 브라우저 메모리에만 존재하고 서버로 전송되지 않습니다.
+**백엔드 API 연동 전 단계입니다.** 백엔드가 공개 API를 아직 구현하지 않아, 화면은 목(mock)
+데이터로 동작합니다. 목을 만드는 곳은 `src/lib/`의 순수 함수들(`cards`, `checklist`,
+`readiness`, `timeline`, `draft`)이며, **API가 열리면 이 함수들의 반환값을 응답으로
+갈아끼우는 것이 연동 작업**입니다.
+
+이미 실제로 동작하는 것 (목이 아닌 것):
+
+| 기능 | 위치 |
+| --- | --- |
+| 이미지 리사이즈·마스킹 (canvas, 장변 1600px) | `lib/mask.ts` · `components/MaskingSheet.tsx` |
+| 제출 패키지 PDF 병합·다운로드 | `lib/pdf.ts` |
+| 실제 문서 미리보기 (pdf.js 렌더) | `lib/pdfRender.ts` · `components/PdfPreview.tsx` |
+| 공개 API 클라이언트 (세션 헤더·오류 매핑·동시 4 상한) | `lib/api/` — **아직 화면에 연결하지 않음** |
+
+원본 이미지는 브라우저 메모리에만 있고 서버로 전송되지 않습니다.
+
+### API 연결하기
+
+`VITE_API_BASE_URL`이 비어 있으면 `lib/api`의 `isApiConfigured()`가 `false`이고 화면은 목으로
+동작합니다. 설정 방법은 [`.env.example`](.env.example) 참조.
 
 ## 시작하기
 
@@ -38,16 +61,42 @@ npm run dev
 ```
 src/
 ├── components/
-│   ├── stages/        # 6단계 화면 (Intro, Intake, Evidence, Readiness, Draft, Routes)
-│   └── *.tsx           # 공통 UI (TopBar, BottomCta, MaskingSheet, ViewerSheet 등)
+│   ├── stages/          # 6단계 화면 (Intro, Intake, Evidence, Readiness, Draft, Routes)
+│   ├── ConfirmCard.tsx  # 추출 카드 확인·수정 (F4-06)
+│   ├── ChecklistPanel.tsx  # 첨부 서류 체크리스트 — 4개 층·택일 그룹 (F7-03)
+│   ├── EvidenceGuide.tsx   # 사유별 업로드 안내 (F3-07)
+│   ├── LegalFormSheet.tsx  # 별지 제4호서식 11필드 입력 (S04-1)
+│   ├── PreviewSheet.tsx    # 제출 패키지 미리보기 (S04-2)
+│   ├── PdfPreview.tsx      # 그 안의 "실제 문서" 보기
+│   └── *.tsx               # 공통 UI (TopBar, BottomCta, MaskingSheet, ViewerSheet 등)
 ├── hooks/
-│   ├── useHaebingFlow.ts    # 전체 플로우 상태와 액션을 관리하는 중앙 훅
+│   ├── useHaebingFlow.ts   # 전체 플로우 상태와 액션을 관리하는 중앙 훅
 │   └── useViewportWidth.ts
-├── lib/                # 판정/타임라인/소명서 생성 등 순수 로직
-├── data.ts             # 문진 문항, 통계 등 정적 데이터
+├── lib/
+│   ├── api/             # 공개 API 클라이언트 (계약 타입·오류·동시 상한)
+│   ├── cards.ts         # 추출 카드와 확인 게이팅
+│   ├── checklist.ts     # 소명자료 판정 (층 · 택일 · 직접 첨부)
+│   ├── readiness.ts     # 제출 준비도 산출
+│   ├── legalForm.ts     # 서식 11필드 검증
+│   ├── mask.ts          # 리사이즈·마스킹 (실제 canvas 처리)
+│   ├── pdf.ts           # 패키지 PDF 병합
+│   ├── pdfRender.ts     # PDF 화면 렌더
+│   └── *.ts             # 타임라인·소명서·날짜·금액 등 순수 로직
+├── data.ts              # 문진 문항 · 소명자료 카탈로그 · 정적 데이터
 ├── types.ts
-└── App.tsx             # 단계 전환 및 레이아웃 루트
+└── App.tsx              # 단계 전환 및 레이아웃 루트
 ```
+
+### 손대기 전에 알아둘 것
+
+- **소명자료 카탈로그**(`data.ts`의 `EVIDENCE_CATALOG`)는 층(`tier`)과 미보유 효과
+  (`whenMissing`)를 **독립된 두 축**으로 둡니다. 같은 금감원 표준이라도 즉시 발급받을 수
+  있는 자료는 `blocks`, 발급 자체가 불가능할 수 있는 자료는 `silent`입니다. 단일 출처는
+  [`../docs/01-product/reason-type-rules.md`](../docs/01-product/reason-type-rules.md) §2입니다
+- **준비도·체크리스트 판정은 백엔드가 최종 소유**합니다. `lib/`의 함수들은 API를 붙이기
+  전까지 같은 규칙을 대신 계산할 뿐이며, 규칙을 바꿔야 하면 위 문서를 먼저 고칩니다
+- **승인·기각을 예측하는 문구를 쓰지 않습니다.** 세 상태 모두에 "최종 판단은 은행이 합니다"를
+  병기합니다
 
 ## 백엔드/AI 연동 관련 요청
 

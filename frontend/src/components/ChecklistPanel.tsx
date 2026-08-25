@@ -41,18 +41,32 @@ function Tag({ tag }: { tag: { label: string; tone: Tone } | null }) {
   )
 }
 
-/** 서비스에 올리지 않는 자료는 보유 여부를 알 방법이 없다. 사용자가 직접 표시하게 한다. */
-function SelfToggle({ held, onClick }: { held: boolean; onClick: () => void }) {
+/**
+ * 서비스에 올리지 않는 자료는 보유 여부를 알 방법이 없어 사용자가 직접 표시한다.
+ *
+ * **누를 때마다 글자가 바뀌는 버튼을 쓰지 않는다.** "있으면 눌러주세요" ↔ "가지고 있어요"처럼
+ * 라벨이 갈리면 그 글자가 **지금 상태**인지 **누르면 될 일**인지 읽는 사람이 알 수 없다.
+ * 라벨은 고정하고 체크 표시로 상태를 드러낸다.
+ */
+function SelfToggle({ held, onClick, label }: { held: boolean; onClick: () => void; label: string }) {
   return (
     <button
       type="button"
+      role="checkbox"
+      aria-checked={held}
       onClick={onClick}
-      aria-pressed={held}
-      className={`h-11 flex-none rounded-lg border px-3 text-xs font-semibold ${
+      className={`flex h-11 flex-none items-center gap-2 rounded-lg border px-3 text-xs font-semibold ${
         held ? "border-success bg-success-subtle text-success" : "border-border text-muted"
       }`}
     >
-      {held ? "가지고 있어요" : "있으면 눌러주세요"}
+      <span
+        className={`flex h-[18px] w-[18px] flex-none items-center justify-center rounded border-[1.5px] text-[11px] font-bold ${
+          held ? "border-success bg-success text-white" : "border-neutral text-transparent"
+        }`}
+      >
+        ✓
+      </span>
+      {label}
     </button>
   )
 }
@@ -75,13 +89,25 @@ export function ChecklistPanel({ checklist, selfHeld, onToggleSelfHeld }: Checkl
                   <div className="flex items-center gap-3 px-4 py-3.5">
                     <div className="min-w-0 flex-1 text-[15px]">{item.label}</div>
                     {item.fulfillBy === "self" && !item.options ? (
-                      <SelfToggle held={selfHeld.has(item.id)} onClick={() => onToggleSelfHeld(item.id)} />
+                      <SelfToggle
+                        held={selfHeld.has(item.id)}
+                        onClick={() => onToggleSelfHeld(item.id)}
+                        label="챙겼어요"
+                      />
                     ) : (
                       <Tag tag={tagFor(item)} />
                     )}
                   </div>
 
                   {item.note && <p className="px-4 pb-3 text-xs leading-normal text-muted">{item.note}</p>}
+
+                  {/* 같은 토글이라도 준비도를 바꾸는 항목과 본인 확인용 항목이 섞여 있다.
+                      무엇이 걸려 있는지 말하지 않으면 왜 눌러야 하는지 알 수 없다. */}
+                  {item.whenMissing === "blocks" && item.status !== "met" && (
+                    <p className="px-4 pb-3 text-xs leading-normal text-warning">
+                      {item.options ? "이 중 하나를 표시해야" : "이 항목을 표시해야"} 제출 준비 완료가 돼요.
+                    </p>
+                  )}
 
                   {/* 택일 그룹 — 하나만 충족되면 그룹 전체가 met이다. */}
                   {item.options && (
@@ -90,7 +116,11 @@ export function ChecklistPanel({ checklist, selfHeld, onToggleSelfHeld }: Checkl
                         <div key={option.id} className="flex items-center gap-3 rounded-xl bg-subtle px-3 py-2">
                           <div className="min-w-0 flex-1 text-[13px]">{option.label}</div>
                           {item.fulfillBy === "self" ? (
-                            <SelfToggle held={selfHeld.has(option.id)} onClick={() => onToggleSelfHeld(option.id)} />
+                            <SelfToggle
+                              held={selfHeld.has(option.id)}
+                              onClick={() => onToggleSelfHeld(option.id)}
+                              label="챙겼어요"
+                            />
                           ) : (
                             <Tag tag={tagFor({ status: option.status, whenMissing: "silent" })} />
                           )}
