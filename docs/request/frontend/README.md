@@ -40,10 +40,10 @@
 | 문서 | 상태 | 내용 |
 | --- | --- | --- |
 | [pdf-ownership-and-open-contracts.md](pdf-ownership-and-open-contracts.md) | ✅ 회신 완료 (08-24) | PDF 생성 주체·미정 계약 |
-| [draft-preview-and-edit.md](draft-preview-and-edit.md) | ⏳ 회신 대기 (08-24) | 다운로드 전 미리보기·수정 |
-| [evidence-structure-revision.md](evidence-structure-revision.md) | ⏳ 회신 대기 (08-24) | **증빙 구조 6건** — 송금인 일치·택일구조·직거래·플랫폼·신원소명·수사자료 |
-| [legal-form-and-package.md](legal-form-and-package.md) | ⏳ 회신 대기 (08-24) | **법정 서식 대조** — 필드 8→11 정정, 서명 안내, 5면 분리 |
-| [honest-disclosure-fixes.md](honest-disclosure-fixes.md) | ⏳ 회신 대기 (08-24) | **고지 문구 3건** — 5영업일·3년 제한·보존 지침 |
-| [image-delivery-spec.md](image-delivery-spec.md) | ⏳ 회신 대기 (08-25) | 전송 이미지 해상도·포맷 확인 (AI 평가 세트 조건 맞추기) — **급하지 않음** |
+| [draft-preview-and-edit.md](draft-preview-and-edit.md) | ✅ 회신 완료 (08-25 ②) | 다운로드 전 미리보기·수정 — **전부 8/29~31**. 백엔드 확인 3건(4면 정체·revise 일정·면별 항목 기준) |
+| [evidence-structure-revision.md](evidence-structure-revision.md) | ✅ 회신 완료 (08-25) | **증빙 구조 8건 전부** — 자료구조·업로드 안내·수사자료 구현 완료, 직거래 A안. §4는 B안 권장(백엔드 판단) |
+| [legal-form-and-package.md](legal-form-and-package.md) | ✅ 회신 완료 (08-25 ②) | **법정 서식 대조** — 11필드 수용, 서명 안내 구현, **6종 → 5종 동의**. 4면도 같은 문제일 수 있어 확인 요청 |
+| [honest-disclosure-fixes.md](honest-disclosure-fixes.md) | ✅ 회신 완료 (08-25) | **고지 문구 3건** — 전부 반영·구현. "최대 3년" 숫자는 1차 출처 확인 대기 |
+| [image-delivery-spec.md](image-delivery-spec.md) | ✅ 회신 완료 (08-25) | 전송 이미지 해상도·포맷 — **738×1600 · PNG · 약 135KB**, 1600px 리사이즈 적용됨 |
 
-> 프론트가 동시에 5건을 받는 상태입니다. **회신 우선순위는 `legal-form-and-package` → `honest-disclosure-fixes` → `evidence-structure-revision` → `draft-preview-and-edit` → `image-delivery-spec`** 를 권합니다 — 앞의 둘이 확정적이고 작습니다. **마지막 `image-delivery-spec`은 값 세 개만 알려주면 되는 것이고, 늦어도 아무 작업을 막지 않습니다.**
+> **2026-08-25 기준 대기 중인 요청이 없습니다.** 5건 전부 회신을 마쳤습니다. 프론트가 백엔드에 물어둔 것은 **확인 5건**입니다 — 4면 증빙목록의 정체 · `/api/draft/revise` 일정 · 면별 항목 기준 · 거래 방식 필드 · 플랫폼 유형 A/B. **전부 8/29 PDF·미리보기 착수 전에만 오면 되고, 지금 진행 중인 작업을 막지 않습니다.**
