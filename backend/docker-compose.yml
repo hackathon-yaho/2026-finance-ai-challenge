@@ -1,0 +1,23 @@
+name: haebing-backend
+
+services:
+  db:
+    image: postgres:16
+    container_name: haebing_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: haebing
+      POSTGRES_USER: haebing
+      POSTGRES_PASSWORD: haebing
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "haebing", "-d", "haebing"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

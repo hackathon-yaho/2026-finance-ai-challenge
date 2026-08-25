@@ -21,9 +21,9 @@
 
 | 절 | 엔드포인트 | Phase | 상태 |
 | --- | --- | --- | --- |
-| 1.1 | `POST /api/session` | 2 | 미구현 |
-| 1.2 | `DELETE /api/session` | 2 | 미구현 |
-| 2.1 | `POST /api/intake` | 2 | 미구현 |
+| 1.1 | `POST /api/session` | 2 | 구현 완료 |
+| 1.2 | `DELETE /api/session` | 2 | 구현 완료 |
+| 2.1 | `POST /api/intake` | 2 | 구현 완료 |
 | 3.1 | `POST /api/evidence` | 3 | 미구현 |
 | 3.2 | `POST /api/evidence/confirm` | 3 | 미구현 |
 | 3.3 | `POST /api/evidence/text` | 3 | 미구현 |
@@ -34,7 +34,7 @@
 | 6.1 | `POST /api/draft` | 5 | 미구현 |
 | 6.2 | `POST /api/draft/revise` | 5 | 미구현 (2026-08-25 신설) |
 | 6.3 | `POST /api/package/text` | 5 | 미구현 |
-| 7.1 | `GET /actuator/health` | 1 | 미구현 |
+| 7.1 | `GET /actuator/health` | 1 | 구현 완료 |
 
 상태 값: `미구현` → `구현 완료` → (계약이 바뀌면) `구현 완료 (YYYY-MM-DD 개정)`
 
@@ -136,7 +136,7 @@
 
 ### 1.1 `POST /api/session` — 세션 생성
 
-> 상태: **미구현** (Phase 2) · 계약: `api-contract.md` 엔드포인트 목록
+> 상태: **구현 완료** (2026-08-25, Phase 2) · 계약: `api-contract.md` 엔드포인트 목록
 
 **설명**: 16자 랜덤 해시를 발급하고 인메모리 세션을 엽니다. 앱 최초 진입 시 1회 호출합니다.
 
@@ -165,7 +165,7 @@
 
 ### 1.2 `DELETE /api/session` — 세션 즉시 파기
 
-> 상태: **미구현** (Phase 2)
+> 상태: **구현 완료** (2026-08-25, Phase 2)
 
 **설명**: 사용자가 "지금 삭제"를 누르면 호출합니다. 서버 세션의 모든 데이터를 즉시 지웁니다.
 
@@ -190,7 +190,7 @@
 
 ### 2.1 `POST /api/intake` — 문진 저장 + 이의제기 기한 계산
 
-> 상태: **미구현** (Phase 2)
+> 상태: **구현 완료** (2026-08-25, Phase 2)
 
 **설명**: 문진 응답을 세션에 저장하고, **이의제기 기한을 서버가 계산해** 함께 돌려줍니다.
 
@@ -198,18 +198,20 @@
 
 **Request Body**
 
-6문항이지만 공고 문항이 2필드로 쪼개져 **7개 필드**이고, **물품 거래일 때만 `deliveryMethod`가 하나 더** 붙습니다.
+6문항이지만 공고 문항이 2필드로 쪼개져 **7개 필드**이고, **물품 거래일 때만 `deliveryMethod`가 하나 더** 붙습니다. **증분 저장을 허용합니다** — 프론트가 입력 즉시 호출하므로 모든 필드가 선택입니다. 이번 요청에 없는 필드는 이전에 저장된 값이 그대로 유지됩니다(부분 덮어쓰기 없음).
 
 | key | 설명 | 타입 | 필수 | 예시 |
 | --- | --- | --- | --- | --- |
-| when | 지급정지일. 모르면 `null` | String(`YYYY-MM-DD`) \| null | Y | "2026-09-01" |
-| dueNoticeStatus | 채권소멸절차 개시 공고 상태. `notified` / `not_yet` / `unknown` | enum | Y | "notified" |
-| dueNoticeDate | 공고일. **기한 = 공고일 + 2개월** | String(`YYYY-MM-DD`) \| null | Y (`notified`면 값 필요) | "2026-09-01" |
-| amount | 문제 입금액(원 단위 정수). 모르면 `null` | Integer \| null | Y | 700000 |
-| kind | 사유유형. `goods` / `service` / `debt` / `unclear` | enum | Y | "goods" |
-| history | 과거 지급정지 이력 여부 | boolean | Y | false |
-| usage | 계좌 사용 빈도. `main` / `occasional` / `rare` | enum | Y | "main" |
+| when | 지급정지일. 모르면 `null` | String(`YYYY-MM-DD`) \| null | N | "2026-09-01" |
+| dueNoticeStatus | 채권소멸절차 개시 공고 상태. `notified` / `not_yet` / `unknown` | enum | N | "notified" |
+| dueNoticeDate | 공고일. **기한 = 공고일 + 2개월** | String(`YYYY-MM-DD`) \| null | N (**세션에 저장된 `dueNoticeStatus`가 `notified`면 필수** — 이번 요청과 이전 요청을 합친 값 기준) | "2026-09-01" |
+| amount | 문제 입금액(원 단위 정수). 모르면 `null` | Integer \| null | N | 700000 |
+| kind | 사유유형. `goods` / `service` / `debt` / `unclear` | enum | N | "goods" |
+| history | 과거 지급정지 이력 여부 | boolean | N | false |
+| usage | 계좌 사용 빈도. `main` / `occasional` / `rare` | enum | N | "main" |
 | **deliveryMethod** | 거래 방식. `courier` / `in_person` / `not_applicable`. **`kind !== "goods"`면 `null`** | enum \| null | N | "in_person" |
+
+`dueNoticeStatus`가 (이번 요청 또는 이전 요청으로) `notified`인데 `dueNoticeDate`가 없으면 **`400` + `INVALID_FORM_FIELD`** 입니다.
 
 > `amount`는 **사실 기재 전용**입니다. 준비도 판정에 사용되지 않습니다 — 소액 여부를 서비스가 판정하지 않기 때문입니다.
 
@@ -266,7 +268,8 @@ Content-Type: application/json
 | status | 내용 |
 | --- | --- |
 | 200 | 저장 성공 |
-| 400 | `INVALID_REQUEST` — enum 값 오류, 날짜 형식 오류 |
+| 400 | `INVALID_REQUEST` — 요청 본문 형식 오류 |
+| 400 | `INVALID_FORM_FIELD` — `dueNoticeStatus`가 `notified`인데 `dueNoticeDate`가 없음 |
 | 410 | `SESSION_EXPIRED` |
 
 ---
@@ -712,11 +715,12 @@ Content-Type: application/json
 
 ### 7.1 `GET /actuator/health` — 헬스체크
 
-> 상태: **미구현** (Phase 1)
+> 상태: **구현 완료** (2026-08-25, Phase 1)
 
-킵얼라이브용입니다. 단순 상태 반환이 아니라 DB에 실제 쿼리를 날립니다. **프론트가 호출할 일은 없습니다.**
+킵얼라이브용입니다. 단순 상태 반환이 아니라 `keepalive` 테이블에 실제로 insert·delete를 날립니다(호출마다 행이 1개 늘고, 7일 지난 행은 지웁니다). **프론트가 호출할 일은 없습니다.**
 
-**Response**: `{ "status": "UP", "db": "OK" }`
+**Response 200**: `{ "status": "UP", "db": "OK" }`
+**Response 503** (DB 연결 실패): `{ "status": "DOWN", "db": "FAIL" }`
 
 ---
 
@@ -726,6 +730,8 @@ API를 완료하거나 계약이 바뀔 때마다 한 줄씩 남깁니다. **"�
 
 | 날짜 | 대상 | 내용 |
 | --- | --- | --- |
+| 2026-08-25 ② | 1.1·1.2·2.1 | Phase 2 완료 — 인메모리 세션(16자 해시, 30분 슬라이딩 TTL), `X-Session-Hash` 인터셉터, 문진 증분 저장(부분 덮어쓰기 없음), FR-014 기한 계산. `/api/intake`의 필수 필드를 실제 구현(전부 선택 + `notified`↔`dueNoticeDate` 상호 검증)에 맞게 정정 |
+| 2026-08-25 | 7.1 | Phase 1 완료 — 프로젝트 골격, docker-compose 로컬 DB, `GET /actuator/health` 구현(DB 실쓰기 포함), CORS(`X-Session-Hash` 허용), multipart 10MB, 나눔고딕 폰트 리소스 반영 |
 | 2026-08-24 | 전체 | 문서 신설. 0장(공통 사항) 작성, 엔드포인트 12종을 계약(`api-contract.md` v1.4) 기준으로 골격 작성. 구현은 전부 미착수 |
 | 2026-08-25 | `/api/evidence` | 카드에 **`source_type`·`counterparty_name`·`payer_name`** 추가, `field_confidence` 2키 확장. `source_image_index`를 Nullable로 정정(텍스트 입력 카드). 프론트 주의사항 4건 추가 (`unknown`은 정상 값 / 이름은 `null`이 흔함 / 대조는 백엔드 / `event_id`는 불투명) |
 | 2026-08-25 | `/api/draft` | **`evidenceRefs.type` 3종 확정**(`evidence`/`intake`/`user_text`)과 "본인 진술" 배지 규칙 명시. `imageIndex` 부재가 정상인 경우, `bbox`가 근사 좌표라는 점 추가 |
