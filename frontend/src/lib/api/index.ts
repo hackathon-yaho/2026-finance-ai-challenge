@@ -56,9 +56,17 @@ export function saveIntake(body: IntakeRequest): Promise<IntakeResponse> {
  * SSE·폴링 인프라 없이 F3-03(파일별 진행 표시)을 만족한다. 동시 4개 상한은 `evidenceLimiter`가
  * 지킨다. `uploadEvidenceBatch`를 쓰면 신경 쓸 것이 없다.
  */
-export function uploadEvidence(file: Blob, signal?: AbortSignal): Promise<EvidenceResponse> {
+export function uploadEvidence(
+  file: Blob,
+  imageIndex: number,
+  signal?: AbortSignal,
+): Promise<EvidenceResponse> {
   const form = new FormData()
   form.append("files", file)
+  // 응답 도착 순서로 백엔드가 번호를 매기면 우리 blob 배열과 어긋난다 — 동시 4개가
+  // 각자 다른 속도로 돌아오기 때문이다. 카드의 `source_image_index`가 곧 이 값이라,
+  // 어긋나면 "원본 보기"와 4면 "원본 n번"이 통째로 다른 이미지를 가리킨다.
+  form.append("imageIndex", String(imageIndex))
   return evidenceLimiter(() =>
     request<EvidenceResponse>("/api/evidence", {
       method: "POST",
@@ -70,7 +78,14 @@ export function uploadEvidence(file: Blob, signal?: AbortSignal): Promise<Eviden
   )
 }
 
+/** 업로드 한 건. `imageIndex`는 **세션 전체 blob 배열에서의 위치**다 (배치 안 순번이 아니다). */
+export interface EvidenceUpload {
+  blob: Blob
+  imageIndex: number
+}
+
 export interface BatchResult {
+  /** `EvidenceUpload.imageIndex`와 같은 값. 화면이 파일별 상태를 칠 때 쓴다. */
   index: number
   status: "ok" | "failed"
   data?: EvidenceResponse
@@ -85,13 +100,13 @@ export interface BatchResult {
  * 그때그때 칠 수 있게 하기 위한 것이다.
  */
 export async function uploadEvidenceBatch(
-  files: Blob[],
+  uploads: EvidenceUpload[],
   onSettled?: (result: BatchResult) => void,
 ): Promise<BatchResult[]> {
   return Promise.all(
-    files.map(async (file, index) => {
+    uploads.map(async ({ blob, imageIndex: index }) => {
       try {
-        const data = await uploadEvidence(file)
+        const data = await uploadEvidence(blob, index)
         const result: BatchResult = { index, status: "ok", data }
         onSettled?.(result)
         return result
@@ -115,6 +130,17 @@ export function submitEvidenceText(rawText: string): Promise<{ cards: EvidenceRe
 /** 카드 확인·수정 저장. `confirmed: true`인 카드만 준비도·소명서의 입력이 된다. */
 export function confirmCard(body: ConfirmRequest): Promise<ConfirmResponse> {
   return request<ConfirmResponse>("/api/evidence/confirm", { method: "POST", json: body })
+}
+
+/**
+ * 카드 삭제 (F4-06 처리 ④ "이 자료 빼기").
+ *
+ * 별도 엔드포인트가 아니라 **`confirmed: false`로 같은 엔드포인트를 부르는 것**이 계약이다
+ * (v1.8). 이름을 따로 둔 이유는 호출부에서 `confirmed: false`가 "확인 안 함"으로 읽히기
+ * 때문이다 — 실제로는 세션에서 지운다.
+ */
+export function deleteCard(cardId: string): Promise<ConfirmResponse> {
+  return confirmCard({ cardId, confirmed: false })
 }
 
 export function getTimeline(): Promise<TimelineResponse> {

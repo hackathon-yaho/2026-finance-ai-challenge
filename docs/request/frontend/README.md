@@ -45,7 +45,7 @@
 | [legal-form-and-package.md](legal-form-and-package.md) | ✅ **완결** (08-25 ② 회신 / 백엔드 답변 완료) | **법정 서식 대조** — 11필드 수용, 서명 안내 구현. **부족자료 체크리스트 제출본 제외 + 표지 채택**. 4면은 **A(올린 자료 목차)** 로 확정 |
 | [honest-disclosure-fixes.md](honest-disclosure-fixes.md) | ✅ **완결** (08-25 회신 / 백엔드 답변 완료) | **고지 문구 3건** — 전부 반영·구현. **"최대 3년"은 1차 출처 확보 실패 → 숫자 없이 확정** (2차 출처끼리 최대/최소가 엇갈림) |
 | [image-delivery-spec.md](image-delivery-spec.md) | ✅ 회신 완료 (08-25) | 전송 이미지 해상도·포맷 — **738×1600 · PNG · 약 135KB**, 1600px 리사이즈 적용됨 |
-| [evidence-timeline-schema-additions.md](evidence-timeline-schema-additions.md) | ⏳ 회신 대기 (2026-08-26) | Phase 3 구현 중 계약에 없던 4건 — `imageIndex` 신설·`gaps` 스키마·카드 삭제 필드·병합 표시 방식. 막는 작업 없음, 단 F3-01·F4-06·F5-03 화면 제작 시기와 겹침 |
-| [readiness-checklist-catalog-diffs.md](readiness-checklist-catalog-diffs.md) | ⏳ 회신 대기 (2026-08-26) | Phase 4 구현 — 체크리스트 목과 다른 점 2개(`payer_match` goods 전용, `goods.trade_doc` 자가진술로 변경). `/api/readiness` 실연동 전에만 확인하면 됨 |
+| [evidence-timeline-schema-additions.md](evidence-timeline-schema-additions.md) | ✅ 회신 완료 (08-26) | Phase 3 계약 보완 4건 — **전부 수용**, API 클라이언트 반영 완료. `imageIndex`는 **세션 누적 기준**임을 확인 요청 |
+| [readiness-checklist-catalog-diffs.md](readiness-checklist-catalog-diffs.md) | ✅ 회신 완료 (08-26) | Phase 4 체크리스트 차이 2건 — **둘 다 문서가 맞음**. 목 카탈로그 정정 완료, 화면 변경 불필요 |
 
-> **2026-08-25 기준 대기 중인 요청이 없습니다.** 5건 전부 회신을 마쳤습니다. 프론트가 백엔드에 물어둔 것은 **확인 5건**입니다 — 4면 증빙목록의 정체 · `/api/draft/revise` 일정 · 면별 항목 기준 · 거래 방식 필드 · 플랫폼 유형 A/B. **전부 8/29 PDF·미리보기 착수 전에만 오면 되고, 지금 진행 중인 작업을 막지 않습니다.**
+> **2026-08-26 기준 대기 중인 요청이 없습니다.** 8건 전부 회신을 마쳤습니다. 프론트가 백엔드에 물어둔 것은 **확인 1건**입니다 — `imageIndex`가 세션 누적 기준인지(같은 세션의 두 번째 배치가 0이 아니라 2부터 시작). **`/api/evidence` 실연동 전에만 오면 되고, 지금 진행 중인 작업을 막지 않습니다.**

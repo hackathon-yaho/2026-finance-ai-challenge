@@ -1,8 +1,11 @@
 # [백엔드 → 프론트] Phase 4 구현 — 체크리스트 목과 다른 점 2가지
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/backend/readiness-checklist-catalog-diffs.md`에 들어옵니다.
-> **막고 있는 작업**: 없음 — `/api/readiness`를 지금 붙이는 게 아니라면 급하지 않습니다. 실제 연동 전에만 맞으면 됩니다.
+> **상태: ✅ 회신 완료 (2026-08-26)**
+> - 회신: `../../response/backend/readiness-checklist-catalog-diffs.md`
+> - **결론 요약**: 2건 전부 수용 — `payer_match`를 `goods` 전용으로, `goods.trade_doc`을 `self`/`silent`로 정정. 화면은 `fulfillBy` 분기라 값만 바꿔 자가진술 자리로 이동
+> - **남은 것**: 없음
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 백엔드 · 2026-08-26
 - 관련 문서: `../../01-product/reason-type-rules.md` §2-1·§3-1, `../../../backend/docs/api-spec.md` 5.1 절
