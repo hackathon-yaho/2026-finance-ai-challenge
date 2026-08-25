@@ -46,13 +46,23 @@ def _to_cards(
         payer_name, hits = pii.clean_name_field(payer_name)
         pii_hits += hits
 
+        # 흐리다고 **스스로 표기한** 카드의 신뢰도는 low로 내린다.
+        # 실측에서 심한 흐림에 틀린 값(김인훈/40000)을 medium으로 낸 일이 반복됐다.
+        # 프롬프트로 "자신 없으면 low"를 시키는 것은 확률적이라 불변식이 되지 않는다.
+        # low는 FR-028에서 사용자 확인을 강제하므로, 과하게 확인받는 쪽이
+        # 틀린 값이 조용히 통과하는 것보다 낫다 ("확인 전 오류 차단률 100%").
+        def _cap(level: str | None) -> str | None:
+            if level is None:
+                return None
+            return "low" if event.blurry else level
+
         # 값이 없는 이름의 신뢰도는 버린다 — LLM이 뭘 매겼든 null이 계약값이다.
         confidence = FieldConfidence(
-            occurred_at="low" if force_low_time else event.confidence.occurred_at,
-            actor=event.confidence.actor,
-            amount=event.confidence.amount,
-            counterparty_name=event.confidence.counterparty_name if counterparty_name else None,
-            payer_name=event.confidence.payer_name if payer_name else None,
+            occurred_at="low" if force_low_time else _cap(event.confidence.occurred_at),
+            actor=_cap(event.confidence.actor),
+            amount=_cap(event.confidence.amount),
+            counterparty_name=_cap(event.confidence.counterparty_name) if counterparty_name else None,
+            payer_name=_cap(event.confidence.payer_name) if payer_name else None,
         )
         region = None
         if event.source_region is not None and not force_low_time:
@@ -66,7 +76,8 @@ def _to_cards(
                 occurred_at=event.occurred_at,
                 actor=event.actor,
                 summary=summary or "",
-                amount=event.amount,
+                # 부호는 계약상 항상 양수다 — 방향은 source_type·actor·summary가 나타낸다.
+                amount=abs(event.amount) if event.amount is not None else None,
                 counterparty_name=counterparty_name,
                 payer_name=payer_name,
                 identifiers=Identifiers(

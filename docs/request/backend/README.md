@@ -13,7 +13,7 @@
 
 | 문서 | 상태 | 막고 있는 작업 |
 | --- | --- | --- |
-| [internal-token-delivery.md](internal-token-delivery.md) | ✅ 회신 완료 (2026-08-26) | 해소 — 팀 채널로 이미 전달함. AI 쪽 확인 대기 |
+| [internal-token-delivery.md](internal-token-delivery.md) | ✅ 해소 (2026-08-26) | 전달·수령·등록 완료 |
 | [deploy-handoff.md](deploy-handoff.md) | ✅ 회신 완료 (2026-08-25) | 해소 — `INTERNAL_TOKEN` 백엔드 생성·전달 예정, 나머지 3건 확인 완료 |
 | [draft-intake-input.md](draft-intake-input.md) | ✅ 회신 완료 (2026-08-25) | 해소 — `intake` 원안 수용, AI 후속 처리까지 완료 |
 | [text-entry-ownership-and-masking.md](text-entry-ownership-and-masking.md) | ✅ 회신 완료 (2026-08-25) | 해소 — F3-04 담당 `B/C` 정정, 마스킹 시점 전송 전(브라우저) 확정 |
