@@ -1,5 +1,9 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-26, AI)** — 프론트 신고 `../request/ai/llm-provider-mismatch.md` 반영
+> - **`AI_CONFIG_ERROR`(500) 신설.** LLM 키 미설정·인증 실패가 `EXTRACTION_FAILED`로 둔갑해 사용자를 텍스트 입력으로 보내던 문제를 분리했습니다. **재시도하지 않습니다**
+> - **`fallback: "text_input"`은 이미지 경로에만** 붙습니다. 텍스트 경로 실패에 텍스트 입력을 대안으로 주면 같은 자리를 맴돕니다
+
 > **수정 기록 (2026-08-25 ②, AI)** — 백엔드 회신 `../response/ai/draft-intake-input.md` §6 지적 반영
 > - **`field_confidence.counterparty_name` / `payer_name`을 `null` 허용으로 변경.** 이름이 `null`인데 신뢰도가 `"high"`로 나가면 "값이 없는데 높은 신뢰도"라는 성립하지 않는 조합이 됩니다. **이름이 `null`이면 신뢰도도 `null`** 이라는 불변식을 AI-server가 결정적으로 보장합니다(LLM 판단에 맡기지 않음)
 > - `occurred_at` / `actor` / `amount`의 신뢰도는 **종전대로 `null`을 허용하지 않습니다** — 프론트가 F4-06 카드에서 "높음 / 확인 필요" 배지로 항상 렌더하는 값이라 세 번째 상태를 만들지 않습니다. 대신 **값이 `null`인 필드의 신뢰도는 읽지 않는다**는 해석 규칙을 명시
@@ -302,7 +306,25 @@ FR-045가 정의한 세 가지 근거 유형과 1:1로 대응합니다.
 | `TIMEOUT` | 504 | AI-server 내부 LLM 호출 시간 초과 | `"text_input"` |
 | `QUOTA_EXCEEDED` | 429 | LLM API 쿼터·레이트리밋 초과 — 백엔드는 데모 모드 폴백(F4-05) | 없음 |
 | `DRAFT_FAILED` | 502 | `/internal/draft` 생성 실패 (스키마 불일치 재시도 후 실패 등) | 없음 |
+| **`AI_CONFIG_ERROR`** | **500** | **AI-server 설정 오류 (LLM API 키 미설정·인증 실패). 사용자 입력과 무관하다** | **없음** |
 | (401 Unauthorized) | 401 | `X-Internal-Token` 누락·불일치 | 없음 |
+
+#### `AI_CONFIG_ERROR` — 사용자에게 재시도를 요구하지 마세요 (2026-08-26 신설)
+
+**AI-server의 설정이 잘못된 상태**입니다. 사용자가 무엇을 다시 올리든 결과가 같습니다.
+
+- 백엔드는 이 코드를 받으면 **텍스트 입력으로 유도하지 않습니다.** "일시적인 오류" 계열 안내로 처리하고, **AI 담당에게 알려야 하는 상황**입니다.
+- **AI-server는 이 오류에 재시도하지 않습니다.** 키가 없는 상태를 다시 불러도 결과가 같아서 LLM 호출만 두 배가 됩니다.
+- 종전에는 이 상황이 `EXTRACTION_FAILED`(502, `fallback: "text_input"`)로 나갔습니다. **설정 오류가 판독 실패로 둔갑해 사용자를 텍스트 입력으로 보내던 문제**를 프론트가 로컬 연동에서 발견해 분리했습니다 (`../request/ai/llm-provider-mismatch.md`).
+
+#### `fallback: "text_input"`은 이미지 경로에만 붙습니다 (2026-08-26 명확화)
+
+**텍스트 경로(F3-04) 요청이 실패하면 `fallback`을 주지 않습니다.** 이미 텍스트로 보낸 요청에 "텍스트로 입력하세요"를 대안으로 주면 같은 자리를 맴돕니다. 실패 메시지도 경로에 맞게 나갑니다 — 텍스트 요청에 "이미지에서 내용을 읽지 못했습니다"라고 답하지 않습니다.
+
+| 경로 | 실패 시 `error` | `fallback` |
+| --- | --- | --- |
+| 이미지 (`Content-Type: image/*`) | `EXTRACTION_FAILED` / `TIMEOUT` | `"text_input"` |
+| 텍스트 (`Content-Type: application/json`) | `EXTRACTION_FAILED` / `TIMEOUT` | **없음** |
 
 `factCheckPassed: false`는 오류가 아니라 **정상 200 응답**입니다 — 백엔드가 재시도 로직(1회)을 따릅니다.
 

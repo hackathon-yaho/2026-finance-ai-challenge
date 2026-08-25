@@ -17,4 +17,4 @@ AI 개발자에게 요청할 사항을 문서로 정리하는 폴더입니다.
 | [card-source-type.md](card-source-type.md) | ✅ 회신 완료 (08-25) | Phase 3 F5-01·F5-03 — 백엔드 계약 반영만 남음 |
 | [demo-response-set.md](demo-response-set.md) | ✅ 회신 완료 (08-25) | Phase 6 `DEMO_MODE` — v1 납품(`ai-server/demo/`), v2는 리허설 때 |
 | [payer-name-extraction.md](payer-name-extraction.md) | ✅ 회신 완료 (08-25) | Phase 3 구매자–송금인 대조 — §2 절충안에 대한 백엔드 결정 대기 |
-| [llm-provider-mismatch.md](llm-provider-mismatch.md) | ⏳ 회신 대기 (2026-08-26) | 키 등록 화면에 OpenAI 선택지가 있으나 쓰는 코드 없음. **키 누락이 `EXTRACTION_FAILED`(사용자 노출 코드)로 둔갑하고 재시도까지 함** |
+| [llm-provider-mismatch.md](llm-provider-mismatch.md) | ✅ 회신 완료 (08-26) | 해소 — `AI_CONFIG_ERROR`(500) 신설·재시도 제거, 텍스트 경로 `fallback` 정정, 기동 시 키 확인. 회귀 테스트 3건 |
