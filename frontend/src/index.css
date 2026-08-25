@@ -267,6 +267,19 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+/*
+ * NFR-04 — 키보드 포커스 가시.
+ *
+ * 브라우저 기본 outline이 디자인과 어긋나 지워져 있었는데, 대체 스타일이 없어서
+ * **키보드만 쓰는 사용자는 지금 어디에 있는지 알 수 없는 상태**였다.
+ * `:focus-visible`을 쓰므로 마우스 클릭에는 나타나지 않는다.
+ */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

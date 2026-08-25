@@ -82,17 +82,23 @@ export function ReadinessStage({ readiness, wide, hasHistory, onToggleHistory }:
           <div className="text-[15px] font-semibold">과거 지급정지 이력 있음</div>
           <div className="mt-0.5 text-[13px] leading-normal text-muted">켜 보면 판정이 어떻게 달라지는지 볼 수 있어요</div>
         </div>
+        {/* NFR-04 — 스위치 모양은 26px로 두고 누르는 영역만 44px로 넓힌다. */}
         <button
           type="button"
           onClick={onToggleHistory}
           aria-pressed={hasHistory}
-          className={`relative h-[26px] w-11 flex-none rounded-full transition-colors duration-200 ${hasHistory ? "bg-brand" : "bg-neutral"}`}
+          aria-label="과거 지급정지 이력 있음"
+          className="-my-[9px] flex h-11 w-11 flex-none items-center justify-center"
         >
-          <div
-            className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow transition-[left] duration-200 ${
-              hasHistory ? "left-[21px]" : "left-[3px]"
-            }`}
-          />
+          <span
+            className={`relative block h-[26px] w-11 rounded-full transition-colors duration-200 ${hasHistory ? "bg-brand" : "bg-neutral"}`}
+          >
+            <span
+              className={`absolute top-[3px] block h-5 w-5 rounded-full bg-white shadow transition-[left] duration-200 ${
+                hasHistory ? "left-[21px]" : "left-[3px]"
+              }`}
+            />
+          </span>
         </button>
       </div>
 

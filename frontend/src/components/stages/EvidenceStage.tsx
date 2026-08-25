@@ -186,7 +186,7 @@ export function EvidenceStage({
       )}
 
       {!evidence.threat && (
-        <button type="button" onClick={onAddThreat} className="h-10 self-start rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink">
+        <button type="button" onClick={onAddThreat} className="h-11 self-start rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink">
           협박 문자 캡처 추가하기
         </button>
       )}
@@ -196,7 +196,7 @@ export function EvidenceStage({
       <div ref={timelineRef}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="text-[17px] font-semibold tracking-tight">시간순 타임라인</div>
-          <button type="button" onClick={onAnalyze} className="h-10 flex-none rounded-xl bg-ink px-4 text-[15px] font-semibold text-white">
+          <button type="button" onClick={onAnalyze} className="h-11 flex-none rounded-xl bg-ink px-4 text-[15px] font-semibold text-white">
             {analyzing ? <LoadingDots /> : <span>{analyzed ? "다시 조립하기" : "자료 조립하기"}</span>}
           </button>
         </div>

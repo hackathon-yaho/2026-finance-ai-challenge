@@ -29,20 +29,29 @@ export function Stepper({ stage, width, onStepClick }: StepperProps) {
                 }}
               />
             )}
+            {/* NFR-04 터치 타겟 44px — 보이는 원은 20~26px로 두고 **누르는 영역만** 넓힌다.
+                단계 이동이 가능한 컨트롤(F1-04)이라 실제로 눌러야 하는 버튼이다.
+                음수 마진으로 넓힌 영역이 옆 단계를 밀어내지 않게 한다. */}
             <button
               type="button"
               onClick={() => onStepClick(idx)}
-              className="flex flex-none cursor-pointer items-center justify-center rounded-full text-xs font-bold tabular-nums transition-all duration-200"
-              style={{
-                width: narrow ? 20 : 26,
-                height: narrow ? 20 : 26,
-                fontSize: narrow ? 10 : 12,
-                background: lit ? "var(--color-brand)" : "var(--color-border)",
-                color: lit ? "white" : "var(--color-muted)",
-                boxShadow: active ? `0 0 0 ${narrow ? 3 : 4}px var(--color-brand-subtle)` : "none",
-              }}
+              aria-label={`${idx}단계 ${label}`}
+              className="-my-[9px] flex h-11 flex-none cursor-pointer items-center justify-center"
+              style={{ width: 44, marginLeft: narrow ? -12 : -9, marginRight: narrow ? -12 : -9 }}
             >
-              {done ? "✓" : idx}
+              <span
+                className="flex items-center justify-center rounded-full text-xs font-bold tabular-nums transition-all duration-200"
+                style={{
+                  width: narrow ? 20 : 26,
+                  height: narrow ? 20 : 26,
+                  fontSize: narrow ? 10 : 12,
+                  background: lit ? "var(--color-brand)" : "var(--color-border)",
+                  color: lit ? "white" : "var(--color-muted)",
+                  boxShadow: active ? `0 0 0 ${narrow ? 3 : 4}px var(--color-brand-subtle)` : "none",
+                }}
+              >
+                {done ? "✓" : idx}
+              </span>
             </button>
             {showLabels && (
               <div className={`text-[11px] whitespace-nowrap ${active ? "font-semibold text-ink" : "font-medium text-muted"}`}>

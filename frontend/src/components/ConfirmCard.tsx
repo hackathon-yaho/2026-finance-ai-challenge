@@ -95,7 +95,7 @@ function FieldRow({ label, value, confidence, hasValue, settled, onEdit }: Field
         </div>
       )}
       {onEdit && (
-        <button type="button" onClick={onEdit} className="h-11 flex-none px-1 text-[13px] font-semibold text-brand underline">
+        <button type="button" onClick={onEdit} className="h-11 w-11 flex-none text-[13px] font-semibold text-brand underline">
           고치기
         </button>
       )}

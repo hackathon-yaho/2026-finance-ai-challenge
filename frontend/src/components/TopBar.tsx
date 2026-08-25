@@ -17,13 +17,25 @@ export function TopBar({ stage, width, onBack, onStepClick }: TopBarProps) {
 
   return (
     <div className="sticky top-0 z-10 border-b border-border bg-bg">
+      {/* NFR·규제 대응 — `spec.md` 화면 정의서가 **공통 요소(전 화면)**로,
+          `privacy-and-safety.md`가 "프론트엔드 필수 구현"으로 지정한 문구다.
+          준비도 결과를 승인 예측으로 오해하는 것을 막는 장치라 한 화면만 빠져도 의미가 없다. */}
+      <div className="border-b border-border bg-subtle">
+        <p
+          className="mx-auto max-w-[720px] py-1.5 text-[11px] leading-normal text-muted"
+          style={{ padding: `6px ${pad}px` }}
+        >
+          이 화면은 제출 자료를 정리하는 도구예요. 지급정지 해제 여부는 은행 심사로 결정돼요.
+        </p>
+      </div>
+
       <div className="mx-auto flex h-14 max-w-[720px] items-center gap-2" style={{ padding: `0 ${pad}px` }}>
         {showStepper && (
           <button
             type="button"
             onClick={onBack}
             aria-label="이전 단계로"
-            className="-ml-2 flex h-10 w-10 flex-none items-center justify-center rounded-full text-[22px] leading-none text-ink"
+            className="-ml-2.5 flex h-11 w-11 flex-none items-center justify-center rounded-full text-[22px] leading-none text-ink"
           >
             ‹
           </button>

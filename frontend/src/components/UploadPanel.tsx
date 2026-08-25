@@ -135,7 +135,7 @@ export function UploadPanel({
           어느 쪽이 진짜인지 알 수 없고, 하단 CTA가 비활성으로 남아 막힌 화면처럼 보인다. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-normal text-muted">
         <span>캡처가 없으신가요?</span>
-        <button type="button" onClick={onOpenTextEntry} className="font-semibold text-brand underline">
+        <button type="button" onClick={onOpenTextEntry} className="-my-2 h-11 font-semibold text-brand underline">
           글로 직접 쓰기
         </button>
         <span>· 자료가 없어도 문진 응답만으로 진행할 수 있어요.</span>
