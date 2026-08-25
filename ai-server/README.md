@@ -2,7 +2,7 @@
 
 지급정지 계좌 소명 지원 서비스의 AI 서버. **멀티모달 판독**(이미지 → 구조화 카드)과 **소명서 생성**(문장 생성 + 결정적 사실 검증 + 문장-근거 연결)을 담당합니다. 백엔드만 호출하는 내부 API 서버이며, 프론트엔드가 직접 호출하지 않습니다.
 
-- 스택: Python 3.12 · FastAPI · Claude API (`claude-opus-5`) · Render
+- 스택: Python 3.12 · FastAPI · Claude API (`claude-opus-5`) · **Google Cloud Run**
 - **설계와 실행 계획은 [`docs/`](docs/)에 있습니다. 작업 전 [`docs/design.md`](docs/design.md)를 먼저 여세요.**
 
 ## 절대 원칙
@@ -24,10 +24,28 @@
 ```bash
 cd ai-server
 pip install -r requirements.txt
-INTERNAL_TOKEN=dev ANTHROPIC_API_KEY=... uvicorn app.main:app --port 8000
+
+# 키 등록 — 한 번만 하면 됩니다. 값은 .env에 저장되고 저장소에 올라가지 않습니다.
+python scripts/set_key.py
+
+uvicorn app.main:app --port 8000
 ```
 
-환경변수 전체 목록은 [`docs/design.md`](docs/design.md) §8 참조.
+### 키 등록 방식
+
+**키를 코드나 문서에 직접 쓰지 않습니다.** `scripts/set_key.py`가 CLI로 입력받아 `.env`에 저장하고, 서버가 시작할 때 자동으로 읽습니다. 다시 입력할 필요가 없습니다.
+
+| 장치 | 이유 |
+| --- | --- |
+| 입력이 화면에 표시되지 않음 (`getpass`) | 터미널 기록·어깨너머 노출 방지 |
+| 키를 명령행 인자로 받지 않음 | `--key sk-...`를 허용하면 셸 히스토리에 남습니다 |
+| 쓰기 전 `.env`가 `.gitignore`에 있는지 확인 | 없으면 **아무것도 쓰지 않고 중단**합니다 |
+| 출력은 항상 마스킹 (`sk-ant-****...abcd`) | |
+| 기존 값 보존 | 파일을 덮어쓰지 않고 해당 줄만 교체 |
+
+`.env`는 `app/config.py`의 `load_dotenv()`가 프로세스 환경변수로 올립니다 — pydantic-settings는 `Settings` 객체만 채우고 `os.environ`에는 넣지 않는데 **LLM SDK는 `os.environ`에서 키를 읽기** 때문입니다. `override=False`라서 **배포 환경(Cloud Run이 Secret Manager에서 주입한 값)이 항상 이깁니다.**
+
+형식은 [`.env.example`](.env.example) 참조. 환경변수 전체 목록은 [`docs/design.md`](docs/design.md) §8.
 
 ## 디렉터리
 
@@ -36,7 +54,8 @@ INTERNAL_TOKEN=dev ANTHROPIC_API_KEY=... uvicorn app.main:app --port 8000
 | `app/` | 서버 코드 (라우터 / 서비스 / LLM / 결정적 검증기) |
 | `demo/` | 오프라인 데모 모드용 사전 응답 세트 — 백엔드가 `src/main/resources/demo/`로 복사 |
 | `evals/` | AI 품질 평가 세트 (F11-05) — 합성 이미지 + 채점 러너 |
-| `docs/` | [design.md](docs/design.md) 설계 · [plan.md](docs/plan.md) 실행 계획 |
+| `scripts/` | `set_key.py` — API 키를 CLI로 입력받아 `.env`에 저장 |
+| `docs/` | [design.md](docs/design.md) 설계 · [plan.md](docs/plan.md) 실행 계획 · [deployment.md](docs/deployment.md) 배포 절차 |
 
 ## 참고 문서
 

@@ -26,6 +26,15 @@
 
 로컬 Docker는 **필요 없습니다** — `--source` 배포는 Cloud Build가 클라우드에서 이미지를 빌드합니다.
 
+### 로컬 개발과 배포의 키 관리가 다릅니다
+
+| 환경 | 키가 있는 곳 | 등록 방법 |
+| --- | --- | --- |
+| 로컬 | `ai-server/.env` (gitignore됨) | `python scripts/set_key.py` |
+| Cloud Run | Google Secret Manager | `gcloud secrets create` (아래 2단계) |
+
+둘을 섞지 마세요. `.env`는 **저장소에도 이미지에도 들어가지 않습니다** — `.gitignore`와 `.dockerignore`·`.gcloudignore` 모두에 있습니다. 서버 코드는 `os.environ`만 보므로 어느 쪽이든 동일하게 동작하며, **배포 환경변수가 `.env`를 이깁니다**(`load_dotenv(override=False)`).
+
 ## 배포 절차
 
 ```bash
