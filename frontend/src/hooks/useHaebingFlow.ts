@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { INTAKE_PAGES, QUESTIONS, REASON_BY_KIND, isFieldVisible } from "../data"
-import { applyCardStates, blockingCards, buildCards, confirmedEvidence, evidenceIdOf, pendingCards } from "../lib/cards"
+import {
+  applyCardStates,
+  blockingCards,
+  buildCards,
+  confirmedBankAmount,
+  confirmedEvidence,
+  evidenceIdOf,
+  pendingCards,
+} from "../lib/cards"
 import type { CardState } from "../lib/cards"
 import { buildChecklist } from "../lib/checklist"
 import { EMPTY_LEGAL_FORM } from "../lib/legalForm"
 import type { LegalFormValues } from "../lib/legalForm"
-import { buildDraftLines } from "../lib/draft"
+import { buildDraftLines, buildDraftLinesFromCards } from "../lib/draft"
 import { getAmountInfo } from "../lib/amount"
 import { getDeadline } from "../lib/deadline"
 import { isAnswered } from "../lib/intake"
@@ -505,6 +513,12 @@ export function useHaebingFlow() {
   // 확인된 카드만 준비도·체크리스트·소명서의 입력이 된다 (F6-03).
   const confirmed = useMemo(() => confirmedEvidence(cards), [cards])
   const bankConfirmed = confirmed.bank
+  /**
+   * 문서에 쓰는 입금액. **확인된 입금 카드가 있으면 그 값이 이긴다** — 사용자가 F4-06에서
+   * 고친 금액이 소명서·타임라인에 그대로 반영돼야 한다. 카드가 아직 없거나 확인 전이면
+   * 문진 응답으로 되돌아간다.
+   */
+  const documentAmount = useMemo(() => confirmedBankAmount(cards) ?? intake.amount, [cards, intake.amount])
 
   // 체크리스트가 준비도의 입력이다 — Stage 3과 Stage 4가 같은 값을 봐야 한다.
   const checklist = useMemo(
@@ -528,13 +542,40 @@ export function useHaebingFlow() {
         : // 텍스트 경로는 **사용자가 쓴 것만** 나와야 한다. 목 시나리오 문구를 섞지 않는다.
           entryMode === "text"
           ? buildTimelineFromCards(cards)
-          : buildTimeline(evidence, intake.amount, bankConfirmed),
-    [analyzed, entryMode, cards, evidence, intake.amount, bankConfirmed],
+          : buildTimeline(evidence, documentAmount, bankConfirmed),
+    [analyzed, entryMode, cards, evidence, documentAmount, bankConfirmed],
+  )
+  /**
+   * **제출본 3면에 실을 타임라인.** 화면 타임라인과 달리 확인된 카드만 담는다 — 2면은
+   * 미확인 카드의 문장을 빼고 4면은 `pending`을 거르는데 3면만 다 실으면, 같은 묶음 안에서
+   * 4면 1줄 / 3면 5줄처럼 어긋난다. 미확인 판독을 은행에 보내지 않는다는 F4-06 취지도 같다.
+   *
+   * `spec.md` F8-01 3면 행에는 미확인 카드 처리 규칙이 없어 백엔드에 확인을 요청해 뒀다
+   * (`docs/request/backend/page3-unconfirmed.md`). 확정되면 그쪽에 맞춘다.
+   */
+  const submitTimeline = useMemo(
+    () =>
+      !analyzed
+        ? []
+        : entryMode === "text"
+          ? buildTimelineFromCards(cards.filter((card) => card.confirmation_status !== "pending"))
+          : buildTimeline(confirmed, documentAmount, bankConfirmed),
+    [analyzed, entryMode, cards, confirmed, documentAmount, bankConfirmed],
   )
   // 확인된 카드만 소명서에 들어간다 (F4-06 "미확인 카드의 날짜·금액이 본문에 나타나지 않음").
   const draftLines = useMemo(
-    () => (draftShown ? buildDraftLines(intake, confirmed, true) : []),
-    [draftShown, intake, confirmed],
+    () =>
+      !draftShown
+        ? []
+        : // 텍스트 경로는 목 시나리오 문장을 쓰지 않는다 — 사용자가 말하지 않은 시각이 섞인다.
+          entryMode === "text"
+          ? buildDraftLinesFromCards(
+              intake,
+              cards.filter((card) => card.confirmation_status !== "pending"),
+              documentAmount,
+            )
+          : buildDraftLines(intake, confirmed, true, documentAmount),
+    [draftShown, entryMode, intake, cards, confirmed, documentAmount],
   )
   const confirmedCount = cards.length - unconfirmedCount
   // 확인하지 않아 문서에서 빠진 자료 수. 사용자가 "왜 문장이 적지?"를 알 수 있어야 한다.
@@ -614,6 +655,7 @@ export function useHaebingFlow() {
     deadline,
     readiness,
     timeline,
+    submitTimeline,
     draftLines,
     checklist,
     confirmedCount,

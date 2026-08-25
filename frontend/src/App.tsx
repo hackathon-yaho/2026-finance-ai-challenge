@@ -50,16 +50,24 @@ function App() {
   // 화면에서 가장 눈에 띄는 버튼이 눌리지 않는 상태였다.
   const uploading = stage === 2 && !flow.filesReady && !flow.textEntryOpen
 
+  // 조립 전 서브스텝도 같은 이유로 하단 CTA가 맡는다. 종전에는 실제 다음 행동이 목록 안의
+  // "자료 조립하기"인데 하단에는 "준비도 보기"가 비활성으로 떠 있어, 화면에서 가장 큰
+  // 버튼이 눌리지 않는 채로 이유도 말해주지 않았다 — 업로드 서브스텝에서 고친 것과 같은 문제다.
+  const assembling = stage === 2 && !uploading && !flow.textEntryOpen && !flow.analyzed
+
   const ctaDisabled =
     (stage === 1 && !flow.intakePageAnswered) ||
-    (stage === 2 && !uploading && (!flow.analyzed || cardsBlock)) ||
+    (stage === 2 && assembling && flow.analyzing) ||
+    (stage === 2 && !uploading && !assembling && cardsBlock) ||
     (stage === 4 && !flow.draftShown)
 
   const ctaLabel = uploading
     ? flow.uploadedFiles.length > 0
       ? "이 자료로 계속하기"
       : "자료 없이 계속하기"
-    : CTA_LABEL[stage]
+    : assembling
+      ? "자료 조립하기"
+      : CTA_LABEL[stage]
 
   // 단계 인디케이터로 건너뛰는 경로도 같은 조건으로 막는다 (F1-04).
   const handleStepClick = (n: number) => {
@@ -73,6 +81,10 @@ function App() {
   const handleCta = () => {
     if (uploading) {
       flow.proceedFromUpload()
+      return
+    }
+    if (assembling) {
+      flow.analyze()
       return
     }
     if (stage === 5) {
@@ -173,7 +185,7 @@ function App() {
               />
             )}
 
-              {stage === 5 && <RoutesStage showBizNotice={flow.intake.usage === "주 거래 계좌예요"} />}
+            {stage === 5 && <RoutesStage showBizNotice={flow.intake.usage === "주 거래 계좌예요"} />}
           </div>
         </div>
       </div>
@@ -192,6 +204,9 @@ function App() {
               : "이 날짜로부터 2개월이 이의제기 기한이에요."
           }
           value={flow.dateSheet === "when" ? flow.intake.when : flow.intake.noticeDate}
+          // 채권소멸절차 개시 공고는 지급정지 이후에 나온다. 정지일을 이미 답했으면 그 앞
+          // 날짜를 고를 수 없게 막는다 — 앞선 날짜를 넣으면 기한이 실제보다 이르게 계산된다.
+          min={flow.dateSheet === "notice" ? (flow.intake.when ?? undefined) : undefined}
           width={width}
           onSelect={flow.commitDate}
           onClose={flow.closeDateSheet}
@@ -245,7 +260,8 @@ function App() {
           width={width}
           form={flow.legalForm}
           draftLines={flow.draftLines}
-          timeline={flow.timeline}
+          // 제출본 3면은 **확인된 카드만** 싣는다 — 화면 타임라인(flow.timeline)과 다르다.
+          timeline={flow.submitTimeline}
           checklist={flow.checklist}
           cards={flow.cards}
           excluded={flow.excludedSentences}

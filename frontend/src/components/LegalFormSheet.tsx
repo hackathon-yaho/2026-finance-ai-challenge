@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import {
   EMPTY_LEGAL_FORM,
   FIELD_LABELS,
@@ -38,6 +38,7 @@ const ACCOUNT_FIELDS: { field: LegalFormField; hint?: string }[] = [
 export function LegalFormSheet({ width, initial, onSubmit, onClose }: LegalFormSheetProps) {
   const [values, setValues] = useState<LegalFormValues>(initial ?? EMPTY_LEGAL_FORM)
   const [errors, setErrors] = useState<Partial<Record<LegalFormField, string>>>({})
+  const inputs = useRef<Partial<Record<LegalFormField, HTMLInputElement | null>>>({})
 
   const read = (field: LegalFormField): string => readField(values, field)
 
@@ -50,7 +51,17 @@ export function LegalFormSheet({ width, initial, onSubmit, onClose }: LegalFormS
     const found = validateAll(values)
     setErrors(found)
     // 빈 값은 위반이 아니다. 형식이 틀린 값만 막는다.
-    if (Object.keys(found).length === 0) onSubmit(values)
+    if (Object.keys(found).length === 0) {
+      onSubmit(values)
+      return
+    }
+    // 막기만 하면 버튼이 죽은 것처럼 보인다 — 오류 칸이 화면 밖에 있으면 왜 안 넘어가는지
+    // 알 방법이 없다. 첫 오류 칸으로 데려가 포커스를 준다.
+    // FIELD_LABELS의 키 순서가 서식 순서다 (`lib/legalForm.ts`).
+    const first = (Object.keys(FIELD_LABELS) as LegalFormField[]).find((field) => found[field])
+    const input = first ? inputs.current[first] : null
+    input?.scrollIntoView({ behavior: "smooth", block: "center" })
+    input?.focus({ preventScroll: true })
   }
 
   const blanks = blankFieldLabels(values)
@@ -60,6 +71,9 @@ export function LegalFormSheet({ width, initial, onSubmit, onClose }: LegalFormS
     <label key={field} className="flex flex-col gap-1.5">
       <span className="text-[13px] font-semibold">{FIELD_LABELS[field]}</span>
       <input
+        ref={(el) => {
+          inputs.current[field] = el
+        }}
         value={read(field)}
         maxLength={MAX_FIELD_LENGTH}
         onChange={(e) => write(field, e.target.value)}

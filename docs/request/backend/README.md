@@ -18,5 +18,6 @@
 | [text-entry-ownership-and-masking.md](text-entry-ownership-and-masking.md) | ✅ 회신 완료 (2026-08-25) | 해소 — F3-04 담당 `B/C` 정정, 마스킹 시점 전송 전(브라우저) 확정 |
 | [persistent-badge-placement.md](persistent-badge-placement.md) | ✅ 회신 완료 (2026-08-25) | 해소 — A안 채택, 명세 정정 완료 |
 | [page4-ordering.md](page4-ordering.md) | ✅ 회신 완료 (2026-08-25) | 해소 — B안 채택, 텍스트 카드 "본인 서술", 원본 번호 1-base(프론트 변환) |
+| [page3-and-biz-notice.md](page3-and-biz-notice.md) | ⏳ 회신 대기 (2026-08-25) | 서버 PDF 3면 구현 — 미확인 카드를 싣는지 미정. 프론트는 "제외"로 두고 진행 |
 
-> **2026-08-25 기준 회신 대기 중인 요청이 없습니다.** 5건 전부 회신을 마쳤습니다.
+> **2026-08-25 기준 회신 대기 1건** — `page3-and-biz-notice.md`. 나머지 5건은 회신을 마쳤습니다.
