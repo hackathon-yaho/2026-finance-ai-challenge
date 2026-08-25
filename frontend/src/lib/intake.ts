@@ -47,6 +47,10 @@ export function summaryValue(intake: IntakeAnswers, field: IntakeField): string 
 export function chipValue(intake: IntakeAnswers, field: IntakeField): string | null {
   switch (field) {
     case "kind":
+    // 거래 방식(F2-01a)은 나중에 추가된 문항이라 여기서 빠져 있었다. 값은 저장되는데
+    // 읽어주는 곳이 없어 **선택해도 칩에 색이 안 들어왔다** — 고른 것이 화면에 남지 않으니
+    // 사용자는 눌리지 않았다고 읽는다.
+    case "delivery":
     case "history":
     case "usage":
       return intake[field]
