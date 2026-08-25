@@ -1,7 +1,10 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
-> **수정 기록 (2026-08-26 ③, 백엔드)** — 위 `amount` 부호 확정 건 확인, 코드 변경 없음
+> **수정 기록 (2026-08-26 ③, 백엔드)** — 아래 `amount` 부호 확정 건 확인, 코드 변경 없음
 > - 백엔드는 `amount`를 항상 **크기 비교(동등 비교)·포맷 출력**에만 씁니다(`TimelineServiceImpl`의 충돌 탐지, `EvidenceServiceImpl`의 `distinctAmounts`, `PackageServiceImpl`의 "%,d원" 포맷). 부호를 읽거나 가정하는 코드가 없어 **고칠 곳이 없습니다**
+
+> **수정 기록 (2026-08-26 ②, AI)** — 실 LLM 연동 실측에서 드러난 계약 공백 보완
+> - **`amount`의 부호를 양수(절대값)로 확정.** 규정이 없어 출금 화면에서 음수가 나올 수 있었고, 그러면 백엔드 금액 대조가 어긋납니다. AI-server가 후처리로 강제합니다
 
 > **수정 기록 (2026-08-26 ②, 백엔드)** — 위 AI-server 변경분 구현 완료
 > - `AiClientImpl`이 HTTP `500`을 별도로 잡아 `BusinessException(AI_CONFIG_ERROR)`를 즉시 던진다. **재시도하지 않는다** — `AiRetryableException`으로 감싸지 않아 `withRetry`의 재시도 루프를 아예 타지 않는다(QUOTA_EXCEEDED와 같은 층위). 공개 계약(`api-contract.md`)에도 같은 코드명·`500`으로 노출
@@ -138,6 +141,14 @@ X-Internal-Token: {INTERNAL_TOKEN}
 > **`qualityFlags`(카드별)** 는 `api-contract.md`에는 있었으나 이 문서에 빠져 있던 필드입니다 (2026-08-25 보완). `signals.quality_flags`가 **이미지 전체**의 품질이라면, `qualityFlags`는 **`event_id`를 키로 한 카드별** 품질입니다. 두 계약이 같은 형식이어야 백엔드가 변환 코드를 짜지 않으므로 여기에 명시합니다.
 
 `signals.threat_detected: true`는 백엔드가 받는 즉시 프론트엔드에 전달되어야 하는 신호입니다 — 백엔드가 버퍼링하거나 다음 단계까지 지연시키지 않습니다.
+
+#### `amount`의 부호 — 항상 **양수(절대값)** 입니다 (2026-08-26 확정)
+
+계약에 부호 규정이 없어 실측에서 드러난 공백입니다. 자동이체 출금 화면(`-1,200,000원`)을 판독하면 음수가 나올 수 있는데, 기준이 없으면 백엔드의 금액 대조가 부호 때문에 어긋납니다.
+
+- **`amount`는 거래 금액의 크기만 담습니다.** 입금·출금 방향은 `source_type`(`bank`/`autopay`)과 `actor`, `summary`가 나타냅니다.
+- **AI-server가 후처리에서 절대값으로 강제**합니다(LLM 판단에 맡기지 않음).
+- 소명서 본문도 "1,200,000원이 출금되었습니다"처럼 씁니다 — 문장에 음수 기호가 들어가지 않습니다.
 
 #### `source_type` (2026-08-25 확정)
 

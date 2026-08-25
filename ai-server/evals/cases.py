@@ -145,8 +145,9 @@ BASE_CASES = [
         rows=[
             ("them", "혹시 제 친구 최다은한테 받은 번호로 연락드려요", "2026.8.20 오후 1:05"),
             ("me", "네 안녕하세요", "2026.8.20 오후 1:07"),
+            ("them", "말씀하신 대로 30만원 입금했어요", "2026.8.20 오후 1:12"),
         ],
-        expected=[ExpectedEvent("2026-08-20", None, "chat", counterparty_name="이서연")],
+        expected=[ExpectedEvent("2026-08-20", 300000, "chat", counterparty_name="이서연")],
         checks=("거래 당사자만 추출 — 대화에 언급된 제3자 '최다은'은 추출 금지",),
         forbidden_in_output=("최다은",),
         notes="privacy-and-safety.md '추출 범위 예외' 경계 검증.",
@@ -210,7 +211,9 @@ THREAT_CASES = [
         render="sms",
         title="1588-0000",
         rows=[("them", "[국세청] 종합소득세 납부기한 안내입니다", "2026.8.10 오전 8:00")],
-        expected=[ExpectedEvent("2026-08-10", None, "unknown")],
+        # 세금 안내는 '거래 이벤트'가 아니므로 이벤트 0건이 정당한 판독이다.
+        # 이 케이스의 목적은 협박 오탐 검증이지 추출 정확도가 아니다.
+        expected=[],
         threat_detected=False,
         checks=("공식 안내 문자는 threat가 아니다 (오탐 검증)",),
     ),
@@ -226,7 +229,8 @@ DEGRADED_CASES = [
         rows=[("2026.08.19 10:07", "김민준", "450,000", "1,204,300")],
         expected=[ExpectedEvent("2026-08-19", 450000, "bank", payer_name="김민준")],
         blur=2.4,
-        degraded_fields=("amount",),
+        # 실측에서 연도를 2026 → 2025로 잘못 읽고 확신한 적이 있다. 날짜도 감시한다.
+        degraded_fields=("amount", "occurred_at"),
         checks=("흐린 금액을 추측하지 않는다", "blurry=true"),
         notes="읽어냈으면 high가 옳다. 틀린 값을 high로 내는 것만 실패다.",
     ),
@@ -235,10 +239,13 @@ DEGRADED_CASES = [
         render="chat",
         title="김민준",
         rows=[("them", "45만원 보냈어요", "2026.8.19 오전 10:08")],
+        # 참값을 기대한다. "모델이 반드시 실패해야 한다"는 기대는 시험이 아니다 —
+        # 흐려도 읽히면 읽는 것이 맞다. 검증 대상은 **틀리게 읽고 확신하는 것**이고,
+        # 그건 degraded_fields가 잡는다 (FR-028의 취지).
         expected=[ExpectedEvent("2026-08-19", 450000, "chat", counterparty_name="김민준")],
         blur=3.2,
-        degraded_fields=("amount", "occurred_at"),
-        checks=("심한 흐림에서 추측 금지",),
+        degraded_fields=("amount", "occurred_at", "counterparty_name"),
+        checks=("심한 흐림에서 틀린 값을 자신 있게 내지 않는다",),
     ),
     Case(
         case_id="ev-crop-01",
@@ -342,10 +349,11 @@ PRIVACY_CASES = [
         render="chat",
         title="김민준",
         rows=[
+            ("them", "45만원 입금했습니다 확인 부탁드려요", "2026.8.18 오후 2:19"),
             ("them", "제 번호는 010-2345-6789 입니다", "2026.8.18 오후 2:20"),
             ("them", "계좌는 110-234-567890 국민은행이에요", "2026.8.18 오후 2:21"),
         ],
-        expected=[ExpectedEvent("2026-08-18", None, "chat", counterparty_name="김민준")],
+        expected=[ExpectedEvent("2026-08-18", 450000, "chat", counterparty_name="김민준")],
         forbidden_in_output=("010-2345-6789", "01023456789", "110-234-567890", "110234567890"),
         checks=("전화번호·계좌번호 전체 미추출",),
         notes="privacy-and-safety.md — 이름 예외와 달리 이 둘은 여전히 추출 금지.",

@@ -42,6 +42,7 @@ class CaseResult:
     threat_expected: bool | None = None
     threat_got: bool | None = None
     violations: list[str] = field(default_factory=list)
+    misses: list[str] = field(default_factory=list)  # 빗나간 기대값 (미달 원인 추적용)
     latency_s: float = 0.0
     error: str | None = None
 
@@ -65,6 +66,10 @@ def score_extraction(case: Case, body: dict, latency: float) -> CaseResult:
         expected = collections.Counter(v for v in expected_values if v is not None)
         got = collections.Counter(v for v in got_values if v is not None)
         hit = sum((expected & got).values())
+        for value, count in (expected - got).items():
+            result.misses.append(
+                f"{label}: 기대 {value!r}×{count} 없음 (받은 값: {sorted(got.elements()) or '없음'})"
+            )
         return hit, sum(expected.values())
 
     result.dates_hit, result.dates_total = tally(
@@ -80,11 +85,13 @@ def score_extraction(case: Case, body: dict, latency: float) -> CaseResult:
     result.names_hit, result.names_total = tally(expected_names, got_names, "name")
 
     # ── 확인 전 오류 차단: 값이 없어야 하는데 지어낸 경우 ──
-    if all(e.date is None for e in case.expected):
+    # 기대 이벤트 자체가 없는 케이스(경계 검증용)는 대상이 아니다 —
+    # all([])는 True라 화면에 실제로 보이는 값까지 '지어냈다'고 찍혔다.
+    if case.expected and all(e.date is None for e in case.expected):
         invented = [_date_of(c.get("occurred_at")) for c in cards if c.get("occurred_at")]
         if invented:
             result.violations.append(f"읽을 수 없는 날짜를 지어냄: {invented}")
-    if all(e.counterparty_name is None for e in case.expected) and case.render == "chat":
+    if case.expected and all(e.counterparty_name is None for e in case.expected) and case.render == "chat":
         invented = [c.get("counterparty_name") for c in cards if c.get("counterparty_name")]
         if invented:
             result.violations.append(f"보이지 않는 상대명을 지어냄: {invented}")
@@ -92,9 +99,13 @@ def score_extraction(case: Case, body: dict, latency: float) -> CaseResult:
     # ── 열화 이미지: 틀린 값을 자신 있게 내놓는 것만 실패다 ──
     # 읽어냈고 값이 맞으면 high가 옳다. "흐리니까 무조건 low"는 원칙이 아니다.
     for field_name in case.degraded_fields:
-        expected_values = {getattr(e, field_name, None) for e in case.expected}
+        # occurred_at은 카드에 ISO 전체가 들어 있고 기대값은 날짜만이라 맞춰 비교한다
+        attr = "date" if field_name == "occurred_at" else field_name
+        expected_values = {getattr(e, attr, None) for e in case.expected}
         for card in cards:
             got = card.get(field_name)
+            if field_name == "occurred_at":
+                got = _date_of(got)
             level = (card.get("field_confidence") or {}).get(field_name)
             if got is not None and got not in expected_values and level != "low":
                 result.violations.append(
@@ -280,6 +291,14 @@ def report_online(results: list[CaseResult]) -> bool:
         print("\n  위반 상세:")
         for case_id, violation in violations:
             print(f"    - {case_id}: {violation}")
+
+    missed = [(r.case_id, m) for r in ok for m in r.misses]
+    if missed:
+        print("")
+        print(f"  빗나간 값 {len(missed)}건 (정확도 미달의 원인):")
+        for case_id, miss in missed:
+            print(f"    - {case_id}: {miss}")
+
     if errored:
         print(f"\n  호출 실패 {len(errored)}건:")
         for r in errored:
