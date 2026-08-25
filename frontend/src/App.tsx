@@ -57,6 +57,8 @@ function App() {
 
   const ctaDisabled =
     (stage === 1 && !flow.intakePageAnswered) ||
+    // 판독이 끝나기 전에 조립을 부르면 아직 없는 카드로 타임라인을 만든다.
+    (stage === 2 && flow.extracting) ||
     (stage === 2 && assembling && flow.analyzing) ||
     (stage === 2 && !uploading && !assembling && cardsBlock) ||
     (stage === 4 && !flow.draftShown)
@@ -133,6 +135,7 @@ function App() {
                 wide={wide}
                 analyzing={flow.analyzing}
                 analyzed={flow.analyzed}
+                extracting={flow.extracting}
                 timelineRunId={flow.timelineRunId}
                 timeline={flow.timeline}
                 onToggle={flow.toggle}

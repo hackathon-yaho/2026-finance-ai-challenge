@@ -16,6 +16,8 @@ interface EvidenceStageProps {
   wide: boolean
   analyzing: boolean
   analyzed: boolean
+  /** `/api/evidence` 판독 중. 이 동안에는 결과 화면을 보여주지 않는다. */
+  extracting: boolean
   timelineRunId: number
   timeline: TimelineEvent[]
   onToggle: (id: EvidenceId) => void
@@ -62,6 +64,7 @@ export function EvidenceStage({
   wide,
   analyzing,
   analyzed,
+  extracting,
   timelineRunId,
   timeline,
   onToggle,
@@ -119,6 +122,39 @@ export function EvidenceStage({
         onRemoveFile={onRemoveUpload}
         onPreviewFile={onPreviewUpload}
       />
+    )
+  }
+
+  /**
+   * 판독이 도는 동안 **"읽었어요"라고 말하지 않는다.**
+   *
+   * 종전에는 `[이 자료로 계속하기]`를 누르는 즉시 이 화면으로 바뀌면서 완료형 제목과 빈
+   * 카드 목록이 먼저 뜨고, 응답이 오면 카드가 튀어나왔다. 다 읽은 화면을 보여줬다가 다시
+   * 그리는 셈이라 **고장으로 읽힌다.** 몇 장을 읽고 있는지까지 말해준다 — 장수만큼 시간이
+   * 걸린다는 것을 알면 기다릴 수 있다.
+   */
+  if (extracting) {
+    return (
+      <div className="stagger flex flex-col gap-6">
+        <div>
+          <div className="text-[28px] leading-[1.3] font-bold tracking-tight">자료를 읽고 있어요</div>
+          <p className="mt-1.5 text-[15px] leading-normal text-muted">
+            {uploadedFiles.length > 0
+              ? `${uploadedFiles.length}장을 하나씩 읽고 있어요. 잠시만 기다려주세요.`
+              : "적어주신 내용을 정리하고 있어요. 잠시만 기다려주세요."}
+          </p>
+        </div>
+        {/* 몇 장짜리인지 보이도록 올린 장수만큼 자리를 잡아둔다. 끝나면 이 자리에 카드가 온다. */}
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: Math.max(uploadedFiles.length, 1) }).map((_, i) => (
+            <div
+              key={i}
+              className="h-[104px] animate-pulse rounded-2xl border border-border bg-surface"
+              style={{ animationDelay: `${i * 0.12}s` }}
+            />
+          ))}
+        </div>
+      </div>
     )
   }
 
@@ -183,6 +219,29 @@ export function EvidenceStage({
           />
         ))}
       </div>
+
+      {/**
+       * 읽었는데 **아무것도 못 찾은 경우.** 판독 실패(EXTRACTION_FAILED)와 다르다 — 호출은
+       * 성공했고 결과가 비어 있을 뿐이다. 종전에는 이 자리가 그냥 비어 있어서, 사용자는
+       * 자기 자료가 왜 사라졌는지 알 수 없었다. **없는 것을 만들어 채우지 않고 그대로
+       * 말하고**, 대신 갈 곳(F3-04 텍스트 입력)을 준다.
+       */}
+      {cards.length === 0 && (
+        <div className="rounded-2xl bg-surface p-4">
+          <div className="text-[15px] font-semibold">읽을 수 있는 거래 내용을 찾지 못했어요</div>
+          <p className="mt-1 text-[13px] leading-normal text-muted">
+            화면이 잘렸거나 글씨가 흐리면 읽지 못할 수 있어요. 다시 캡처해서 올리시거나, 있었던 일을
+            글로 적어주시면 그걸로 정리해드려요.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenTextEntry}
+            className="mt-3 h-11 rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink"
+          >
+            글로 직접 쓰기
+          </button>
+        </div>
+      )}
 
       {unconfirmedCount > 0 && blockingCount === 0 && (
         <p className="text-[13px] leading-normal text-muted">

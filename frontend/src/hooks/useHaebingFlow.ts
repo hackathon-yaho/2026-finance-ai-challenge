@@ -153,6 +153,8 @@ export function useHaebingFlow() {
   /** `/api/draft/revise`가 준 경고. 서버 문자열을 그대로 노출한다. */
   const [reviseWarning, setReviseWarning] = useState<string | null>(null)
   const [sessionReady, setSessionReady] = useState(!live)
+  /** `/api/evidence` 판독이 도는 중. 화면이 "읽었어요"라고 말하기 전에 알아야 한다. */
+  const [extracting, setExtracting] = useState(false)
   // `runLive`가 `restart`보다 위에 있어야 하는데 서로를 참조한다. ref로 끊는다.
   const restartRef = useRef<(() => void) | null>(null)
   /** 이미 `/api/evidence`로 보낸 파일 수. 다음 `imageIndex`의 시작점이기도 하다. */
@@ -610,9 +612,10 @@ export function useHaebingFlow() {
       setAnalyzed(false)
       setDraftShown(false)
       if (!live) return
+      setExtracting(true)
       void runLive(() =>
         api.submitEvidenceText(text).then((res) => setServer((prev) => ({ ...prev, cards: res.cards }))),
-      )
+      ).finally(() => setExtracting(false))
     },
     [live, runLive],
   )
@@ -638,6 +641,7 @@ export function useHaebingFlow() {
     if (pending.length === 0) return
     const offset = sentCount.current
     sentCount.current = uploadedFiles.length
+    setExtracting(true)
     void runLive(async () => {
       const uploads = await Promise.all(
         pending.map(async (file, i) => ({ blob: await (await fetch(file.url)).blob(), imageIndex: offset + i })),
@@ -649,7 +653,7 @@ export function useHaebingFlow() {
       const fresh = results.flatMap((r) => r.data?.cards ?? [])
       setServer((prev) => ({ ...prev, cards: [...(prev.cards ?? []), ...fresh] }))
       return results
-    })
+    }).finally(() => setExtracting(false))
   }, [live, runLive, showToast, uploadedFiles])
 
   const backToUpload = useCallback(() => {
@@ -719,6 +723,7 @@ export function useHaebingFlow() {
     setEditingFileId(null)
     setServer(EMPTY_SERVER)
     setReviseWarning(null)
+    setExtracting(false)
     sentCount.current = 0
     // 세션도 새로 판다. 이전 세션에 남은 카드가 다음 사용자의 준비도에 섞이면 안 된다.
     if (live) void api.createSession().catch(() => null)
@@ -1018,6 +1023,7 @@ export function useHaebingFlow() {
     bankConfirmed,
     analyzing,
     analyzed,
+    extracting,
     analyze,
     timelineRunId,
     historyOverride,
