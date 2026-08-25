@@ -58,6 +58,14 @@ export function useHaebingFlow() {
   // 별지 제4호서식 11필드 (S04-1). 값은 PDF 생성에만 쓰고 어디에도 저장하지 않는다.
   const [legalForm, setLegalForm] = useState<LegalFormValues>(EMPTY_LEGAL_FORM)
   const [legalFormOpen, setLegalFormOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  /** 미리보기에서 뺀 문장. `/api/package/text` 요청의 `excludedSentenceIds`로 나간다. */
+  const [excludedSentences, setExcludedSentences] = useState<ReadonlySet<string>>(() => new Set())
+  /**
+   * 사용자가 미리보기를 거쳐 내려받은 시각. F8-01 하단 표기의 `{시각}`이 이 값이다.
+   * **확인 단계를 거치기 전에는 "확인 완료"라고 적지 않는다** — 그 표기가 사실이어야 한다.
+   */
+  const [packageConfirmedAt, setPackageConfirmedAt] = useState<string | null>(null)
   const [drafting, setDrafting] = useState(false)
   const [draftShown, setDraftShown] = useState(false)
   const [viewer, setViewer] = useState<ViewerId | null>(null)
@@ -249,6 +257,24 @@ export function useHaebingFlow() {
   const submitLegalForm = useCallback((values: LegalFormValues) => {
     setLegalForm(values)
     setLegalFormOpen(false)
+    setPreviewOpen(true)
+  }, [])
+
+  const closePreview = useCallback(() => setPreviewOpen(false), [])
+
+  const toggleExcludedSentence = useCallback((sentenceId: string) => {
+    setExcludedSentences((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(sentenceId)) next.add(sentenceId)
+      return next
+    })
+  }, [])
+
+  const confirmPackage = useCallback(() => {
+    setPreviewOpen(false)
+    setPackageConfirmedAt(
+      new Date().toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" }),
+    )
   }, [])
 
   const makeDraft = useCallback(() => {
@@ -380,6 +406,9 @@ export function useHaebingFlow() {
     setSelfHeld(new Set())
     setLegalForm(EMPTY_LEGAL_FORM)
     setLegalFormOpen(false)
+    setPreviewOpen(false)
+    setExcludedSentences(new Set())
+    setPackageConfirmedAt(null)
     setDrafting(false)
     setDraftShown(false)
     setViewer(null)
@@ -488,6 +517,12 @@ export function useHaebingFlow() {
     openLegalForm,
     closeLegalForm,
     submitLegalForm,
+    previewOpen,
+    closePreview,
+    excludedSentences,
+    toggleExcludedSentence,
+    confirmPackage,
+    packageConfirmedAt,
     drafting,
     draftShown,
     makeDraft,

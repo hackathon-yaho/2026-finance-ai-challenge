@@ -4,7 +4,7 @@ import type { DraftLine, EvidenceState, IntakeAnswers } from "../types"
 export function buildDraftLines(intake: IntakeAnswers, evidence: EvidenceState, bankConfirmed: boolean): DraftLine[] {
   const amountInfo = getAmountInfo(intake.amount)
   const kind = intake.kind && intake.kind !== "잘 모르겠어요" ? intake.kind : "거래"
-  const lines: DraftLine[] = []
+  const lines: Omit<DraftLine, "id">[] = []
 
   // 본인 진술 문장은 문진 응답이 근거다. 입금액을 "모름"으로 두었으면 숫자를 임의로 채우지
   // 않고 미상으로 남긴다 (FR-028 — 확인 불가한 값은 미상으로 유지).
@@ -65,5 +65,6 @@ export function buildDraftLines(intake: IntakeAnswers, evidence: EvidenceState, 
     ref: null,
   })
 
-  return lines
+  // 문장 id는 계약과 같은 형식(s1, s2…)으로 매긴다. 제외·근거 연결이 이 값을 쓴다.
+  return lines.map((line, i) => ({ ...line, id: `s${i + 1}` }))
 }

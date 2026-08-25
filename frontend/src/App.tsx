@@ -2,6 +2,7 @@ import { BottomCta } from "./components/BottomCta"
 import { DateSheet } from "./components/DateSheet"
 import { ImageLightbox } from "./components/ImageLightbox"
 import { LegalFormSheet } from "./components/LegalFormSheet"
+import { PreviewSheet } from "./components/PreviewSheet"
 import { MaskingSheet } from "./components/MaskingSheet"
 import { DraftStage } from "./components/stages/DraftStage"
 import { EvidenceStage } from "./components/stages/EvidenceStage"
@@ -141,6 +142,7 @@ function App() {
                 draftShown={flow.draftShown}
                 draftLines={flow.draftLines}
                 checklist={flow.checklist}
+                confirmedAt={flow.packageConfirmedAt}
                 selfHeld={flow.selfHeld}
                 onToggleSelfHeld={flow.toggleSelfHeld}
                 confirmedCount={flow.confirmedCount}
@@ -211,12 +213,30 @@ function App() {
         <LegalFormSheet
           width={width}
           initial={flow.legalForm}
-          onSubmit={(values) => {
-            flow.submitLegalForm(values)
-            // 미리보기(S04-2)는 8/29~8/31 작업이다. 그때까지 다음 단계 안내만 띄운다.
+          onSubmit={flow.submitLegalForm}
+          onClose={flow.closeLegalForm}
+        />
+      )}
+
+      {flow.previewOpen && (
+        <PreviewSheet
+          width={width}
+          form={flow.legalForm}
+          draftLines={flow.draftLines}
+          timeline={flow.timeline}
+          checklist={flow.checklist}
+          uploadedFiles={flow.uploadedFiles}
+          excluded={flow.excludedSentences}
+          onToggleExcluded={flow.toggleExcludedSentence}
+          onBackToEvidence={() => {
+            flow.closePreview()
+            flow.go(2)
+          }}
+          onDownload={() => {
+            flow.confirmPackage()
             flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")
           }}
-          onClose={flow.closeLegalForm}
+          onClose={flow.closePreview}
         />
       )}
 

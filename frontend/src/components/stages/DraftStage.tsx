@@ -6,6 +6,8 @@ interface DraftStageProps {
   draftShown: boolean
   draftLines: DraftLine[]
   checklist: ChecklistItem[]
+  /** 미리보기를 거쳐 내려받은 시각. 그 전에는 "확인 완료"라고 적지 않는다 (F8-01 표기). */
+  confirmedAt: string | null
   selfHeld: ReadonlySet<string>
   onToggleSelfHeld: (id: string) => void
   confirmedCount: number
@@ -30,6 +32,7 @@ export function DraftStage({
   draftShown,
   draftLines,
   checklist,
+  confirmedAt,
   selfHeld,
   onToggleSelfHeld,
   confirmedCount,
@@ -67,7 +70,11 @@ export function DraftStage({
                   오는 동안 초안을 확인한 적이 없다 — 생성하면 바로 붙던 문구라 사실이 아니었다.
                   확인 단계(S04-2 미리보기)가 들어오면 그때 "확인 완료 {시각}"을 붙인다.
                   근거: docs/response/backend/draft-preview-and-edit.md §0·§5-2 */}
-              <div className="mt-0.5 text-xs text-muted">AI 초안 · 내려받기 전에 확인해주세요 · 최종 판단은 금융회사</div>
+              <div className="mt-0.5 text-xs text-muted">
+                {confirmedAt
+                  ? `AI 초안 · 사용자 확인 완료 ${confirmedAt} · 최종 판단은 금융회사`
+                  : "AI 초안 · 내려받기 전에 확인해주세요 · 최종 판단은 금융회사"}
+              </div>
             </div>
             {draftLines.map((line, i) => (
               <div

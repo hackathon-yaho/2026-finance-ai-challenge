@@ -110,6 +110,8 @@ export interface ReadinessResult {
 }
 
 export interface DraftLine {
+  /** `/api/draft` 응답의 `sentenceId`와 같은 자리. 문장 제외가 이 값을 키로 쓴다. */
+  id: string
   text: string
   badge: string | null
   ref: ViewerId | null
