@@ -213,3 +213,67 @@ def test_draft_without_any_facts_fails(client):
     )
     assert response.status_code == 502
     assert response.json()["error"] == "DRAFT_FAILED"
+
+
+def test_missing_llm_key_is_config_error_not_extraction_failed(client, monkeypatch):
+    """설정 오류를 판독 실패로 감싸면 사용자를 텍스트 입력으로 보내는데 해결되지 않는다.
+
+    프론트가 로컬 연동에서 발견 (docs/request/ai/llm-provider-mismatch.md).
+    """
+    from app.llm import client as llm_client
+
+    monkeypatch.setattr(llm_client, "api_key_present", lambda: False)
+
+    calls = []
+    monkeypatch.setattr(
+        llm_client, "_structured_call", lambda **kw: calls.append(kw)
+    )
+
+    response = client.post(
+        "/internal/extract", json={"rawText": "9월 1일 30만원 입금"}, headers=AUTH
+    )
+    assert response.status_code == 500
+    body = response.json()
+    assert body["error"] == "AI_CONFIG_ERROR"
+    assert "fallback" not in body  # 텍스트 입력으로 유도하지 않는다
+    assert calls == []  # 재시도는커녕 호출조차 하지 않는다
+
+
+def test_text_path_failure_has_no_text_input_fallback(client, monkeypatch):
+    """이미 텍스트로 보낸 요청에 '텍스트로 입력하세요'를 주면 같은 자리를 맴돈다."""
+    from app.llm import client as llm_client
+
+    monkeypatch.setattr(llm_client, "api_key_present", lambda: True)
+
+    async def boom(**_kwargs):
+        raise llm_client.LLMCallFailed("schema_mismatch")
+
+    monkeypatch.setattr(llm_client, "_structured_call", boom)
+
+    response = client.post(
+        "/internal/extract", json={"rawText": "9월 1일 30만원 입금"}, headers=AUTH
+    )
+    assert response.status_code == 502
+    body = response.json()
+    assert body["error"] == "EXTRACTION_FAILED"
+    assert "fallback" not in body
+    assert "이미지" not in body["message"]
+
+
+def test_image_path_failure_keeps_text_input_fallback(client, monkeypatch):
+    from app.llm import client as llm_client
+
+    monkeypatch.setattr(llm_client, "api_key_present", lambda: True)
+
+    async def boom(**_kwargs):
+        raise llm_client.LLMCallFailed("schema_mismatch")
+
+    monkeypatch.setattr(llm_client, "_structured_call", boom)
+
+    response = client.post(
+        "/internal/extract?image_index=0",
+        content=PNG,
+        headers={"Content-Type": "image/png", **AUTH},
+    )
+    assert response.status_code == 502
+    assert response.json()["fallback"] == "text_input"

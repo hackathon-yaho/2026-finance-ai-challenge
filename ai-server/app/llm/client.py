@@ -5,6 +5,7 @@
 
 import asyncio
 import logging
+import os
 import time
 from typing import Any, TypeVar
 
@@ -13,7 +14,14 @@ from anthropic import AsyncAnthropic
 from pydantic import BaseModel, ValidationError
 
 from ..config import settings
-from ..errors import ContractError, draft_failed, extraction_failed, quota_exceeded, timeout_error
+from ..errors import (
+    ContractError,
+    config_error,
+    draft_failed,
+    extraction_failed,
+    quota_exceeded,
+    timeout_error,
+)
 from . import prompts
 
 log = logging.getLogger("ai.llm")
@@ -22,6 +30,11 @@ _client: AsyncAnthropic | None = None
 _semaphore: asyncio.Semaphore | None = None
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def api_key_present() -> bool:
+    """LLM API 키가 설정돼 있는가. 기동 로그와 호출 전 점검에서 함께 쓴다."""
+    return bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
 
 
 def _get_client() -> AsyncAnthropic:
@@ -61,6 +74,7 @@ async def _structured_call(
     effort: str,
     max_tokens: int,
     label: str,
+    fallback: bool = True,
 ) -> T:
     started = time.monotonic()
     client = _get_client()
@@ -75,9 +89,13 @@ async def _structured_call(
             )
         except anthropic.APITimeoutError as exc:
             log.warning("%s timeout after %.1fs", label, time.monotonic() - started)
-            raise timeout_error() from exc
+            raise timeout_error(fallback=fallback) from exc
         except anthropic.RateLimitError as exc:
             raise quota_exceeded() from exc
+        except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as exc:
+            # 키가 틀렸거나 권한이 없다 — 다시 불러도 같다. 설정 오류로 분리한다.
+            log.error("%s llm auth failed (%s) — 설정 확인 필요", label, type(exc).__name__)
+            raise config_error() from exc
         except anthropic.APIStatusError as exc:
             if exc.status_code == 429:
                 raise quota_exceeded() from exc
@@ -120,6 +138,12 @@ async def _structured_call(
 
 
 async def _call_with_retry(budget: float, on_fail: ContractError, **kwargs: Any) -> Any:
+    if not api_key_present():
+        # 재시도해도 결과가 같다. 판독 실패로 감싸면 사용자가 텍스트 입력으로
+        # 보내지는데 그래도 해결되지 않는다 (계약 AI_CONFIG_ERROR 절).
+        log.error("%s LLM API 키가 설정되지 않았습니다 — set_key.ps1 또는 Secret Manager 확인", kwargs.get("label"))
+        raise config_error()
+
     started = time.monotonic()
     try:
         return await _structured_call(**kwargs)
@@ -135,10 +159,19 @@ async def _call_with_retry(budget: float, on_fail: ContractError, **kwargs: Any)
             raise on_fail from second
 
 
-async def extract_structured(user_content: Any) -> prompts.LLMExtraction:
+async def extract_structured(user_content: Any, *, is_text: bool = False) -> prompts.LLMExtraction:
+    """is_text이면 실패 메시지에서 '이미지'를 빼고 fallback도 주지 않는다.
+
+    텍스트로 보낸 요청에 "텍스트로 입력하세요"를 대안으로 주면 같은 자리를 맴돈다.
+    """
+    message = (
+        "입력하신 내용에서 거래 정보를 찾지 못했습니다."
+        if is_text
+        else "이미지에서 내용을 읽지 못했습니다."
+    )
     return await _call_with_retry(
         budget=settings.handler_budget_extract,
-        on_fail=extraction_failed("이미지에서 내용을 읽지 못했습니다."),
+        on_fail=extraction_failed(message, fallback=not is_text),
         system=prompts.EXTRACT_SYSTEM,
         user_content=user_content,
         schema=prompts.EXTRACT_OUTPUT_SCHEMA,
@@ -146,7 +179,8 @@ async def extract_structured(user_content: Any) -> prompts.LLMExtraction:
         timeout=settings.llm_timeout_extract,
         effort=settings.extract_effort,
         max_tokens=8000,
-        label="extract",
+        label="extract-text" if is_text else "extract",
+        fallback=not is_text,
     )
 
 
@@ -162,4 +196,5 @@ async def draft_structured(user_text: str) -> prompts.LLMDraft:
         effort=settings.draft_effort,
         max_tokens=8000,
         label="draft",
+        fallback=False,
     )

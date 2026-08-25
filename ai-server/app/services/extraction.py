@@ -122,7 +122,7 @@ async def extract_text(raw_text: str) -> ExtractResponse:
         + raw_text
         + "\n----- 사용자 서술 끝 -----"
     )
-    out = await llm_client.extract_structured([{"type": "text", "text": content}])
+    out = await llm_client.extract_structured([{"type": "text", "text": content}], is_text=True)
 
     if out.injection_suspected:
         log.info("injection_suspected source=text")

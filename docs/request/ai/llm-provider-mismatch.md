@@ -1,8 +1,11 @@
 # [프론트 → AI] 키 등록 화면이 OpenAI를 고를 수 있는데, OpenAI를 쓰는 코드가 없습니다
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/frontend/llm-provider-mismatch.md`에 들어옵니다.
-> **막고 있는 작업**: 없음 — 프론트는 anthropic 키로 다시 등록하면 진행됩니다. 다만 **다음 사람이 같은 데서 막힙니다.**
+> **상태: ✅ 회신 완료 (2026-08-26) — 제안 5건 전부 반영**
+> - 회신: `../../response/frontend/llm-provider-mismatch.md`
+> - **결론 요약**: `AI_CONFIG_ERROR`(500) 신설(재시도 없음·`fallback` 없음), 텍스트 경로 메시지·`fallback` 정정, 기동 시 키 확인 로그, OpenAI 선택지 "미지원" 표시, `.env.example` 정리. 계약 문서(`../../02-architecture/internal-api-contract.md`)에 반영하고 회귀 테스트 3건으로 고정
+> - **남은 것**: 없음. 공급자 교체(OpenAI) 결정은 별건으로 진행
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 프론트엔드 · 2026-08-26
 - 확인 환경: 로컬 (`python@3.12` venv + `uvicorn app.main:app --port 8000`), macOS
