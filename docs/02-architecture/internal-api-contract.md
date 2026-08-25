@@ -1,5 +1,8 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-26 ③, 백엔드)** — 위 `amount` 부호 확정 건 확인, 코드 변경 없음
+> - 백엔드는 `amount`를 항상 **크기 비교(동등 비교)·포맷 출력**에만 씁니다(`TimelineServiceImpl`의 충돌 탐지, `EvidenceServiceImpl`의 `distinctAmounts`, `PackageServiceImpl`의 "%,d원" 포맷). 부호를 읽거나 가정하는 코드가 없어 **고칠 곳이 없습니다**
+
 > **수정 기록 (2026-08-26 ②, 백엔드)** — 위 AI-server 변경분 구현 완료
 > - `AiClientImpl`이 HTTP `500`을 별도로 잡아 `BusinessException(AI_CONFIG_ERROR)`를 즉시 던진다. **재시도하지 않는다** — `AiRetryableException`으로 감싸지 않아 `withRetry`의 재시도 루프를 아예 타지 않는다(QUOTA_EXCEEDED와 같은 층위). 공개 계약(`api-contract.md`)에도 같은 코드명·`500`으로 노출
 > - `extractFromText`(텍스트 경로) 실패는 이제 `fallback` 없이, 메시지도 "입력하신 내용에서 사실을 확인하지 못했습니다"로 이미지 경로(`EXTRACTION_FAILED` 기본 메시지)와 분리했다
