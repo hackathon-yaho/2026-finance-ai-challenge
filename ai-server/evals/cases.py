@@ -65,6 +65,9 @@ BASE_CASES = [
             ("them", "아이패드 아직 판매하시나요?", "2026.8.18 오후 2:10"),
             ("me", "네 판매합니다", "2026.8.18 오후 2:12"),
             ("them", "45만원에 살게요 계좌 알려주세요", "2026.8.18 오후 2:15"),
+            ("me", "확인하고 알려드릴게요", "2026.8.18 오후 2:16"),
+            ("them", "네 오늘 중으로 입금할게요", "2026.8.18 오후 2:18"),
+            ("me", "감사합니다", "2026.8.18 오후 2:19"),
         ],
         expected=[ExpectedEvent("2026-08-18", 450000, "chat", counterparty_name="김민준")],
         checks=("대화 상대 표시명 추출", "금액 추출", "source_type=chat"),
@@ -358,8 +361,40 @@ PRIVACY_CASES = [
     ),
 ]
 
+# ── 한 이미지에 유형이 섞임 (source_type이 이벤트 단위인 이유) ────────────
+
+MIXED_CASES = [
+    Case(
+        case_id="ev-mixed-01",
+        render="chat",
+        title="김민준",
+        rows=[
+            ("them", "방금 입금했어요", "2026.8.19 오전 10:07"),
+            ("notice", "김민준님이 450,000원을 보냈습니다", "2026.8.19 오전 10:07"),
+            ("me", "확인했습니다 오늘 발송할게요", "2026.8.19 오전 10:30"),
+        ],
+        expected=[
+            ExpectedEvent("2026-08-19", None, "chat", counterparty_name="김민준"),
+            ExpectedEvent("2026-08-19", 450000, "bank", payer_name="김민준"),
+        ],
+        checks=(
+            "한 이미지에서 chat과 bank를 분리 판정",
+            "이미지 단위로 source_type을 매기면 실패",
+        ),
+        notes="계약이 source_type을 이벤트 단위로 둔 근거가 이 상황이다"
+        " (internal-api-contract.md source_type 절). 평가 세트에 이 조건이 없었다 —"
+        " 프론트 회신(image-delivery-spec)에서 실전 캡처가 더 길다는 지적을 받고 발견했다.",
+    ),
+]
+
 ALL_CASES: list[Case] = (
-    BASE_CASES + THREAT_CASES + DEGRADED_CASES + CONFLICT_CASES + INJECTION_CASES + PRIVACY_CASES
+    BASE_CASES
+    + THREAT_CASES
+    + DEGRADED_CASES
+    + CONFLICT_CASES
+    + INJECTION_CASES
+    + PRIVACY_CASES
+    + MIXED_CASES
 )
 
 

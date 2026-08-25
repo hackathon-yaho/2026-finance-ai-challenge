@@ -18,7 +18,10 @@ from .cases import ALL_CASES, Case
 
 OUT = pathlib.Path(__file__).parent / "images"
 
-W, H = 720, 1180
+# 실제 전송본 규격에 맞춘다 — 프론트 실측 738×1600 PNG
+# (docs/response/ai/image-delivery-spec.md). 글자 크기는 27px 그대로 두고
+# 세로만 늘려 이벤트 밀도를 실전에 맞춘다.
+W, H = 738, 1600
 TOPBAR_H = 96
 
 FONT_CANDIDATES = [
@@ -66,6 +69,16 @@ def render_chat(case: Case, img: Image.Image) -> None:
     body, meta = load_font(27), load_font(19)
     y = TOPBAR_H + 40
     for who, text, when in case.rows:
+        if who == "notice":
+            # 대화 화면 안에 뜬 은행 입금 알림 카드 — 한 이미지에 유형이 섞이는 조건
+            card_h = 118
+            draw.rounded_rectangle([40, y, W - 40, y + card_h], radius=14, fill=(255, 255, 255))
+            draw.rectangle([40, y, 48, y + card_h], fill=(28, 63, 148))
+            draw.text((70, y + 16), "입금 알림", font=meta, fill=(28, 63, 148))
+            draw.text((70, y + 44), text, font=body, fill=(20, 20, 20))
+            draw.text((70, y + 84), when, font=meta, fill=(120, 126, 138))
+            y += card_h + 26
+            continue
         mine = who == "me"
         lines = wrap(text, body, 400)
         bw = max(body.getlength(line) for line in lines) + 36
