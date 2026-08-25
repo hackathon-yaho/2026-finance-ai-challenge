@@ -1,5 +1,9 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-25 ③, 백엔드)** — 근거: `../request/frontend/text-entry-ownership-and-masking.md`, `../request/backend/deploy-handoff.md`
+> - **`/api/evidence/text`의 `rawText`는 프론트엔드가 전송 전 마스킹(주민번호·전화번호·계좌번호)을 마친 값** — FR-027 마스킹 주체 명시에 따른 정정
+> - **`UNCONFIRMED_FIELDS` 게이팅은 값이 존재하는 카드에만 적용** — `amount`/`occurred_at`이 `null`인 카드의 `low` 신뢰도는 게이팅 근거로 읽지 않음
+
 > **수정 기록 (2026-08-25 ②, 백엔드)** — 근거: 프론트 회신 5건 (`../response/backend/evidence-structure-revision.md`, `legal-form-and-package.md`, `honest-disclosure-fixes.md`, `draft-preview-and-edit.md`, `deployment-domain.md`)
 > - **CORS 허용 origin에 프론트 프로덕션 도메인 추가** — `https://2026-finance-ai-challenge-tau.vercel.app` (프리뷰 와일드카드는 종전대로 불허)
 > - **`checklist` 스키마 전면 개정** — `{ item, status }` 2필드 → `id`·`label`·`tier`·`fulfillBy`·`whenMissing`·`status`·`note`·`options`. **택일(OR) 표현**과 **미보유 효과 구분**이 종전 구조로는 불가능했습니다
@@ -44,7 +48,7 @@
 | POST | `/api/intake` | 문진 저장 | `{ when, dueNoticeStatus, dueNoticeDate, amount, kind, history, usage, deliveryMethod }` | `{ ok, nextStage, deadline }` |
 | POST | `/api/evidence` | 이미지 판독 (메모리 통과, 서버 미저장) | `multipart[]` (세션당 누적 최대 10장, 파일당 10MB, JPG/PNG, 클라이언트에서 리사이즈·마스킹 완료된 상태) | `{ cards: [...], signals, qualityFlags }` |
 | POST | `/api/evidence/confirm` | 추출 카드 확인·수정 저장 (FR-028) | `{ cardId, confirmed, corrections }` | `{ ok, confirmedCount, unconfirmedCount }` |
-| POST | `/api/evidence/text` | 텍스트 대체 입력 | `{ rawText }` | `{ cards: [...] }` |
+| POST | `/api/evidence/text` | 텍스트 대체 입력. **`rawText`는 프론트가 전송 전 마스킹을 마친 값**(FR-027, 2026-08-25 확정) | `{ rawText }` | `{ cards: [...] }` |
 | GET | `/api/timeline` | 타임라인 조회 | — | `{ events: [...], gaps: [...], mergeCandidates: [...] }` |
 | POST | `/api/timeline/merge` | 중복 이벤트 병합 승인 (F5-02) | `{ mergeGroupIds, approved }` | `{ events: [...], gaps: [...], mergeCandidates: [...] }` |
 | POST | `/api/checklist/self-held` | **직접 첨부 항목 자가 진술** (2026-08-25 신설) | `{ itemId, held }` | `{ checklist: [...] }` |
@@ -536,7 +540,7 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 | `EXTRACTION_FAILED` | 이미지 판독 실패 | 텍스트 입력 경로(`/api/evidence/text`)로 안내 |
 | `TIMEOUT` | 20초 초과 | 부분 결과 표시 + "일부 자료를 읽지 못했습니다" |
 | `SESSION_EXPIRED` | TTL 30분 초과 (`410 Gone`) | 세션 재생성 후 처음부터 안내. 원본 이미지는 서버에 없었으므로 재업로드 필요 |
-| `UNCONFIRMED_FIELDS` | 날짜·금액이 `low` 신뢰도인 미확인 카드가 남은 채 `/api/readiness` 호출 (`409`) | 해당 카드 확인 화면으로 유도 |
+| `UNCONFIRMED_FIELDS` | 날짜·금액**(값이 `null`이 아닌 경우에 한함)**이 `low` 신뢰도인 미확인 카드가 남은 채 `/api/readiness` 호출 (`409`) | 해당 카드 확인 화면으로 유도 |
 | `INVALID_FORM_FIELD` | `/api/package/text` 요청 바디의 필드가 길이·형식 제한을 위반 (`400`) | 해당 입력 칸에 사유 표시 (빈 값은 위반이 아님) |
 | `QUOTA_EXCEEDED` | LLM API 쿼터 초과 | 오프라인 데모 모드로 전환 (발표 대비, `../04-testing/test-cases-and-demo.md` 참조) |
 
@@ -544,6 +548,7 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.7 (2026-08-25 ③)**: `/api/evidence/text`의 `rawText` 마스킹 주체를 프론트로 명시. `UNCONFIRMED_FIELDS` 게이팅을 값이 존재하는 카드에만 적용하도록 정정
 - **v1.6 (2026-08-25 ②)**: 프론트 회신 5건 반영. **`checklist` 스키마 전면 개정**(2필드 → 8필드, 택일 `options`·`whenMissing` 신설). **`POST /api/checklist/self-held`·`POST /api/draft/revise` 신설.** `/api/package/text` **8 → 11필드** + `excludedSentenceIds`, **면 구성 개정**(부족자료 체크리스트 제외·표지 신설·4면 출처 정정). `/api/intake`에 `deliveryMethod` 신설. `notices` 서버 단일 소스 명시. CORS에 프론트 프로덕션 도메인 등록
 - v1.5 (2026-08-25): AI 회신 3건 반영. 카드 스키마에 `source_type`·`counterparty_name`·`payer_name` + `field_confidence` 2키 추가. `/api/draft` 응답의 `evidenceRefs.type` 3종(`evidence`/`intake`/`user_text`)과 "본인 진술" 배지 규칙 확정. `bbox`가 근사 좌표임을 명시
 - v1.4 (2026-08-24): `/api/package/text` `GET` → `POST` + 요청 바디 8개 필드 정의(전부 선택, `INVALID_FORM_FIELD` 신설). `GET /api/timeline`에 `mergeCandidates` 추가, `POST /api/timeline/merge` 신설(F5-02). `deadline.notice`는 항상 non-null임을 명시. `/api/evidence` 동시 요청 상한 4·업로드 크기 상한·서버 측 매직바이트 검증 명시. CORS 허용 origin·헤더 절 신설(`localhost:5173` 등록, 프리뷰 와일드카드 불허)

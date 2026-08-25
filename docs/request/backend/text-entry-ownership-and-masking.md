@@ -1,8 +1,11 @@
 # [프론트 → 백엔드] F3-04 텍스트 입력 구현 통보 — 담당 표기 정리와 마스킹 시점 확인
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-25)
-> 회신은 `../../response/frontend/text-entry-ownership-and-masking.md`에 들어옵니다.
-> **막고 있는 작업**: 없음 — 프론트 화면은 이미 만들었습니다. 문서 표기 정리와 §2 확인만 필요합니다.
+> **상태: ✅ 회신 완료 (2026-08-25) — 전부 해결**
+> - 회신: `../../response/frontend/text-entry-ownership-and-masking.md`
+> - **결론 요약**: F3-04 담당 `B` → `B/C` 정정 완료. 마스킹 시점 "전송 전(브라우저)" 동의 — `prd.md` FR-027·`api-contract.md`·`internal-api-contract.md`에 주체 명시, AI 담당에게 공유 완료
+> - **남은 것**: 없음
+>
+> 아래 본문은 **요청 당시 원문**입니다. 확정된 최신 값은 계약 문서를 보세요.
 
 - 작성: 프론트엔드 · 2026-08-25
 - 관련 문서: `../../00-context/spec.md` F3-04 · 총괄표 · 화면 정의서, `../../00-context/prd.md` FR-026·FR-027, `../../02-architecture/api-contract.md` `/api/evidence/text`

@@ -79,6 +79,7 @@ X-Internal-Token: {INTERNAL_TOKEN}
 
 - 텍스트 경로 카드의 `source_image_index`는 `null`, `occurred_at`의 `field_confidence`는 **전부 `low`** 입니다(F3-04 처리 — AI-server가 승격하지 않고, 백엔드도 승격하지 않음).
 - `rawText` 최대 2000자(공개 API와 동일). 텍스트 경로에서도 협박 감지(`threat_detected`)는 동일하게 수행합니다.
+- **`rawText`는 이미 프론트가 마스킹(주민번호·전화번호·계좌번호)을 마친 값입니다** (2026-08-25 확정, `FR-027` 주체 명시). AI-server의 `pii.py` 후처리는 그대로 두되 이중 방어로 취급하세요 — 원문이 아니라 이미 가려진 텍스트가 옵니다. 평가 세트에서 "개인정보 미추출"을 잴 때 입력 조건이 이 사실을 반영해야 합니다.
 
 > **B(base64 JSON)를 기각한 이유**: 본문이 약 33% 커지고 양쪽에 인코딩/디코딩 버퍼가 한 번 더 뜹니다(Render 512MB). **멀티파트 봉투를 쓰지 않는 이유**: 서버 프레임워크의 멀티파트 파서는 큰 파트를 임시 파일로 디스크에 스풀링하는 것이 일반적이라 "이미지를 디스크에 쓰지 않는다"(`../03-infra-ops/privacy-and-safety.md`) 원칙과 충돌 위험이 있습니다. raw body는 메모리에만 존재함을 구조적으로 보장하고, 양쪽 코드도 더 단순합니다. 상세: `../response/backend/image-transfer-and-internal-auth.md`
 

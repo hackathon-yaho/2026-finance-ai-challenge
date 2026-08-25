@@ -13,8 +13,10 @@
 
 | 문서 | 상태 | 막고 있는 작업 |
 | --- | --- | --- |
-| [deploy-handoff.md](deploy-handoff.md) | ⏳ 회신 대기 (2026-08-25) | **AI-server 배포** — `INTERNAL_TOKEN`이 예정(Phase 3 착수 전)보다 먼저 필요합니다 |
+| [deploy-handoff.md](deploy-handoff.md) | ✅ 회신 완료 (2026-08-25) | 해소 — `INTERNAL_TOKEN` 백엔드 생성·전달 예정, 나머지 3건 확인 완료 |
 | [draft-intake-input.md](draft-intake-input.md) | ✅ 회신 완료 (2026-08-25) | 해소 — `intake` 원안 수용, AI 후속 처리까지 완료 |
-| [text-entry-ownership-and-masking.md](text-entry-ownership-and-masking.md) | ⏳ 회신 대기 (2026-08-25) | 없음 — F3-04 담당 표기 정리와 **텍스트 경로 마스킹 시점** 확인 |
-| [persistent-badge-placement.md](persistent-badge-placement.md) | ⏳ 회신 대기 (2026-08-25) | 없음 — 상시 배지를 전 화면 → **진입 + 판정 화면**으로 바꿈. 명세 표기 정정 판단 |
-| [page4-ordering.md](page4-ordering.md) | ⏳ 회신 대기 (2026-08-25) | 없음 — **4면 정렬 "5면 이미지 순서와 일치"가 성립하지 않음**. PDF 착수 전 A/B/C 판단 |
+| [text-entry-ownership-and-masking.md](text-entry-ownership-and-masking.md) | ✅ 회신 완료 (2026-08-25) | 해소 — F3-04 담당 `B/C` 정정, 마스킹 시점 전송 전(브라우저) 확정 |
+| [persistent-badge-placement.md](persistent-badge-placement.md) | ✅ 회신 완료 (2026-08-25) | 해소 — A안 채택, 명세 정정 완료 |
+| [page4-ordering.md](page4-ordering.md) | ✅ 회신 완료 (2026-08-25) | 해소 — B안 채택, 텍스트 카드 "본인 서술", 원본 번호 1-base(프론트 변환) |
+
+> **2026-08-25 기준 회신 대기 중인 요청이 없습니다.** 5건 전부 회신을 마쳤습니다.
