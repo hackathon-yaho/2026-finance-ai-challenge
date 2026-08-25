@@ -1,5 +1,11 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-25 ④, 백엔드)** — Phase 3 구현 중 계약에 없던 부분을 채움
+> - **`POST /api/evidence`에 `imageIndex` 신설** — 1장씩 병렬 호출 시 응답 도착 순서가 원래 배열 순서와 달라, 프론트가 blob 배열 인덱스를 명시적으로 보내야 함
+> - **`gaps` 항목 스키마 신설** (`type`/`label`/`suggestions`) — 계약에 `gaps: []`만 있고 내용이 없었음
+> - **`/api/evidence/confirm`의 `confirmed: false` = 카드 삭제로 명시** — F4-06 처리 ④ "카드 삭제"에 대응하는 필드가 없었음
+> - **병합 승인 시 구현 방식 명시** — 카드를 합치지 않고 대표만 `events`에 남기며 원본은 세션에 보존
+
 > **수정 기록 (2026-08-25 ③, 백엔드)** — 근거: `../request/frontend/text-entry-ownership-and-masking.md`, `../request/backend/deploy-handoff.md`
 > - **`/api/evidence/text`의 `rawText`는 프론트엔드가 전송 전 마스킹(주민번호·전화번호·계좌번호)을 마친 값** — FR-027 마스킹 주체 명시에 따른 정정
 > - **`UNCONFIRMED_FIELDS` 게이팅은 값이 존재하는 카드에만 적용** — `amount`/`occurred_at`이 `null`인 카드의 `low` 신뢰도는 게이팅 근거로 읽지 않음
@@ -46,7 +52,7 @@
 | --- | --- | --- | --- | --- |
 | POST | `/api/session` | 세션 생성 | — | `{ sessionHash, expiresAt, demoMode }` |
 | POST | `/api/intake` | 문진 저장 | `{ when, dueNoticeStatus, dueNoticeDate, amount, kind, history, usage, deliveryMethod }` | `{ ok, nextStage, deadline }` |
-| POST | `/api/evidence` | 이미지 판독 (메모리 통과, 서버 미저장) | `multipart[]` (세션당 누적 최대 10장, 파일당 10MB, JPG/PNG, 클라이언트에서 리사이즈·마스킹 완료된 상태) | `{ cards: [...], signals, qualityFlags }` |
+| POST | `/api/evidence` | 이미지 판독 (메모리 통과, 서버 미저장) | `multipart[]` **+ `imageIndex[]`**(2026-08-25 ③ 신설, 아래 참조) — 세션당 누적 최대 10장, 파일당 10MB, JPG/PNG, 클라이언트에서 리사이즈·마스킹 완료된 상태 | `{ cards: [...], signals, qualityFlags }` |
 | POST | `/api/evidence/confirm` | 추출 카드 확인·수정 저장 (FR-028) | `{ cardId, confirmed, corrections }` | `{ ok, confirmedCount, unconfirmedCount }` |
 | POST | `/api/evidence/text` | 텍스트 대체 입력. **`rawText`는 프론트가 전송 전 마스킹을 마친 값**(FR-027, 2026-08-25 확정) | `{ rawText }` | `{ cards: [...] }` |
 | GET | `/api/timeline` | 타임라인 조회 | — | `{ events: [...], gaps: [...], mergeCandidates: [...] }` |
@@ -83,6 +89,21 @@
 `/api/evidence`는 multipart 배열을 받지만, **프론트엔드는 이미지를 1장씩 병렬로 호출합니다**(2026-08-23 확정). 응답이 도착하는 순서대로 파일별 "읽음 / 실패"를 칠 수 있어 F3-03의 "파일별 처리 상태를 순차 표시"를 별도 SSE·폴링 인프라 없이 만족합니다. AI-server도 이미지별 병렬 호출(최대 4 동시)이 전제입니다(F4-01).
 
 백엔드는 호출이 나뉘어도 **세션당 누적 10장 제한**을 유지합니다(F3-02 검증 ④). 11장째는 `400`입니다.
+
+### `imageIndex` — 프론트가 명시적으로 보냅니다 (2026-08-25 ③ 신설, 계약 보완)
+
+`internal-api-contract.md`의 `image_index`가 "프론트 blob 배열 인덱스와 일치해야 한다"고 못 박고 있는데, **1장씩 병렬(최대 4 동시) 호출하면 응답이 도착하는 순서가 원래 배열 순서와 달라집니다.** 백엔드가 도착 순서로 인덱스를 매기면 프론트의 블롭 배열과 어긋나므로, **프론트가 각 파일과 함께 그 파일의 원래 blob 배열 인덱스(0-base)를 `imageIndex` 필드로 보냅니다.**
+
+```
+POST /api/evidence
+Content-Type: multipart/form-data
+
+files: <이미지 바이트>
+imageIndex: 2
+```
+
+- `files`와 `imageIndex`는 **같은 순서로 쌍을 이룹니다.** 여러 장을 한 요청에 담더라도 개수가 같아야 합니다(`400` + `INVALID_REQUEST`)
+- 백엔드는 이 값을 그대로 `/internal/extract?image_index={n}`에 전달합니다 — 자체적으로 순번을 새로 매기지 않습니다
 
 ### 동시 요청 상한 — **4** (2026-08-24 확정)
 
@@ -234,6 +255,29 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 
 `confirmed: true`인 카드만 `ReadinessService`와 `/api/draft`(DraftService)의 입력으로 사용됩니다. 사용자가 값을 고치면 백엔드는 해당 카드에 "사용자 수정" 표시를 남깁니다.
 
+**`confirmed: false`는 카드 삭제입니다** (2026-08-25 ③ 명시 — `spec.md` F4-06 처리 ④ "카드 삭제 가능"에 대응하는 필드가 계약에 따로 없어 이 값으로 구현). `corrections`는 `confirmed: true`일 때만 의미가 있습니다.
+
+## `/api/timeline` 응답 — 증거 공백 (F5-03/F5-04, 2026-08-25 ③ 스키마 신설)
+
+`gaps: []`만 있고 항목 스키마가 계약에 없어 구현하며 정의했습니다.
+
+```json
+{
+  "type": "no_delivery_evidence",
+  "label": "발송 증빙 없음",
+  "suggestions": ["택배사 조회 화면", "수령 확인"]
+}
+```
+
+| `type` | 조건 | `label` | `suggestions` |
+| --- | --- | --- | --- |
+| `no_delivery_evidence` | `delivery_evidence == false` + `kind == "goods"` + `deliveryMethod != "in_person"` | 발송 증빙 없음 | 택배사 조회 화면 · 수령 확인 |
+| `no_service_evidence` | `delivery_evidence == false` + `kind == "service"` | 용역 증빙 없음 | 결과물 파일 · 전달 기록 |
+| `no_life_activity` | `life_activity == false` + `usage != "main"` | 생계 흔적 없음 | (없음) |
+| `no_chat_evidence` | `chat` 유형 카드 없음 | 거래 합의 증빙 없음 | 이메일 · 문자 · 통화 기록 |
+
+**`deliveryMethod == "in_person"`이면 `no_delivery_evidence`를 아예 띄우지 않습니다** — 직거래는 송장이 원래 없어 채울 방법이 없는 공백이 되기 때문입니다(F5-03 직거래 예외). 이때의 "물품 사진·거래 장소·대면 인도 정황" 제안은 이 공백-대체 제안 목록이 아니라 **Phase 4 체크리스트**의 `goods.delivery` 라벨 쪽입니다 — 서로 다른 기능입니다.
+
 ## `/api/timeline` 응답 — 병합 후보 (F5-02)
 
 ```json
@@ -267,6 +311,8 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 - `approved: false`면 해당 후보를 **거절**한 것으로 기록하고 이후 응답의 `mergeCandidates`에서 제외합니다. 이벤트는 그대로 둡니다.
 - 응답은 갱신된 타임라인 전체(`GET /api/timeline`과 같은 형태)입니다. 프론트엔드는 응답으로 화면을 통째로 갱신하면 됩니다.
 - 병합된 이벤트는 **출처를 둘 다 기록**합니다(F5-02 처리). 어느 캡처에서 나왔는지가 F7-05 문장-근거 연결의 입력이기 때문입니다.
+
+**승인 시 구현 방식 (2026-08-25 ③ 명시)**: 두 카드를 하나로 합치지 않습니다. `occurred_at`이 가장 이른 카드를 대표로 남기고, 나머지는 **`events` 목록에서만 빼서 화면에 중복으로 안 보이게** 합니다 — 원본 카드 자체는 세션에 그대로 남아 있어 F7-05 근거 연결에서 계속 찾을 수 있습니다.
 
 > **스코프 컷 시 동작** — F5-02는 스코프 컷 순서 4번입니다(`../00-context/spec.md` §9). 컷하면 백엔드는 `mergeCandidates`를 **항상 빈 배열로** 내리고 `/api/timeline/merge`를 구현하지 않습니다. 프론트엔드는 빈 배열이면 병합 후보 UI를 렌더하지 않으므로, 어느 쪽을 컷해도 상대를 기다리지 않습니다. **컷 결정이 나면 `../response/frontend/`에 회신합니다.**
 
@@ -548,6 +594,7 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.8 (2026-08-25 ④)**: Phase 3 구현. `/api/evidence`에 `imageIndex` 신설, `gaps` 항목 스키마 신설, `/api/evidence/confirm`의 `confirmed: false` = 삭제 명시, 병합 승인 구현 방식 명시
 - **v1.7 (2026-08-25 ③)**: `/api/evidence/text`의 `rawText` 마스킹 주체를 프론트로 명시. `UNCONFIRMED_FIELDS` 게이팅을 값이 존재하는 카드에만 적용하도록 정정
 - **v1.6 (2026-08-25 ②)**: 프론트 회신 5건 반영. **`checklist` 스키마 전면 개정**(2필드 → 8필드, 택일 `options`·`whenMissing` 신설). **`POST /api/checklist/self-held`·`POST /api/draft/revise` 신설.** `/api/package/text` **8 → 11필드** + `excludedSentenceIds`, **면 구성 개정**(부족자료 체크리스트 제외·표지 신설·4면 출처 정정). `/api/intake`에 `deliveryMethod` 신설. `notices` 서버 단일 소스 명시. CORS에 프론트 프로덕션 도메인 등록
 - v1.5 (2026-08-25): AI 회신 3건 반영. 카드 스키마에 `source_type`·`counterparty_name`·`payer_name` + `field_confidence` 2키 추가. `/api/draft` 응답의 `evidenceRefs.type` 3종(`evidence`/`intake`/`user_text`)과 "본인 진술" 배지 규칙 확정. `bbox`가 근사 좌표임을 명시

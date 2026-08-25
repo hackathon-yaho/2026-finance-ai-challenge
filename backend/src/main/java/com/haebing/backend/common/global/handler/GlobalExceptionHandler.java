@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @Slf4j
 @RestControllerAdvice
@@ -54,6 +55,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.INVALID_REQUEST.getHttpStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getParameterName() + " 파라미터가 필요합니다."));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        log.warn("[MaxUploadSizeExceededException] {}", e.getMessage());
+        return ResponseEntity
+                .status(ErrorCode.INVALID_REQUEST.getHttpStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, "파일 크기가 10MB를 초과했습니다."));
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)

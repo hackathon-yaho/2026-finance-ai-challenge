@@ -24,11 +24,11 @@
 | 1.1 | `POST /api/session` | 2 | 구현 완료 |
 | 1.2 | `DELETE /api/session` | 2 | 구현 완료 |
 | 2.1 | `POST /api/intake` | 2 | 구현 완료 |
-| 3.1 | `POST /api/evidence` | 3 | 미구현 |
-| 3.2 | `POST /api/evidence/confirm` | 3 | 미구현 |
-| 3.3 | `POST /api/evidence/text` | 3 | 미구현 |
-| 4.1 | `GET /api/timeline` | 3 | 미구현 |
-| 4.2 | `POST /api/timeline/merge` | 3 | 미구현 (스코프 컷 후보) |
+| 3.1 | `POST /api/evidence` | 3 | 구현 완료 (AI-server 연동 미검증 — 아래 참조) |
+| 3.2 | `POST /api/evidence/confirm` | 3 | 구현 완료 |
+| 3.3 | `POST /api/evidence/text` | 3 | 구현 완료 (AI-server 연동 미검증) |
+| 4.1 | `GET /api/timeline` | 3 | 구현 완료 |
+| 4.2 | `POST /api/timeline/merge` | 3 | 구현 완료 |
 | 5.1 | `POST /api/readiness` | 4 | 미구현 |
 | 5.2 | `POST /api/checklist/self-held` | 4 | 미구현 (2026-08-25 신설) |
 | 6.1 | `POST /api/draft` | 5 | 미구현 |
@@ -730,6 +730,7 @@ API를 완료하거나 계약이 바뀔 때마다 한 줄씩 남깁니다. **"�
 
 | 날짜 | 대상 | 내용 |
 | --- | --- | --- |
+| 2026-08-25 ③ | 3.1~4.2 | Phase 3 완료 — `AiClient`(raw body, 1회 재시도), 파일 검증(매직바이트), F4-07 금액 교차 대조, F4-06 게이팅·카드 확인/삭제, F5-01~04 타임라인 정렬·병합 후보·공백 탐지·대체 증빙. `imageIndex`·`gaps` 스키마를 `api-contract.md`에 신설. **AI-server 미배포로 실제 연동은 미검증** — 검증 항목은 아래 참조 |
 | 2026-08-25 ② | 1.1·1.2·2.1 | Phase 2 완료 — 인메모리 세션(16자 해시, 30분 슬라이딩 TTL), `X-Session-Hash` 인터셉터, 문진 증분 저장(부분 덮어쓰기 없음), FR-014 기한 계산. `/api/intake`의 필수 필드를 실제 구현(전부 선택 + `notified`↔`dueNoticeDate` 상호 검증)에 맞게 정정 |
 | 2026-08-25 | 7.1 | Phase 1 완료 — 프로젝트 골격, docker-compose 로컬 DB, `GET /actuator/health` 구현(DB 실쓰기 포함), CORS(`X-Session-Hash` 허용), multipart 10MB, 나눔고딕 폰트 리소스 반영 |
 | 2026-08-24 | 전체 | 문서 신설. 0장(공통 사항) 작성, 엔드포인트 12종을 계약(`api-contract.md` v1.4) 기준으로 골격 작성. 구현은 전부 미착수 |

@@ -26,6 +26,7 @@ app:
   internal-token: ${INTERNAL_TOKEN:}
   # true면 AI-server를 호출하지 않고 사전 저장된 응답 세트를 반환한다 (F11-03, Phase 6에서 구현)
   demo-mode: ${DEMO_MODE:false}
+  ai-server-url: ${AI_SERVER_URL:}
 
 cors:
   # localhost:5173 = Vite 개발 서버 (2026-08-24 확정). 와일드카드 패턴은 쓰지 않는다.

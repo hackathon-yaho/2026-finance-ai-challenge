@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * docs/02-architecture/data-model.md "인메모리 세션". DB에 쓰지 않는다.
@@ -25,10 +26,15 @@ public class Session {
     private final List<ExtractedEvent> timeline = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final List<MergeCandidate> mergeCandidates = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final Set<String> rejectedMergeGroupIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** F5-02 승인된 병합에서 대표 카드에 흡수된 나머지 카드 — 출처 보존을 위해 timeline에서 지우지 않고 타임라인 표시에서만 뺀다. */
+    private final Set<String> mergedAwayEventIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private final Map<String, Boolean> cardConfirmed = new ConcurrentHashMap<>();
     private final Map<String, Boolean> selfHeldItems = new ConcurrentHashMap<>();
     private final List<SentenceEvidence> sentenceEvidence = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final Map<String, QualityFlags> qualityFlags = new ConcurrentHashMap<>();
+
+    /** F3-02 — 세션당 누적 10장 제한. 검증 통과한 이미지마다 1씩 늘린다 (추출 성공 여부와 무관). */
+    private final AtomicInteger uploadedImageCount = new AtomicInteger(0);
 
     @Setter
     private volatile Signals signals;
@@ -40,11 +46,34 @@ public class Session {
     public Session(String hash, Instant expiresAt) {
         this.hash = hash;
         this.expiresAt = expiresAt;
+        this.signals = Signals.empty();
     }
 
     /** F2-03 — 문진이 바뀌면 하위 단계 결과를 무효화한다. */
     public void invalidateDownstream() {
         this.readiness = null;
         this.draftText = null;
+    }
+
+    /**
+     * event_id 중복은 백엔드가 처리한다 (2026-08-25 확정) — 같은 event_id가 이미 있으면 기존 카드를 대체한다.
+     * AI-server는 무상태라 같은 image_index로 재추출하면 ID가 충돌할 수 있다.
+     */
+    public void upsertCard(ExtractedEvent card) {
+        for (int i = 0; i < timeline.size(); i++) {
+            if (timeline.get(i).eventId().equals(card.eventId())) {
+                timeline.set(i, card);
+                return;
+            }
+        }
+        timeline.add(card);
+    }
+
+    public java.util.Optional<ExtractedEvent> findCard(String eventId) {
+        return timeline.stream().filter(c -> c.eventId().equals(eventId)).findFirst();
+    }
+
+    public void removeCard(String eventId) {
+        timeline.removeIf(c -> c.eventId().equals(eventId));
     }
 }

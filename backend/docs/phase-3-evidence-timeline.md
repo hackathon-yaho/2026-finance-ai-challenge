@@ -4,6 +4,14 @@
 >
 > 근거: `../../docs/00-context/spec.md` F3-02·F3-04·F4-05·F4-06·F5-01~04, `../../docs/02-architecture/api-contract.md`, `../../docs/02-architecture/internal-api-contract.md`
 
+> ### ✅ 2026-08-25 구현 완료 — 계약에 없던 부분은 이번에 채우고 `api-contract.md` v1.8에 반영했다
+> - **`imageIndex`**: 1장씩 병렬 호출 시 응답 도착 순서가 blob 배열 순서와 달라질 수 있어, 프론트가 파일마다 원래 인덱스를 명시적으로 보내는 것으로 계약을 보완했다
+> - **`gaps` 스키마**: `type`/`label`/`suggestions`로 신설. `no_delivery_evidence`/`no_service_evidence`(F5-04 표의 "용역 증빙 없음"에 대응 — F5-03 3규칙엔 없었지만 F5-04 매핑표에 있어 규칙을 하나 보완했다)/`no_life_activity`/`no_chat_evidence` 4종
+> - **`confirmed: false` = 카드 삭제**로 구현했다. F4-06 처리 ④ "카드 삭제 가능"에 대응하는 필드가 계약에 따로 없었다
+> - **병합 승인**: 카드를 합치지 않는다. `occurred_at`이 가장 이른 카드만 `events`에 남기고 나머지는 세션에는 그대로 두되 타임라인 표시에서만 뺀다(출처 보존)
+> - **AI-server 미배포로 실제 연동은 검증하지 못했다.** `AiClient`는 `MockRestServiceServer`로 요청 구성·재시도·오류 매핑만 검증했다 — URL·헤더·본문이 계약과 일치하는지는 확인했지만, AI-server가 실제로 이 형식을 받는지는 별도 통합 테스트가 필요하다
+> - 단위 테스트 45개(파일 검증·게이팅·금액 교차 대조·타임라인 정렬·병합 후보·공백 탐지) 전부 통과
+
 ## 이 Phase의 경계
 
 **백엔드는 이미지를 판독하지 않는다.** 판독은 AI-server의 몫이고, 백엔드는 오케스트레이션(수신·검증·전달·보관·확인·조립)만 한다 — `../../docs/02-architecture/system-architecture.md` 컴포넌트 책임표.
