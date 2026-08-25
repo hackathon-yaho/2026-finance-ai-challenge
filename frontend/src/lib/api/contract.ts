@@ -189,6 +189,14 @@ export interface RevisedSentence {
   warning: string | null
 }
 
+/**
+ * **제외한 문장은 이 배열에서 빠진다** (계약 v1.9). `excluded` 플래그가 따로 없다.
+ *
+ * 그래서 응답으로 `draftLines`를 통째로 갈아끼우면 안 된다 — 제외한 문장이 화면에서
+ * 사라져 **되돌릴 방법이 없어진다.** 원본 텍스트는 클라이언트가 계속 들고 있고
+ * (`flow.draftLines` + `flow.excludedSentences`), 응답은 **남아 있는 문장의 갱신분으로만**
+ * 병합한다. 되돌리기는 같은 `sentenceId`에 `excluded: false`를 다시 보내면 된다.
+ */
 export interface ReviseResponse {
   sentences: RevisedSentence[]
 }
