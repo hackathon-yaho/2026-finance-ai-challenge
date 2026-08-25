@@ -29,7 +29,13 @@ public record ExtractedEvent(
     public static final String SOURCE_TYPE_INTAKE = "intake";
     public static final String EVENT_ID_INTAKE_WHEN = "evt_intake_when";
 
-    /** F5-01 — 사용자가 입력한 지급정지일을 이벤트로 합성한다. 3면(타임라인)에는 포함하고 4면(증빙목록)에서는 제외한다. */
+    /**
+     * F5-01 — 사용자가 입력한 지급정지일을 이벤트로 합성한다. 3면(타임라인)에는 포함하고 4면(증빙목록)에서는 제외한다.
+     * confirmationStatus는 **항상 USER_CONFIRMED로 고정**이다 — 이 카드는 session.getTimeline()에 저장되지
+     * 않고 호출마다 새로 합성되므로, /api/evidence/confirm이나 readiness 게이팅 어디에서도 이 카드를 찾을 수
+     * 없다. 여기를 손대 session.getTimeline()에 넣는다면, PENDING으로 나갈 경로가 생기지 않는지 반드시 확인할 것 —
+     * 그 경우 사용자가 확인할 화면이 없어 게이팅에 걸린 채 풀 방법이 없어진다 (2026-08-26 프론트 확인 질문).
+     */
     public static ExtractedEvent intakeDueDateEvent(String when) {
         return new ExtractedEvent(
                 EVENT_ID_INTAKE_WHEN, null, SOURCE_TYPE_INTAKE, when, "self", "지급정지일 (본인 입력)", null, null, null,

@@ -60,6 +60,9 @@ class TimelineServiceImplTest {
         assertThat(response.events()).hasSize(1);
         assertThat(response.events().get(0).eventId()).isEqualTo("evt_intake_when");
         assertThat(response.events().get(0).occurredAt()).isEqualTo("2026-08-15");
+        // 2026-08-26 프론트 확인 질문 — 이 카드가 PENDING으로 나가면 게이팅에 걸린 채 풀 방법이 없어진다.
+        assertThat(response.events().get(0).confirmationStatus()).isEqualTo(ExtractedEvent.USER_CONFIRMED);
+        assertThat(response.events().get(0).sourceType()).isEqualTo(ExtractedEvent.SOURCE_TYPE_INTAKE);
     }
 
     @Test

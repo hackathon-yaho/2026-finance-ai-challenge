@@ -1,45 +1,22 @@
-# [백엔드 → 프론트] 로컬 연동 리포트 회신 — 6건 중 5건 수정 완료, 1건 계약 확정
+# [백엔드 → 프론트] `intake` 카드 확인 질문 회신 — 항상 `user_confirmed`가 맞습니다
 
-> 원본 요청: `../backend/local-integration-findings.md`
+> 원본 요청: `../backend/local-integration-findings.md` (프론트 반영 회신 내 확인 질문)
 
-정말 꼼꼼한 리포트 감사합니다. 특히 브라우저 프리플라이트 문제는 `curl`로는 절대 안 잡히는 거라 저 혼자였으면 8/29 연동 당일에야 발견했을 겁니다.
+## `intake` 카드는 구조적으로 항상 `user_confirmed`입니다 — `pending`으로 나갈 경로가 없습니다
 
-## 1. 🔴 CORS 프리플라이트 500 — 수정 완료
+코드로 확인했습니다. 이 카드(`ExtractedEvent.intakeDueDateEvent`)는 두 가지 특징이 있습니다.
 
-정확한 진단 그대로였습니다. `SessionInterceptor`가 `/api/**` 전체에 걸려 있어 `OPTIONS` 프리플라이트도 세션 검사를 통과해야 했는데, 프리플라이트엔 `X-Session-Hash`가 없으니 `SESSION_EXPIRED`가 났습니다. 제안해주신 대로 `preHandle` 맨 앞에서 `CorsUtils.isPreFlightRequest(request)`면 바로 통과시키도록 고쳤습니다. 로컬에서 재현하신 `curl -X OPTIONS` 그대로 실행해 `200`으로 바뀐 것 확인했습니다.
+1. **`confirmationStatus`가 생성 시점에 `USER_CONFIRMED`로 고정**됩니다. 값을 바꿔서 만드는 다른 경로가 없습니다.
+2. **`session.getTimeline()`에 저장되지 않습니다.** `/api/timeline`을 부를 때, 그리고 이제 `/api/package/text`를 부를 때 **매번 새로 합성**해서 반환할 뿐입니다.
 
-## 2. 🟠 기한 경과 "-56일 남았습니다" — 수정 완료
+`/api/evidence/confirm`도, `/api/readiness`의 게이팅(`hasBlockingUnconfirmedCards`)도, 체크리스트 판정도 전부 `session.getTimeline()`을 조회 대상으로 삼습니다. 이 카드는 애초에 그 목록에 없으니 **`pending`으로 나갈 수도, 게이팅 대상이 될 수도 없습니다.** 우려하신 "확인할 화면이 없는데 게이팅에 걸리는" 상황은 지금 구조에서는 발생 불가능합니다.
 
-`daysLeft < 0`이면 `notice`를 별도 문구로 바꿨습니다. 보내주신 문구를 그대로 썼습니다.
+**말씀하신 대로 계약과 코드 양쪽에 남겨뒀습니다** (`api-contract.md` v1.11, `ExtractedEvent.intakeDueDateEvent` 주석) — 나중에 누가 이 카드를 세션 타임라인에 넣는 방향으로 바꾸면, 그 순간 이 불변조건이 깨진다는 것을 알 수 있도록 명시했습니다. 회귀 테스트(`TimelineServiceImplTest`)에도 `confirmationStatus == USER_CONFIRMED` 단언을 추가했습니다.
 
-> 공고일부터 2개월이 지난 것으로 보입니다. (2026-07-01) 기한 경과 여부와 이후 절차는 금융회사와 전문가 확인이 필요합니다.
+## 중복 `imageIndex` 처리 — 확인했습니다
 
-`daysLeft`는 말씀하신 대로 음수 그대로 내려갑니다 (문제는 `notice` 문구뿐이었습니다).
-
-## 3. 🟠 문진 재전송 시 null이 이전 값을 안 지움 — 수정 완료
-
-`/api/intake`를 **전체 교체(PUT류) 의미**로 바꿨습니다. `null`로 온 필드는 세션에서 지웁니다. 원래 "일부 필드만 와도 정상"으로 코드 주석에 적어뒀던 게 실제 화면 동작과 안 맞았던 것이었고, 리포트로 확인되어 정정했습니다. `api-contract.md` v1.10에 명시했습니다.
-
-## 4. 🟡 `evt_intake_when` — 계약에 정식으로 넣었습니다. 의견 주신 그대로(3면 포함, 4면 제외)로 갑니다
-
-- **`source_type`에 `intake`를 7번째 값으로 신설**했습니다. `event_id` 파싱 대신 이 필드로 걸러내시면 됩니다.
-- **3면(타임라인)**: `/api/timeline`과 서버 PDF 둘 다에 포함되도록 PDF 생성 쪽에도 같은 합성 로직을 붙였습니다 — 이제 미리보기와 다운로드본이 일치합니다.
-- **4면(증빙목록)**: 애초에 이 카드를 4면 데이터에 안 넣도록 분리했습니다 — "본인 서술"로 잘못 표기되던 문제가 구조적으로 사라집니다.
-
-`api-contract.md` v1.10에 `source_type` 표를 갱신했습니다.
-
-## 5. 🟡 AI-server 미설정이 400으로 나감 — 수정 완료
-
-`AiClientImpl`이 URI 생성 실패(`IllegalArgumentException`)를 별도로 잡아 `EXTRACTION_FAILED`/`DRAFT_FAILED`(둘 다 502)로 묶었습니다. 내부 예외 메시지(`URI with undefined scheme` 같은 것)는 더 이상 응답 `message`에 실리지 않습니다 — 로그에만 남습니다. `AI_SERVER_URL`이 실제로 잘못 설정된 운영 상황에서도 같은 코드로 나갑니다.
-
-## 6. 🟢 `gradlew` 실행 권한 — 수정 완료
-
-말씀하신 명령 그대로 적용했습니다.
-
-## 확인해주셔서 감사한 것 (§7)
-
-PDF 한글 렌더링·병합 코드 호환까지 실제로 검증해주신 부분은 저도 다시 한번 안심이 됐습니다. 체크리스트 카탈로그·`gaps` 스키마가 그대로 맞아떨어진 것도요.
+프론트에서 사전에 예외를 던지는 방향으로 가신 것, 저희 판단과 일치합니다. 백엔드는 추가 조치 없습니다.
 
 ## 후속 작업
 
-없습니다. 위 6건 전부 반영·재검증했고, 단위 테스트에도 회귀 방지용으로 추가해뒀습니다.
+없습니다.

@@ -1,5 +1,8 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-26 ③, 백엔드)** — 근거: `../response/backend/local-integration-findings.md` (프론트 확인 질문)
+> - **`intake` 카드의 `confirmation_status`가 항상 `user_confirmed`임을 명시** — 세션 타임라인에 저장되지 않고 매 조회마다 새로 합성돼 확인·게이팅 대상이 될 수 없다. 코드에도 "여기를 건드리면 이 불변조건을 깨지 않는지 확인하라"는 주석을 남겼다
+
 > **수정 기록 (2026-08-26 ②, 백엔드)** — 근거: `../request/backend/local-integration-findings.md` (프론트 로컬 연동 회신)
 > - **`source_type`에 `intake` 신설(7번째 값)** — 문진 지급정지일을 백엔드가 합성한 카드용. AI가 아니라 백엔드가 만드는 유일한 카드 출처다. `/api/timeline`과 서버 PDF 3면 둘 다에 포함하고(미리보기·제출본 일치), **4면(증빙목록)에서는 제외**한다 — 증빙자료가 아니라서다
 > - **`/api/intake`가 전체 교체(PUT류) 의미임을 명시** — 이전엔 "일부 필드만 와도 정상"으로 문서화돼 있었는데, 프론트가 매번 문진 전체를 재전송하는 것으로 확인돼(로컬 연동 회신) 정정. `null`로 온 필드는 지운다
@@ -244,7 +247,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 
 | 필드 | 프론트가 쓰는 곳 |
 | --- | --- |
-| `source_type` | 카드 유형 배지. 값은 `chat / bank / shipping / threat / autopay / unknown / intake` 7종. `unknown`은 정상 값입니다(AI가 추측하지 않고 내린 값) — 오류로 처리하지 마세요. **`intake`는 AI가 아니라 백엔드가 문진 응답(지급정지일)으로 합성한 카드**입니다(`event_id: "evt_intake_when"`, `source_image_index: null`) — `/api/timeline`과 서버 PDF 3면에는 있지만 **4면(증빙목록)에는 없습니다**. `source_type`으로 걸러내세요(`event_id` 문자열 파싱 금지) |
+| `source_type` | 카드 유형 배지. 값은 `chat / bank / shipping / threat / autopay / unknown / intake` 7종. `unknown`은 정상 값입니다(AI가 추측하지 않고 내린 값) — 오류로 처리하지 마세요. **`intake`는 AI가 아니라 백엔드가 문진 응답(지급정지일)으로 합성한 카드**입니다(`event_id: "evt_intake_when"`, `source_image_index: null`) — `/api/timeline`과 서버 PDF 3면에는 있지만 **4면(증빙목록)에는 없습니다**. `source_type`으로 걸러내세요(`event_id` 문자열 파싱 금지). **`confirmation_status`는 항상 `user_confirmed`로 고정**입니다 — 이 카드는 세션 타임라인에 저장되지 않고 매 조회마다 새로 합성되므로 `/api/evidence/confirm`이나 readiness 게이팅 대상이 될 수 없습니다(2026-08-26 ③ 확정) |
 | `counterparty_name` | 확인 카드(F4-06)에 **수정 가능한 필드로 노출**. 대화 상대 표시명 |
 | `payer_name` | 같음. 입금 내역의 입금자 표기 |
 
@@ -608,6 +611,7 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.11 (2026-08-26 ③)**: 프론트 확인 질문 회신. `intake` 카드의 `confirmation_status`가 항상 `user_confirmed`임을 명시(세션 타임라인 미저장 — 게이팅 대상 아님)
 - **v1.10 (2026-08-26 ②)**: 프론트 로컬 연동 회신 반영. `source_type`에 `intake`(7번째 값) 신설 — 3면 포함·4면 제외. `/api/intake` 전체 교체 의미 명시. `excludedSentenceIds`가 PDF 제외의 최종 소스임을 명시. `DRAFT_FAILED` 후 세션·확인 카드 유지 확정. AI-server 연결 실패도 502로 통일(내부 예외 메시지 비노출). CORS 프리플라이트 500·기한 경과 문구는 구현 버그 수정(계약 변경 아님)
 - **v1.9 (2026-08-26)**: Phase 5 구현. `DRAFT_FAILED`(502) 오류 코드 신설. `/api/draft/revise`에서 제외된 문장은 응답 배열에서 빠지는 것으로 명시
 - **v1.8 (2026-08-25 ④)**: Phase 3 구현. `/api/evidence`에 `imageIndex` 신설, `gaps` 항목 스키마 신설, `/api/evidence/confirm`의 `confirmed: false` = 삭제 명시, 병합 승인 구현 방식 명시

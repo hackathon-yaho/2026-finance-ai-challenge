@@ -98,6 +98,23 @@ class PackageServiceImplTest {
         assertThat(text).doesNotContain("요청으로제외된문장");
     }
 
+    @Test
+    void intakeDueDateCard_appearsOnPage3ButNotPage4() throws java.io.IOException {
+        // 2026-08-26 로컬 연동 회신 §4 — 미리보기(/api/timeline)에는 있는데 PDF 3면엔 없던 불일치 수정 확인.
+        // 4면은 "올린 자료의 목차"라 이 카드가 실리면 안 된다(올린 적 없는 항목이라 "본인 서술"로 잘못 표기됐었다).
+        Session session = session();
+        session.getIntake().put("when", "2026-08-15");
+        session.upsertCard(new ExtractedEvent("evt_1", 0, "chat", "2026-09-01T00:00:00+09:00", "self", "실제증거카드요약", 1000L,
+                null, null, new Identifiers(null, null),
+                new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.USER_CONFIRMED));
+
+        byte[] pdf = service.generate(session, new PackageRequest(null, null, null));
+
+        String text = extractText(pdf);
+        assertThat(text).contains("지급정지일"); // 3면에 포함 — 미리보기(/api/timeline)와 일치
+        assertThat(text).containsOnlyOnce("지급정지일"); // 4면(증빙목록)에는 중복으로도 실리지 않아야 한다
+    }
+
     private String extractText(byte[] pdf) throws java.io.IOException {
         try (var doc = org.apache.pdfbox.Loader.loadPDF(pdf)) {
             return new org.apache.pdfbox.text.PDFTextStripper().getText(doc);
