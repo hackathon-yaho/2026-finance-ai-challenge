@@ -238,13 +238,21 @@ export function useHaebingFlow() {
     }, 850)
   }, [])
 
+  /**
+   * 직접 첨부 항목(신분증·재직증명서 등)의 보유 표시.
+   *
+   * **소명서를 무효화하지 않는다.** 이 값은 첨부 서류 체크리스트에만 영향을 주고 소명서
+   * 본문에는 들어가지 않는다 — 서비스에 올리지 않는 서류라 문장의 근거가 될 수 없다.
+   * 종전에는 F2-03(문진 변경 시 하위 단계 무효화)을 넓게 적용해 여기서도 초안을 지웠는데,
+   * 사용자가 소명서를 읽다가 "신분증 있어요"를 누르면 초안이 통째로 사라지고 다시
+   * 만들어야 했다. 체크리스트는 이 토글로 즉시 갱신된다.
+   */
   const toggleSelfHeld = useCallback((id: string) => {
     setSelfHeld((prev) => {
       const next = new Set(prev)
       if (!next.delete(id)) next.add(id)
       return next
     })
-    setDraftShown(false)
   }, [])
 
   const toggleHistory = useCallback(() => {

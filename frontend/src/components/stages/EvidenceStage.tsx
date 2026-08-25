@@ -32,7 +32,6 @@ interface EvidenceStageProps {
   onRemoveUpload: (id: string) => void
   onPreviewUpload: (id: string) => void
   onEditUpload: (id: string) => void
-  onProceedFromUpload: () => void
   onBackToUpload: () => void
 }
 
@@ -72,7 +71,6 @@ export function EvidenceStage({
   onRemoveUpload,
   onPreviewUpload,
   onEditUpload,
-  onProceedFromUpload,
   onBackToUpload,
 }: EvidenceStageProps) {
   const timelineRef = useRef<HTMLDivElement>(null)
@@ -100,7 +98,6 @@ export function EvidenceStage({
         onEditFile={onEditUpload}
         onRemoveFile={onRemoveUpload}
         onPreviewFile={onPreviewUpload}
-        onContinue={onProceedFromUpload}
       />
     )
   }

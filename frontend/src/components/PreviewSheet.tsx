@@ -223,15 +223,18 @@ export function PreviewSheet({
         </div>
       </div>
 
+      {/* 본문이 max-w-[560px]로 가운데 정렬돼 있어, 버튼만 화면 폭을 다 쓰면 따로 논다. */}
       <div className="flex-none border-t border-border bg-bg" style={{ padding: `12px ${pad}px 20px` }}>
-        <button
-          type="button"
-          onClick={onDownload}
-          className="w-full rounded-2xl bg-brand text-[17px] font-bold text-white"
-          style={{ height: 52 }}
-        >
-          이대로 내려받기
-        </button>
+        <div className="mx-auto max-w-[560px]">
+          <button
+            type="button"
+            onClick={onDownload}
+            className="w-full rounded-2xl bg-brand text-[17px] font-bold text-white"
+            style={{ height: 52 }}
+          >
+            이대로 내려받기
+          </button>
+        </div>
       </div>
     </div>
   )

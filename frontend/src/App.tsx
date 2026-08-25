@@ -13,6 +13,7 @@ import { RoutesStage } from "./components/stages/RoutesStage"
 import { Toast } from "./components/Toast"
 import { TopBar } from "./components/TopBar"
 import { ViewerSheet } from "./components/ViewerSheet"
+import { buildPackagePdf, downloadBlob, fileNameFor } from "./lib/pdf"
 import { useHaebingFlow } from "./hooks/useHaebingFlow"
 import { useViewportWidth } from "./hooks/useViewportWidth"
 
@@ -44,10 +45,21 @@ function App() {
   // 백엔드도 같은 조건을 서버에서 검사해 `/api/readiness`를 409로 거부한다 — 이건 UX 쪽 방어선이다.
   const cardsBlock = flow.blockingCount > 0
 
+  // 업로드 서브스텝(자료를 올리는 중)에서는 하단 CTA가 "이 자료로 계속하기"를 맡는다.
+  // 종전에는 패널 안에 실제 동작 버튼이 있고 하단 CTA는 "준비도 보기"가 비활성으로 떠 있어,
+  // 화면에서 가장 눈에 띄는 버튼이 눌리지 않는 상태였다.
+  const uploading = stage === 2 && !flow.filesReady
+
   const ctaDisabled =
     (stage === 1 && !flow.intakePageAnswered) ||
-    (stage === 2 && (!flow.analyzed || cardsBlock)) ||
+    (stage === 2 && !uploading && (!flow.analyzed || cardsBlock)) ||
     (stage === 4 && !flow.draftShown)
+
+  const ctaLabel = uploading
+    ? flow.uploadedFiles.length > 0
+      ? "이 자료로 계속하기"
+      : "자료 없이 계속하기"
+    : CTA_LABEL[stage]
 
   // 단계 인디케이터로 건너뛰는 경로도 같은 조건으로 막는다 (F1-04).
   const handleStepClick = (n: number) => {
@@ -59,6 +71,10 @@ function App() {
   }
 
   const handleCta = () => {
+    if (uploading) {
+      flow.proceedFromUpload()
+      return
+    }
     if (stage === 5) {
       flow.restart()
       return
@@ -122,7 +138,6 @@ function App() {
                 onRemoveUpload={flow.removeUploadedFile}
                 onPreviewUpload={flow.openLightbox}
                 onEditUpload={flow.startEditFile}
-                onProceedFromUpload={flow.proceedFromUpload}
                 onBackToUpload={flow.backToUpload}
               />
             )}
@@ -158,7 +173,7 @@ function App() {
         </div>
       </div>
 
-      <BottomCta label={CTA_LABEL[stage]} disabled={ctaDisabled} width={width} onClick={handleCta} />
+      <BottomCta label={ctaLabel} disabled={ctaDisabled} width={width} onClick={handleCta} />
 
       {flow.dateSheet && (
         <DateSheet
@@ -232,9 +247,18 @@ function App() {
             flow.closePreview()
             flow.go(2)
           }}
-          onDownload={() => {
-            flow.confirmPackage()
-            flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")
+          onDownload={async () => {
+            try {
+              // 서버 PDF(텍스트 5종)는 `/api/package/text`가 열리면 앞에 붙는다.
+              // 그때까지는 프론트 몫인 원본 이미지 페이지만으로 만든다.
+              const pdf = await buildPackagePdf(null, flow.uploadedFiles)
+              downloadBlob(pdf, fileNameFor())
+              flow.confirmPackage()
+              flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")
+            } catch {
+              // 병합 실패 시 폴백 — 원본을 개별로 저장하도록 안내한다 (PRD 리스크 레지스터).
+              flow.showToast("파일을 만들지 못했어요. 자료를 하나씩 저장해주세요")
+            }
           }}
           onClose={flow.closePreview}
         />

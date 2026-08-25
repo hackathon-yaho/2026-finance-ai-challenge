@@ -12,7 +12,6 @@ interface UploadPanelProps {
   onRemoveFile: (id: string) => void
   onPreviewFile: (id: string) => void
   onEditFile: (id: string) => void
-  onContinue: () => void
 }
 
 export function UploadPanel({
@@ -24,7 +23,6 @@ export function UploadPanel({
   onRemoveFile,
   onPreviewFile,
   onEditFile,
-  onContinue,
 }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -130,11 +128,8 @@ export function UploadPanel({
         </div>
       )}
 
-      <div className="flex items-center gap-4">
-        <button type="button" onClick={onContinue} className="h-14 flex-1 rounded-2xl bg-brand text-[17px] font-bold text-white">
-          {uploadedFiles.length > 0 ? "이 자료로 계속하기" : "자료 없이 계속하기"}
-        </button>
-      </div>
+      {/* 다음으로 넘어가는 버튼은 하단 고정 CTA가 맡는다 (App). 같은 일을 하는 버튼을 둘 두면
+          어느 쪽이 진짜인지 알 수 없고, 하단 CTA가 비활성으로 남아 막힌 화면처럼 보인다. */}
       <p className="text-xs leading-normal text-muted">자료가 없어도 문진 응답만으로 진행할 수 있어요.</p>
     </div>
   )
