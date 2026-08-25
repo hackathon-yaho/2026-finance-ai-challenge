@@ -19,6 +19,12 @@ class Boom:
         raise self._exc
 
 
+@pytest.fixture(autouse=True)
+def _key_present(monkeypatch):
+    """키 유무 점검을 통과시켜, SDK 오류 매핑 자체를 검증한다."""
+    monkeypatch.setattr(client, "api_key_present", lambda: True)
+
+
 @pytest.fixture()
 def broken_client(monkeypatch):
     def install(exc: Exception):

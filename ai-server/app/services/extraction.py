@@ -39,7 +39,11 @@ def _to_cards(
         pii_hits += hits
         counterparty_name, hits = pii.scrub_name(event.counterparty_name)
         pii_hits += hits
+        counterparty_name, hits = pii.clean_name_field(counterparty_name)
+        pii_hits += hits
         payer_name, hits = pii.scrub_name(event.payer_name)
+        pii_hits += hits
+        payer_name, hits = pii.clean_name_field(payer_name)
         pii_hits += hits
 
         # 값이 없는 이름의 신뢰도는 버린다 — LLM이 뭘 매겼든 null이 계약값이다.
@@ -99,10 +103,7 @@ async def extract_image(data: bytes, media_type: str, image_index: int) -> Extra
     encoded = base64.standard_b64encode(data).decode("ascii")
     del data
 
-    content = [
-        {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": encoded}},
-        {"type": "text", "text": prompts.EXTRACT_IMAGE_INSTRUCTION},
-    ]
+    content = llm_client.image_content(encoded, media_type)
     try:
         out = await llm_client.extract_structured(content)
     finally:
@@ -122,7 +123,7 @@ async def extract_text(raw_text: str) -> ExtractResponse:
         + raw_text
         + "\n----- 사용자 서술 끝 -----"
     )
-    out = await llm_client.extract_structured([{"type": "text", "text": content}], is_text=True)
+    out = await llm_client.extract_structured(llm_client.text_content(content), is_text=True)
 
     if out.injection_suspected:
         log.info("injection_suspected source=text")

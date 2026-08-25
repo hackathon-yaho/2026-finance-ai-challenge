@@ -2,7 +2,7 @@
 
 지급정지 계좌 소명 지원 서비스의 AI 서버. **멀티모달 판독**(이미지 → 구조화 카드)과 **소명서 생성**(문장 생성 + 결정적 사실 검증 + 문장-근거 연결)을 담당합니다. 백엔드만 호출하는 내부 API 서버이며, 프론트엔드가 직접 호출하지 않습니다.
 
-- 스택: Python 3.12 · FastAPI · Claude API (`claude-opus-5`) · **Google Cloud Run**
+- 스택: Python 3.12 · FastAPI · **OpenAI** (추출 `gpt-5.4-mini` · 소명서 `gpt-5.5`) · **Google Cloud Run**
 - **설계와 실행 계획은 [`docs/`](docs/)에 있습니다. 작업 전 [`docs/design.md`](docs/design.md)를 먼저 여세요.**
 
 ## 절대 원칙

@@ -1,7 +1,7 @@
 import os
 
 os.environ.setdefault("INTERNAL_TOKEN", "test-token")
-os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 import pytest
 from fastapi.testclient import TestClient

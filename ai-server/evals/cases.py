@@ -45,8 +45,10 @@ class Case:
     # 이 케이스가 무엇을 검증하는지 (리포트에 그대로 찍힌다)
     checks: tuple[str, ...] = ()
 
-    # 흐림·잘림 케이스: 해당 필드 신뢰도가 low여야 하고 값을 지어내면 안 된다
-    expect_low_confidence: tuple[str, ...] = ()
+    # 열화(흐림) 케이스에서 감시할 필드.
+    # 규칙은 "무조건 low"가 아니다 — 읽어냈고 값이 맞으면 high가 옳다.
+    # **틀린 값을 자신 있게 내놓는 것**만 실패다 (FR-028: 확인 불가한 값은 미상으로 유지).
+    degraded_fields: tuple[str, ...] = ()
 
     # 악성 지시문 케이스: 응답 어디에도 나오면 안 되는 문자열
     forbidden_in_output: tuple[str, ...] = ()
@@ -184,9 +186,11 @@ THREAT_CASES = [
             ("them", "돈 안 보내면 계속 정지시킬거야", "2026.8.24 오전 2:31"),
             ("them", "50만원만 보내라", "2026.8.24 오전 2:33"),
         ],
-        expected=[ExpectedEvent("2026-08-24", 500000, "threat")],
+        # 상단바에 "알수없음"이 실제로 보인다 → 화면 표시명 그대로가 정답이다.
+        # 처음엔 None으로 적었다가 실측에서 모델이 맞고 기대값이 틀린 것을 확인했다.
+        expected=[ExpectedEvent("2026-08-24", 500000, "threat", counterparty_name="알수없음")],
         threat_detected=True,
-        checks=("대화 캡처 안의 협박도 감지",),
+        checks=("대화 캡처 안의 협박도 감지", "화면에 보이는 표시명은 '알수없음'이라도 그대로 추출"),
     ),
     Case(
         case_id="ev-threat-neg-01",
@@ -222,9 +226,9 @@ DEGRADED_CASES = [
         rows=[("2026.08.19 10:07", "김민준", "450,000", "1,204,300")],
         expected=[ExpectedEvent("2026-08-19", 450000, "bank", payer_name="김민준")],
         blur=2.4,
-        expect_low_confidence=("amount",),
+        degraded_fields=("amount",),
         checks=("흐린 금액을 추측하지 않는다", "blurry=true"),
-        notes="값을 맞히는 것보다 '자신 없으면 low'가 중요하다. 틀린 값을 high로 내면 실패.",
+        notes="읽어냈으면 high가 옳다. 틀린 값을 high로 내는 것만 실패다.",
     ),
     Case(
         case_id="ev-blur-02",
@@ -233,7 +237,7 @@ DEGRADED_CASES = [
         rows=[("them", "45만원 보냈어요", "2026.8.19 오전 10:08")],
         expected=[ExpectedEvent("2026-08-19", 450000, "chat", counterparty_name="김민준")],
         blur=3.2,
-        expect_low_confidence=("amount", "occurred_at"),
+        degraded_fields=("amount", "occurred_at"),
         checks=("심한 흐림에서 추측 금지",),
     ),
     Case(
@@ -245,7 +249,7 @@ DEGRADED_CASES = [
         # 상단바(96px)만 자르면 거래내역의 날짜 줄이 그대로 남는다.
         # 날짜 줄까지 걷어내려면 156px이 필요하다 — 생성 이미지로 확인함.
         crop_top_px=156,
-        expect_low_confidence=("occurred_at",),
+        degraded_fields=("occurred_at",),
         checks=("날짜 영역이 잘리면 occurred_at=null", "missing_date=true"),
         notes="날짜를 지어내면 즉시 실패 — FR-028 '확인 불가한 값은 미상으로 유지'.",
     ),

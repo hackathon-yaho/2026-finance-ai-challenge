@@ -60,7 +60,7 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanage
 
 # 2. 시크릿 등록 — 저장소에 들어가지 않습니다
 printf '%s' '<백엔드가 준 토큰>' | gcloud secrets create INTERNAL_TOKEN --data-file=-
-printf '%s' '<LLM API 키>'      | gcloud secrets create ANTHROPIC_API_KEY --data-file=-
+printf '%s' '<LLM API 키>'      | gcloud secrets create OPENAI_API_KEY --data-file=-
 # 값을 바꿀 때는: printf '%s' '<새 값>' | gcloud secrets versions add INTERNAL_TOKEN --data-file=-
 
 # 3. 배포 (소스에서 빌드 → 배포까지 한 번에)
@@ -74,7 +74,7 @@ gcloud run deploy haebing-ai-server \
   --min-instances 0 \
   --max-instances 2 \
   --timeout 60s \
-  --set-secrets INTERNAL_TOKEN=INTERNAL_TOKEN:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest
+  --set-secrets INTERNAL_TOKEN=INTERNAL_TOKEN:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest
 ```
 
 **옵션 설명 (임의로 바꾸면 안 되는 것들)**
@@ -126,11 +126,11 @@ INTERNAL_TOKEN = 공유해 주신 값 그대로 등록 완료
 
 ## 주의
 
-### LLM 키 이름은 아직 확정이 아닙니다
+### LLM 공급자·모델
 
-현재 구현은 Anthropic SDK 기반이라 `ANTHROPIC_API_KEY`를 읽습니다. **공급자가 OpenAI로 확정되면** 시크릿 이름과 `--set-secrets`를 함께 바꿔야 합니다. 교체 범위는 `app/llm/client.py` + `app/llm/prompts.py`의 structured output 부분뿐이며, 스키마·프롬프트 문안·FactChecker는 공급자 중립입니다.
+**공급자는 OpenAI로 확정됐습니다 (2026-08-26).** 키 환경변수는 `OPENAI_API_KEY`이며, 추출은 `gpt-5.4-mini`, 소명서는 `gpt-5.5`를 씁니다(실측 근거: `../evals/README.md`).
 
-**키가 없어도 배포는 됩니다.** 서버가 뜨고 `/internal/health`는 200을 주며, LLM을 실제로 쓰는 경로만 계약대로 502(`EXTRACTION_FAILED` / `DRAFT_FAILED`)를 돌려줍니다. 그래서 **키 확정을 기다리지 않고 먼저 배포해 백엔드 연동을 풀어줄 수 있습니다.** (시크릿을 아직 안 만들었다면 `--set-secrets`에서 `ANTHROPIC_API_KEY` 항목만 빼고 배포하면 됩니다.)
+**키가 없어도 배포는 됩니다.** 서버가 뜨고 `/internal/health`는 200을 주며, LLM을 실제로 쓰는 경로만 계약대로 502(`EXTRACTION_FAILED` / `DRAFT_FAILED`)를 돌려줍니다. 그래서 **키 확정을 기다리지 않고 먼저 배포해 백엔드 연동을 풀어줄 수 있습니다.** (시크릿을 아직 안 만들었다면 `--set-secrets`에서 `OPENAI_API_KEY` 항목만 빼고 배포하면 됩니다.)
 
 ### 콜드스타트 — 킵얼라이브가 유일한 대책입니다
 

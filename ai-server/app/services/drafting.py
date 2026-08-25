@@ -25,6 +25,42 @@ _SOURCE_LABELS = {
 }
 
 
+# 문진 enum을 사람이 읽는 말로 바꾼다. 이 값들이 그대로 나가면 은행에 내는
+# 문서에 "거래 성격을 goods로 진술하였습니다" 같은 문장이 실린다 — 실측에서 실제로 나왔다.
+_KIND_LABELS = {
+    "goods": "물품 판매 대금",
+    "service": "용역·근로 제공의 대가",
+    "debt": "빌려준 돈의 상환",
+    "unclear": "성격을 특정하기 어려운 거래",
+}
+
+# api-contract.md: usage = main | occasional | rare
+_USAGE_LABELS = {
+    "main": "주 거래 계좌로 사용하는 계좌",
+    "occasional": "가끔 사용하는 계좌",
+    "rare": "거의 사용하지 않는 계좌",
+}
+
+
+def _label(value: str, table: dict[str, str]) -> str | None:
+    """모르는 값은 영문 코드를 노출하느니 아예 서술하지 않는다."""
+    return table.get(value)
+
+
+def _format_datetime_kr(occurred_at: str | None) -> str:
+    """LLM에게 넘길 일시 표기. ISO를 그대로 주면 문장에 ISO가 그대로 실린다."""
+    if not occurred_at:
+        return "미상"
+    try:
+        parsed = datetime.fromisoformat(occurred_at)
+    except ValueError:
+        return "미상"
+    base = f"{parsed.year}년 {parsed.month}월 {parsed.day}일"
+    if (parsed.hour, parsed.minute) != (0, 0):
+        base += f" {parsed.hour}시 {parsed.minute}분"
+    return base
+
+
 def _format_date_kr(occurred_at: str | None) -> str:
     if occurred_at:
         try:
@@ -37,7 +73,7 @@ def _format_date_kr(occurred_at: str | None) -> str:
 
 def _event_line(event: Card) -> str:
     parts = [f"id={event.event_id}", f"출처={_SOURCE_LABELS.get(event.source_type, event.source_type)}"]
-    parts.append(f"일시={event.occurred_at or '미상'}")
+    parts.append(f"일시={_format_datetime_kr(event.occurred_at)}")
     parts.append(f"행위자={event.actor}")
     if event.amount is not None:
         parts.append(f"금액={event.amount:,}원")
@@ -65,17 +101,28 @@ def _serialize(req: DraftRequest) -> str:
         lines.append(_event_line(event))
     if req.intake is not None:
         if req.intake.when:
-            lines.append(f"- id=intake:when | 출처=문진(본인 진술) | 지급정지 인지일={req.intake.when}")
+            lines.append(
+                f"- id=intake:when | 출처=문진(본인 진술) | "
+                f"지급정지를 알게 된 날={_format_datetime_kr(req.intake.when)}"
+            )
         if req.intake.amount is not None:
             lines.append(f"- id=intake:amount | 출처=문진(본인 진술) | 문제가 된 입금액={req.intake.amount:,}원")
-        if req.intake.kind:
-            lines.append(f"- id=intake:kind | 출처=문진(본인 진술) | 본인이 밝힌 거래 성격={req.intake.kind}")
-        if req.intake.usage:
-            lines.append(f"- id=intake:usage | 출처=문진(본인 진술) | 계좌 사용 목적={req.intake.usage}")
+        kind_label = _label(req.intake.kind, _KIND_LABELS) if req.intake.kind else None
+        if kind_label:
+            lines.append(
+                f"- id=intake:kind | 출처=문진(본인 진술) | 본인이 밝힌 거래 성격={kind_label}"
+            )
+        usage_label = _label(req.intake.usage, _USAGE_LABELS) if req.intake.usage else None
+        if usage_label:
+            lines.append(
+                f"- id=intake:usage | 출처=문진(본인 진술) | 계좌 사용 목적={usage_label}"
+            )
     lines += [
         "",
         "[지시]",
         "- 위 사실 목록만으로 은행 제출용 사실 진술 문장을 작성하라.",
+        "- 날짜·시각은 사실 목록에 적힌 한국어 표기를 그대로 쓴다. "
+        "ISO 8601이나 영문 코드를 문장에 넣지 마라 — 사람이 읽는 문서다.",
         "- 시간 순서로, 사실 하나당 한 문장을 기본으로 하되 같은 흐름의 사실은 한 문장으로 묶어도 된다.",
         "- 문장 수는 사실 수를 넘지 않게 하라. 각 문장의 basis에 근거 id를 빠짐없이 넣어라.",
     ]

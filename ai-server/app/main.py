@@ -29,7 +29,7 @@ async def lifespan(_app: FastAPI):
 
     if not llm_client.api_key_present():
         log.error(
-            "LLM API 키가 설정되지 않았습니다. /internal/health는 정상이지만 "
+            "OPENAI_API_KEY가 설정되지 않았습니다. /internal/health는 정상이지만 "
             "판독·소명서 생성은 AI_CONFIG_ERROR(500)로 실패합니다. "
             "로컬은 set-key.ps1, 배포는 Secret Manager를 확인하세요."
         )

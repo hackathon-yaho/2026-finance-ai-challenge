@@ -23,19 +23,18 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ENV_PATH = ROOT / ".env"
 
-# 지금 저장소의 LLM 호출부는 Anthropic 전용이다 (app/llm/client.py).
-# OpenAI 키를 저장할 수 있게 두면 저장은 되는데 읽는 코드가 없어,
-# 첫 호출이 설정 오류로 실패한다 — 고를 수 있으면 고른 사람이 생긴다.
+# 저장소의 LLM 호출부는 OpenAI 전용이다 (app/llm/client.py, 2026-08-26 확정).
+# 읽는 코드가 없는 공급자를 고를 수 있게 두면 저장은 되는데 첫 호출이
+# 설정 오류로 실패한다 — 고를 수 있으면 고른 사람이 생긴다.
 PROVIDERS = {
-    "1": ("anthropic", "ANTHROPIC_API_KEY", "sk-ant-"),
+    "1": ("openai", "OPENAI_API_KEY", "sk-"),
 }
 
 UNSUPPORTED = {
     "2": (
-        "OpenAI",
-        "아직 지원하지 않습니다. LLM 호출부(app/llm/client.py)가 Anthropic 전용이라 "
-        "OpenAI 키를 저장해도 읽는 코드가 없습니다. 공급자를 바꾸기로 정해지면 "
-        "코드 교체와 함께 선택지를 넣겠습니다.",
+        "Anthropic",
+        "지원하지 않습니다. LLM 호출부(app/llm/client.py)가 OpenAI 전용이라 "
+        "Anthropic 키를 저장해도 읽는 코드가 없습니다.",
     ),
 }
 
@@ -140,7 +139,7 @@ def main() -> int:
     values = read_env()
 
     print("[1/2] LLM API 키")
-    print("  어느 공급자인가요?   1) Anthropic   2) OpenAI (아직 미지원)   (엔터=건너뛰기)")
+    print("  어느 공급자인가요?   1) OpenAI   2) Anthropic (미지원)   (엔터=건너뛰기)")
     choice = input("  선택: ").strip()
     if choice in UNSUPPORTED:
         name, reason = UNSUPPORTED[choice]

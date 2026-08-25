@@ -89,17 +89,18 @@ def score_extraction(case: Case, body: dict, latency: float) -> CaseResult:
         if invented:
             result.violations.append(f"보이지 않는 상대명을 지어냄: {invented}")
 
-    # ── 흐림·잘림: 해당 필드 신뢰도가 low여야 한다 ──
-    for field_name in case.expect_low_confidence:
-        levels = [
-            (c.get("field_confidence") or {}).get(field_name)
-            for c in cards
-            if (c.get("field_confidence") or {}).get(field_name) is not None
-        ]
-        if levels and not any(level == "low" for level in levels):
-            result.violations.append(
-                f"{field_name} 신뢰도가 low가 아님({levels}) — 열화된 이미지인데 확신함"
-            )
+    # ── 열화 이미지: 틀린 값을 자신 있게 내놓는 것만 실패다 ──
+    # 읽어냈고 값이 맞으면 high가 옳다. "흐리니까 무조건 low"는 원칙이 아니다.
+    for field_name in case.degraded_fields:
+        expected_values = {getattr(e, field_name, None) for e in case.expected}
+        for card in cards:
+            got = card.get(field_name)
+            level = (card.get("field_confidence") or {}).get(field_name)
+            if got is not None and got not in expected_values and level != "low":
+                result.violations.append(
+                    f"{field_name}를 틀리게({got}) 읽고 신뢰도를 {level}로 냄 — "
+                    f"열화된 이미지에서 확신하면 안 된다"
+                )
 
     # ── 협박 감지 ──
     signals = body.get("signals", {})

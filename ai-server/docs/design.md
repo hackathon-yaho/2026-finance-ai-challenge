@@ -21,8 +21,8 @@
 | --- | --- | --- |
 | 언어/런타임 | **Python 3.12** | LLM SDK 생태계 표준. AI 담당자 재량 항목(`system-architecture.md`) |
 | 웹 프레임워크 | **FastAPI + uvicorn** | async 동시 처리(LLM 대기 시간 동안 논블로킹), pydantic 기반 스키마 검증(계약=코드), 메모리 풋프린트가 Render 512MB에 여유 |
-| LLM | **Claude API — `claude-opus-5`** (env로 교체 가능) | 멀티모달(비전) + structured outputs(고정 JSON 스키마 강제 — FR-021 "JSON만 출력"과 프롬프트 인젝션 방어를 API 레벨에서 보강) + prompt caching(고정 시스템 프롬프트 캐시로 지연·비용 절감) |
-| SDK | `anthropic` (Python, 1.x) | 공식 SDK. 타임아웃·재시도·타입 오류 처리 내장 |
+| LLM | **OpenAI Responses API** — 추출 `gpt-5.4-mini` · 소명서 `gpt-5.5` (env로 교체 가능) | 멀티모달(비전) + structured outputs(`text_format`에 pydantic 모델을 넘겨 스키마 강제 — FR-021 "JSON만 출력"과 인젝션 방어를 API 레벨에서 보강) + 고정 프롬프트 자동 캐싱. 모델 분리 근거는 실측(`../evals/README.md`) |
+| SDK | `openai` (Python, 3.x) | 공식 SDK. 타임아웃·오류 타입 내장. **공급자 의존은 `app/llm/client.py` 한 파일에 가둔다** — 콘텐츠 블록 조립도 거기서 한다 |
 | 스키마/검증 | pydantic v2 | 계약 스키마를 코드로 정의 → 응답이 계약과 갈라질 수 없게 함 (내부 계약 체크리스트 "스키마 동일" 항목의 구조적 보장) |
 | 배포 | Render Web Service (Docker) | 팀 결정. 9/5까지 Starter 전환 |
 | DB | **없음** | AI-server는 Supabase에 접근하지 않는다 (`system-architecture.md`) |
@@ -52,7 +52,7 @@ ai-server/
 │   │   ├── drafting.py      # DraftService — 문장 생성 (LLM)
 │   │   └── factcheck.py     # FactChecker — 결정적 검증기 (LLM 미사용, 순수 함수)
 │   ├── llm/
-│   │   ├── client.py        # anthropic 클라이언트 래퍼: 타임아웃, 오류→계약 코드 매핑,
+│   │   ├── client.py        # OpenAI 래퍼: 콘텐츠 블록 조립, 타임아웃, 오류→계약 코드 매핑,
 │   │   │                    #   동시성 세마포어, refusal 폴백 처리
 │   │   └── prompts.py       # 시스템 프롬프트 2종 (고정 문자열, 캐시 대상)
 │   └── pii.py               # 추출 JSON 후처리 정규식 검증 (F4-03 이중 방어)
@@ -248,7 +248,8 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 | --- | --- | --- |
 | `INTERNAL_TOKEN` | (필수) | 내부 API 공유 시크릿 |
 | `ANTHROPIC_API_KEY` | (필수) | LLM API 키 |
-| `AI_MODEL` | `claude-opus-5` | 모델 교체용 |
+| `AI_MODEL` | `gpt-5.4-mini` | 추출 모델 |
+| `DRAFT_MODEL` | `gpt-5.5` | 소명서 모델 |
 | `EXTRACT_EFFORT` / `DRAFT_EFFORT` | `low` / `medium` | 지연·품질 트레이드오프 조정 |
 | `LLM_TIMEOUT_EXTRACT` / `LLM_TIMEOUT_DRAFT` | `12` / `10` (초) | §7 시간 예산 |
 | `MAX_CONCURRENCY` | `4` | LLM 동시 호출 세마포어 (백엔드 동시 4와 정합, 512MB 보호) |
@@ -296,7 +297,8 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 | payer-name §2 절충안 | ✅ 2026-08-25 확정 — **원문 추출**, 부분 마스킹 기각 | 구현 그대로 유지. 데모 세트의 `박OO` 표기도 원문 형태로 교체 |
 | 배포 플랫폼 | ✅ 2026-08-25 **Google Cloud Run(무료 한도)** 으로 확정 | 절차 준비 완료(`deployment.md`), 비용 $0. 실제 배포와 `AI_SERVER_URL` 전달은 미완 — 백엔드가 대기 중 |
 | 콜드스타트 지연 | 미실측 | `min-instances=0`이라 유휴 후 첫 요청이 수 초 걸린다. 킵얼라이브로 방지하되, **심사 기간 전에 실제 지연을 재 본다** |
-| LLM 공급자 | ⏳ 미확정 (Anthropic 구현, OpenAI 검토 중) | 교체 범위는 `app/llm/client.py` + `prompts.py`의 structured output뿐. 스키마·프롬프트 문안·FactChecker는 공급자 중립. **키 없이도 배포·헬스체크는 동작** |
+| LLM 공급자 | ✅ 2026-08-26 **OpenAI 확정** | 실연동·실측 완료(`../evals/README.md`). **키 없이도 배포·헬스체크는 동작** |
+| 날짜 정확도 88.9% | ⏳ 목표(90%) 한 케이스 차이로 미달 | 빗나간 케이스 확인 후 프롬프트로 좁힌다 |
 | `source_region`(bbox) 정밀도 | LLM 비전 특성상 근사값 | F7-05 P0(열기+스크롤)에는 충분. 평가 세트에서 실측 공유. 정밀 하이라이트(P1)는 기대치 조정 |
 | 이름 추출 실측 정확도 | 미실측 (실 LLM 연동 후) | 8/28까지 평가 세트로 실측 → payer-name 회신 문서에 수치 추가 |
 | p95 8초 달성 여부 | 미실측 | effort/모델 조정 여지 확보(env). 평가 세트에 지연 측정 포함 |
