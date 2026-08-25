@@ -1,4 +1,12 @@
-export type IntakeField = "when" | "notice" | "amount" | "kind" | "history" | "usage"
+export type IntakeField = "when" | "notice" | "amount" | "kind" | "delivery" | "history" | "usage"
+
+/**
+ * 거래 방식 (spec.md F2-01a). `/api/intake`의 `deliveryMethod`.
+ *
+ * **직거래는 송장이 원래 없다.** F5-03의 공백 탐지가 이걸 모르면 직거래 사용자에게
+ * **채울 방법이 없는 "발송 증빙 없음"** 을 영원히 띄우고 준비도를 깎는다.
+ */
+export type DeliveryMethod = "courier" | "in_person" | "not_applicable"
 
 /** api-contract의 `dueNoticeStatus`. 채권소멸절차 개시 공고를 받았는지. */
 export type DueNoticeStatus = "notified" | "not_yet" | "unknown"
@@ -17,6 +25,8 @@ export interface IntakeAnswers {
   amount: number | null
   amountUnknown: boolean
   kind: string | null
+  /** 물품 거래일 때만 묻는다. `kind !== "goods"`면 서버로 `null`을 보낸다 (F2-01a). */
+  delivery: string | null
   history: string | null
   usage: string | null
 }
@@ -185,8 +195,15 @@ export interface ChecklistEntry {
   note?: string
 }
 
-/** 판정 결과. `/api/readiness`·`/api/draft`의 `checklist` 배열 원소와 같은 모양이다. */
-export interface ChecklistItem extends Omit<ChecklistEntry, "anyOf"> {
+/**
+ * 판정 결과. `/api/readiness`·`/api/draft`의 `checklist` 배열 원소와 **같은 모양이다.**
+ *
+ * **`sources`를 상속하지 않는다.** 그 값은 목이 `status`를 계산하려고 쓰는 입력이고,
+ * 실제로는 **서버가 확인된 카드로 `status`를 계산해서 내려준다.** 응답 타입에 남겨두면
+ * API를 붙였을 때 `undefined`가 되는데, 지금은 목에 값이 있어서 문제가 드러나지 않는다.
+ * (백엔드 회신 `docs/response/frontend/evidence-structure-revision.md` 말미 지적)
+ */
+export interface ChecklistItem extends Omit<ChecklistEntry, "anyOf" | "sources"> {
   status: ChecklistStatus
   options?: (ChecklistOption & { status: ChecklistStatus })[]
 }

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react"
 import { PdfPreview } from "./PdfPreview"
 import { FIELD_LABELS, blankFieldLabels, readField, toPackageRequest } from "../lib/legalForm"
 import type { LegalFormField, LegalFormValues } from "../lib/legalForm"
-import type { ChecklistItem, DraftLine, TimelineEvent, UploadedFile } from "../types"
+import type { ChecklistItem, DraftLine, ExtractedCard, SourceType, TimelineEvent } from "../types"
 
 interface PreviewSheetProps {
   width: number
@@ -10,7 +10,8 @@ interface PreviewSheetProps {
   draftLines: DraftLine[]
   timeline: TimelineEvent[]
   checklist: ChecklistItem[]
-  uploadedFiles: UploadedFile[]
+  /** 4면 증빙자료 목록 = 확인된 카드. **파일명이 아니다** — 개인정보가 섞인다 (F8-01) */
+  cards: ExtractedCard[]
   excluded: ReadonlySet<string>
   onToggleExcluded: (sentenceId: string) => void
   /** 3면 값이 틀렸을 때 되돌아갈 곳 — 편집 불가만 두면 막다른 길이 된다. */
@@ -21,6 +22,16 @@ interface PreviewSheetProps {
   textPagesPending: boolean
   onDownload: () => void
   onClose: () => void
+}
+
+/** 자료 유형 표기. 카드 화면(ConfirmCard)과 같은 말을 쓴다. */
+const SOURCE_LABEL: Record<SourceType, string> = {
+  chat: "대화 캡처",
+  bank: "입출금 내역",
+  shipping: "배송·운송장",
+  threat: "협박 메시지",
+  autopay: "자동이체 내역",
+  unknown: "미분류 자료",
 }
 
 const APPLICANT_ORDER: LegalFormField[] = [
@@ -71,7 +82,7 @@ export function PreviewSheet({
   draftLines,
   timeline,
   checklist,
-  uploadedFiles,
+  cards,
   excluded,
   onToggleExcluded,
   onBackToEvidence,
@@ -94,10 +105,10 @@ export function PreviewSheet({
   const request = toPackageRequest(form)
   const blanks = blankFieldLabels(form)
   const included = draftLines.filter((line) => !excluded.has(line.id))
-  // 4면 증빙자료 목록 — 뒤에 붙는 원본 이미지 페이지의 목차다.
-  // (`checklist`가 아니다 — 그건 보유/미보유 표시라 은행 제출본에 넣지 않기로 했다.
-  //  A/B 확정은 백엔드 회신 대기 중이며 A로 그려둔다.)
-  const attachments = uploadedFiles
+  // 4면 증빙자료 목록 — 뒤에 붙는 원본 이미지 페이지의 목차다. **A안으로 확정됐다**
+  // (백엔드 회신 2026-08-25). `checklist`가 아니다 — 그건 보유/미보유 표시라
+  // 제출본에 넣지 않는다. 확인된 카드만 담아 5면 이미지 순서와 맞춘다.
+  const attachments = cards.filter((card) => card.confirmation_status !== "pending")
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg">
@@ -136,6 +147,32 @@ export function PreviewSheet({
             <PdfPreview build={build} textPagesPending={textPagesPending} />
           ) : (
           <>
+          {/* 표지 — 부족자료 체크리스트를 뺀 자리에 들어간다 (spec.md F7-06).
+              **못 갖춘 자료를 적지 않는다.** 적기 시작하면 체크리스트를 뺀 이유가 여기서 되살아난다. */}
+          <section className="overflow-hidden rounded-2xl border border-border">
+            <div className="flex items-center gap-2 border-b border-border bg-subtle px-4 py-3">
+              <span className="flex-none rounded-md bg-bg px-2 text-[11px] font-semibold leading-[22px] text-muted">
+                표지
+              </span>
+              <span className="text-[15px] font-semibold tracking-tight">제출 서류 목록</span>
+            </div>
+            <div className="px-4 py-3.5">
+              <div className="text-[13px] font-semibold">이 문서에 포함된 것</div>
+              <ol className="mt-1.5 flex flex-col gap-1 text-[13px] leading-normal text-muted">
+                <li>1. 이의제기신청서 (작성 지원본)</li>
+                <li>2. 사실관계 진술서</li>
+                <li>3. 거래 타임라인</li>
+                <li>4. 증빙자료 목록</li>
+                <li>5. 증빙 원본 이미지</li>
+              </ol>
+              <div className="mt-3 text-[13px] font-semibold">신청인이 따로 첨부하는 것</div>
+              <ul className="mt-1.5 flex flex-col gap-1 text-[13px] leading-normal text-muted">
+                <li>· 명의인 신분증 사본</li>
+                <li>· 1면 서명란 자필 서명</li>
+              </ul>
+            </div>
+          </section>
+
           <Page no={1} title="이의제기신청서 (별지 제4호서식)">
             <p className="text-[13px] leading-normal text-muted">
               법에 정해진 서식 그대로 만들어져요. 아래는 여기에 들어갈 값이에요.
@@ -207,13 +244,18 @@ export function PreviewSheet({
           </Page>
 
           <Page no={3} title="시간순 거래 타임라인">
+            {/* **증거 공백(`gap`)은 제출본에 넣지 않는다** (spec.md F8-01).
+                부족자료 체크리스트를 뺀 것과 같은 이유 — "못 갖춘 것"을 은행에 스스로
+                정리해 건네지 않는다. 공백은 화면(S02 타임라인)에만 남는다. */}
             <ul className="flex flex-col gap-2">
-              {timeline.map((event, i) => (
-                <li key={`${event.time}-${i}`} className="flex gap-3 text-[15px] leading-normal">
-                  <span className="w-[112px] flex-none text-[13px] tabular-nums text-muted">{event.time}</span>
-                  <span className={`min-w-0 flex-1 ${event.gap ? "text-muted" : ""}`}>{event.text}</span>
-                </li>
-              ))}
+              {timeline
+                .filter((event) => !event.gap)
+                .map((event, i) => (
+                  <li key={`${event.time}-${i}`} className="flex gap-3 text-[15px] leading-normal">
+                    <span className="w-[112px] flex-none text-[13px] tabular-nums text-muted">{event.time}</span>
+                    <span className="min-w-0 flex-1">{event.text}</span>
+                  </li>
+                ))}
             </ul>
             {/* 편집을 막기만 하면 막다른 길이 된다 — 고칠 곳을 알려준다 (F7-04 경로). */}
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -230,13 +272,24 @@ export function PreviewSheet({
             </div>
           </Page>
 
+          {/* 4면 — 순번 · 자료 유형 · 확인된 일시 · 한 줄 요약 (spec.md F8-01).
+              **파일명을 넣지 않는다** — `카톡_김철수_20260901.png`처럼 개인정보가 섞인다.
+              **보유/미보유도 넣지 않는다** — 못 갖춘 것을 제출본에 적지 않기로 한 것과 같은 이유다. */}
           <Page no={4} title="증빙자료 목록">
             {attachments.length > 0 ? (
-              <ol className="flex flex-col gap-1.5 text-[15px] leading-normal">
-                {attachments.map((file, i) => (
-                  <li key={file.id} className="flex gap-2">
+              <ol className="flex flex-col gap-2 text-[15px] leading-normal">
+                {attachments.map((card, i) => (
+                  <li key={card.event_id} className="flex gap-2">
                     <span className="flex-none tabular-nums text-muted">{i + 1}.</span>
-                    <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="font-semibold">{SOURCE_LABEL[card.source_type]}</span>
+                      {card.occurred_at && (
+                        <span className="ml-2 text-[13px] tabular-nums text-muted">
+                          {card.occurred_at.slice(0, 10).replace(/-/g, ".")}
+                        </span>
+                      )}
+                      <span className="block text-[13px] leading-normal text-muted">{card.summary}</span>
+                    </span>
                   </li>
                 ))}
               </ol>
@@ -244,7 +297,7 @@ export function PreviewSheet({
               <p className="text-[13px] leading-normal text-muted">올린 자료가 없어 목록이 비어 있어요.</p>
             )}
             <p className="mt-3 text-[13px] leading-normal text-muted">
-              이 목록 뒤에 원본 이미지가 순서대로 붙어요.
+              이 목록 뒤에 원본 이미지가 <b>같은 순서로</b> 붙어요.
             </p>
           </Page>
 

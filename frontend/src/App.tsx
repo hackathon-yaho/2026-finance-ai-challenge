@@ -247,7 +247,7 @@ function App() {
           draftLines={flow.draftLines}
           timeline={flow.timeline}
           checklist={flow.checklist}
-          uploadedFiles={flow.uploadedFiles}
+          cards={flow.cards}
           excluded={flow.excludedSentences}
           onToggleExcluded={flow.toggleExcludedSentence}
           // 미리보기와 다운로드가 **같은 함수**를 쓴다. 따로 만들면 보여준 것과 받는 것이 갈린다.

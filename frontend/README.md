@@ -67,8 +67,8 @@ src/
 │   ├── ChecklistPanel.tsx  # 첨부 서류 체크리스트 — 4개 층·택일 그룹 (F7-03)
 │   ├── EvidenceGuide.tsx   # 사유별 업로드 안내 (F3-07)
 │   ├── TextEntryPanel.tsx  # 텍스트 직접 입력 (S02-1 · F3-04)
+│   ├── PreviewSheet.tsx    # 제출 패키지 미리보기 (S04-2) — 표지+1~4면
 │   ├── LegalFormSheet.tsx  # 별지 제4호서식 11필드 입력 (S04-1)
-│   ├── PreviewSheet.tsx    # 제출 패키지 미리보기 (S04-2)
 │   ├── PdfPreview.tsx      # 그 안의 "실제 문서" 보기
 │   └── *.tsx               # 공통 UI (TopBar, BottomCta, MaskingSheet, ViewerSheet 등)
 ├── hooks/
@@ -98,6 +98,9 @@ src/
   [`../docs/01-product/reason-type-rules.md`](../docs/01-product/reason-type-rules.md) §2입니다
 - **준비도·체크리스트 판정은 백엔드가 최종 소유**합니다. `lib/`의 함수들은 API를 붙이기
   전까지 같은 규칙을 대신 계산할 뿐이며, 규칙을 바꿔야 하면 위 문서를 먼저 고칩니다
+- **제출본에 "못 갖춘 것"을 적지 않습니다** (`spec.md` F8-01). 미리보기 3면은 증거 공백(`gap`)을
+  빼고, 4면은 **파일명을 쓰지 않습니다**(`카톡_김철수_20260901.png`처럼 개인정보가 섞입니다).
+  표지에도 부족 자료를 적지 않습니다 — 부족자료 체크리스트를 제출본에서 뺀 이유가 되살아납니다
 - **없는 값을 만들어 보여주지 않습니다.** 텍스트 직접 입력(F3-04)은 사용자가 "9월 1일쯤"이라고만
   하면 시각을 만들지 않습니다. 날짜만 있는 값에 `new Date()`를 쓰면 자정이 09:00으로 찍히므로
   주의하세요 — 실제로 한 번 새어나갔던 자리입니다

@@ -1,4 +1,4 @@
-import type { ChecklistItem, DueNoticeStatus, ExtractedCard, ReasonType } from "../../types"
+import type { ChecklistItem, DeliveryMethod, DueNoticeStatus, ExtractedCard, ReasonType } from "../../types"
 
 /**
  * 공개 API 요청·응답 타입 (api-contract.md).
@@ -25,6 +25,8 @@ export interface IntakeRequest {
   /** 원 단위. **사실 기재 전용** — 준비도 판정에 쓰지 않는다. */
   amount: number | null
   kind: ReasonType
+  /** F2-01a. **물품 거래가 아니면 `null`** — 묻지 않은 값을 보내지 않는다. */
+  deliveryMethod: DeliveryMethod | null
   history: boolean
   usage: "main" | "occasional" | "rare"
 }
@@ -136,6 +138,40 @@ export interface DraftResponse {
   checklist: ChecklistItem[]
 }
 
+/**
+ * 미리보기에서 고친 문장 (`POST /api/draft/revise`).
+ *
+ * `text`와 `excluded`를 **분리한다** — 한 필드에 두 의미를 넣지 않는다. 빈 문자열로
+ * 삭제를 표현하면 되돌릴 수 없고, 빈 값과 공백만 입력한 값을 구분해야 한다.
+ */
+export interface ReviseSentence {
+  sentenceId: string
+  text?: string
+  excluded?: boolean
+}
+
+export interface RevisedSentence {
+  sentenceId: string
+  text: string
+  /**
+   * 편집으로 근거가 끊기면 `evidence` → `user_text`가 되고 **"본인 진술" 배지로 바뀐다.**
+   * 경고 문구는 읽고 넘기지만 배지가 바뀌는 건 눈에 보인다 — 둘 다 렌더한다.
+   */
+  sourceType: "evidence" | "intake" | "user_text"
+  evidenceRefs: EvidenceRef[]
+  /** 근거와 매칭되지 않을 때 채워진다. 받은 문자열을 그대로 노출한다 */
+  warning: string | null
+}
+
+export interface ReviseResponse {
+  sentences: RevisedSentence[]
+}
+
+/** 자가 진술 체크 (`POST /api/checklist/self-held`). 응답은 **갱신된 전체 체크리스트**다. */
+export interface SelfHeldResponse {
+  checklist: ChecklistItem[]
+}
+
 // ── 제출 패키지 ─────────────────────────────────────────────────────────────
 
 export interface PackageRequest {
@@ -143,9 +179,8 @@ export interface PackageRequest {
    * 별지 제4호서식 필드. **전부 선택이며 빈 값이어도 400을 내지 않는다** — 빈 칸은
    * 공란으로 둔 작성 지원본이 나온다.
    *
-   * 필드 수가 8 → 11로 늘어나는 것은 백엔드 요청(`legal-form-and-package.md`)에 프론트가
-   * 수용 회신한 내용이다. **계약 문서 갱신 대기 중**이므로, 계약이 8필드로 남아 있는 동안
-   * 백엔드가 `mobile`·`email`·`holderName`을 무시해도 나머지는 정상 동작한다.
+   * 11필드는 **2026-08-25 계약 반영 완료**다 (`mobile`·`email`·`holderName` 신설).
+   * `spec.md` F7-06·`prd.md` §4.4·§9까지 동기화됐다.
    */
   applicant: {
     name: string
@@ -163,9 +198,9 @@ export interface PackageRequest {
     holderName: string
   }
   /**
-   * 미리보기에서 사용자가 뺀 문장 (`draft-preview-and-edit.md` 회신 §5-3).
-   * 문장을 빼는 것은 새 사실을 만들지 않아 F7-02 재검증이 필요 없으므로 여기 싣는다.
-   * **계약 반영 대기 중** — 서버가 모르는 필드면 무시된다.
+   * 미리보기에서 사용자가 뺀 문장. 문장을 빼는 것은 새 사실을 만들지 않아 F7-02 재검증이
+   * 필요 없으므로 여기 싣는다 — `/api/draft/revise`가 밀려도 이 경로는 살아남는다.
+   * **2026-08-25 계약 반영 완료** (선택, 기본 `[]`).
    */
   excludedSentenceIds?: string[]
 }

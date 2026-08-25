@@ -1,4 +1,4 @@
-import { INTAKE_PAGES, NOTICE_OPTIONS, QUESTIONS } from "../../data"
+import { INTAKE_PAGES, NOTICE_OPTIONS, QUESTIONS, isFieldVisible } from "../../data"
 import type { DeadlineInfo } from "../../lib/deadline"
 import { chipValue, isAnswered, summaryValue } from "../../lib/intake"
 import type { DueNoticeStatus, IntakeAnswers, IntakeField } from "../../types"
@@ -38,7 +38,7 @@ export function IntakeStage({
 }: IntakeStageProps) {
   const current = INTAKE_PAGES[page]
   const priorFields = INTAKE_PAGES.slice(0, page).flatMap((prev, prevPage) =>
-    prev.fields.map((id) => ({ id, page: prevPage })),
+    prev.fields.filter((id) => isFieldVisible(id, intake.kind)).map((id) => ({ id, page: prevPage })),
   )
 
   return (
@@ -96,7 +96,8 @@ export function IntakeStage({
         </div>
       )}
 
-      {current.fields.map((id) => {
+      {/* F2-01a — 거래 방식은 물품 거래일 때만 나타난다. */}
+      {current.fields.filter((id) => isFieldVisible(id, intake.kind)).map((id) => {
         const { question, no } = findQuestion(id)
         return (
           <div key={question.id} className="flex flex-col gap-3">

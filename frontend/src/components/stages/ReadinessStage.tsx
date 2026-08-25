@@ -102,10 +102,19 @@ export function ReadinessStage({ readiness, wide, hasHistory, onToggleHistory }:
         </button>
       </div>
 
-      <p className="rounded-2xl bg-subtle p-4 text-[13px] leading-normal text-muted">
-        이의제기신청서와 소명자료를 충분히 구비하여 제출한 경우 금융회사는 5영업일 내 심사결과를 통보해요. 자료 보완이
-        필요하면 처리기간이 늘어날 수 있고, 5영업일 내 지급정지 해제를 보장하는 것은 아니에요.
-      </p>
+      {/* F6-05 고정 안내 문구 (2026-08-25 백엔드 개정 — "심사 결과 통보"와 "지급정지 해제" 분리).
+          API를 붙이면 `/api/readiness`의 `notices`가 **서버 단일 소스**이며, 프론트는 받은
+          문자열을 순화 없이 그대로 노출한다. 법 제8조 제2항 근거 문구라 다듬는 것 자체가 계약 위반이다. */}
+      <div className="rounded-2xl bg-subtle p-4 text-[13px] leading-normal text-muted">
+        <p>
+          이의제기신청서와 소명자료를 충분히 구비하여 제출한 경우 금융회사는 5영업일 내 <b>심사 결과를 통보</b>해요.
+          자료 보완이 필요하면 처리기간이 늘어날 수 있어요.
+        </p>
+        <p className="mt-2">
+          <b>심사 결과 통보와 지급정지 해제는 달라요.</b> 통신사기피해환급법 제8조 제2항에 따라, 피해자에게 통보한
+          날부터 2개월이 지나기 전에는 지급정지를 종료할 수 없어요. <b>5영업일 내 해제를 뜻하지 않아요.</b>
+        </p>
+      </div>
     </div>
   )
 }

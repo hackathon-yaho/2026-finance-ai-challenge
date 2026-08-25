@@ -10,6 +10,9 @@ import type {
   IntakeResponse,
   PackageRequest,
   ReadinessResponse,
+  ReviseResponse,
+  ReviseSentence,
+  SelfHeldResponse,
   SessionResponse,
   TimelineResponse,
 } from "./contract"
@@ -132,6 +135,38 @@ export function mergeTimeline(mergeGroupIds: string[], approved: boolean): Promi
  */
 export function checkReadiness(): Promise<ReadinessResponse> {
   return request<ReadinessResponse>("/api/readiness", { method: "POST" })
+}
+
+/**
+ * 서비스에 올리지 않는 자료의 보유 표시 (F7-03 자가 진술).
+ *
+ * **전용 엔드포인트인 이유**: 체크리스트를 쓰는 화면이 Stage 3(`/api/readiness`)과
+ * Stage 4(`/api/draft`) 둘이다. `/api/readiness` 요청 바디에만 실으면 서버에 남지 않아
+ * **두 화면이 서로 다른 체크리스트를 보게 된다.**
+ *
+ * 응답은 **갱신된 전체 체크리스트**다 — 택일 그룹은 옵션 하나가 바뀌면 그룹 상태도
+ * 바뀌므로 부분 갱신이 성립하지 않는다.
+ */
+export function setSelfHeld(itemId: string, held: boolean): Promise<SelfHeldResponse> {
+  return request<SelfHeldResponse>("/api/checklist/self-held", {
+    method: "POST",
+    json: { itemId, held },
+  })
+}
+
+/**
+ * 미리보기에서 고친 문장을 서버가 다시 검증한다 (F7-02 재실행).
+ *
+ * 근거와 매칭되지 않아도 **문장을 지우지 않는다** — 경고와 함께 `user_text`로 남긴다.
+ * 자동 삭제는 LLM 출력에 적용하는 규칙이고(FR-045 ③, 2026-08-25 PRD 개정),
+ * 사람이 자기 사실을 적은 문장에 같은 규칙을 쓰면 성격이 다르다.
+ */
+export function reviseDraft(sentences: ReviseSentence[]): Promise<ReviseResponse> {
+  return request<ReviseResponse>("/api/draft/revise", {
+    method: "POST",
+    json: { sentences },
+    timeout: "draft",
+  })
 }
 
 export function generateDraft(): Promise<DraftResponse> {

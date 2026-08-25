@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { INTAKE_PAGES, QUESTIONS } from "../data"
+import { INTAKE_PAGES, QUESTIONS, REASON_BY_KIND, isFieldVisible } from "../data"
 import { applyCardStates, blockingCards, buildCards, confirmedEvidence, evidenceIdOf, pendingCards } from "../lib/cards"
 import type { CardState } from "../lib/cards"
 import { buildChecklist } from "../lib/checklist"
@@ -34,6 +34,7 @@ const INITIAL_INTAKE: IntakeAnswers = {
   amount: null,
   amountUnknown: false,
   kind: null,
+  delivery: null,
   history: null,
   usage: null,
 }
@@ -156,7 +157,14 @@ export function useHaebingFlow() {
 
   const pick = useCallback(
     (field: IntakeField, value: string) => {
-      editIntake(() => ({ [field]: value }))
+      editIntake((prev) => {
+        // 거래 성격을 물품이 아닌 것으로 바꾸면 거래 방식(F2-01a)은 물어본 적 없는 값이 된다.
+        // 남겨두면 화면에 보이지 않는 값이 그대로 서버로 나간다.
+        if (field === "kind" && REASON_BY_KIND[value] !== "goods" && prev.delivery !== null) {
+          return { kind: value, delivery: null }
+        }
+        return { [field]: value }
+      })
     },
     [editIntake],
   )
@@ -469,9 +477,16 @@ export function useHaebingFlow() {
   }, [])
 
   const amountInfo = useMemo(() => getAmountInfo(intake.amount), [intake.amount])
-  const allAnswered = useMemo(() => QUESTIONS.every((question) => isAnswered(intake, question.id)), [intake])
+  // 숨어 있는 문항(F2-01a 조건부)은 답할 대상이 아니므로 완료 판정에서 뺀다.
+  const allAnswered = useMemo(
+    () => QUESTIONS.filter((q) => isFieldVisible(q.id, intake.kind)).every((q) => isAnswered(intake, q.id)),
+    [intake],
+  )
   const intakePageAnswered = useMemo(
-    () => INTAKE_PAGES[intakePage].fields.every((field) => isAnswered(intake, field)),
+    () =>
+      INTAKE_PAGES[intakePage].fields
+        .filter((field) => isFieldVisible(field, intake.kind))
+        .every((field) => isAnswered(intake, field)),
     [intakePage, intake],
   )
   const intakeLastPage = intakePage === INTAKE_PAGES.length - 1

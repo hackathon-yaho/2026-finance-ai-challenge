@@ -1,5 +1,6 @@
 import type {
   ChecklistEntry,
+  DeliveryMethod,
   DueNoticeStatus,
   EvidenceId,
   EvidenceTier,
@@ -52,6 +53,16 @@ export const QUESTIONS: {
     options: ["중고 물건 판매", "용역·알바 대가", "빌려준 돈 회수", "잘 모르겠어요"],
   },
   {
+    // F2-01a — **물품 거래일 때만** 노출한다(INTAKE_PAGES의 `showWhen`).
+    // 용역·채권 회수에는 배송 개념이 없어 "해당 없음"만 고르게 되는 문항이 하나 늘 뿐이다.
+    id: "delivery",
+    label: "물건을 어떻게 건네셨나요?",
+    short: "거래 방식",
+    input: "chips",
+    hint: "직접 만나서 건넨 경우에는 송장이 없어도 괜찮아요.",
+    options: ["택배로 보냈어요", "직접 만나서 건넸어요", "해당 없어요"],
+  },
+  {
     id: "history",
     label: "이 계좌가 과거에도 지급정지된 적 있나요?",
     short: "과거 이력",
@@ -92,9 +103,17 @@ export const INTAKE_PAGES: { title: string; desc: string; fields: IntakeField[] 
   {
     title: "어떤 거래였나요",
     desc: "거래 성격에 따라 준비할 자료가 달라져요. 자료가 없어도 진행할 수 있어요.",
-    fields: ["kind", "history", "usage"],
+    fields: ["kind", "delivery", "history", "usage"],
   },
 ]
+
+/**
+ * 조건부 노출 (F2-01a). 해당 없는 사용자에게는 문항 자체가 보이지 않는다 —
+ * 무조건 7문항으로 늘리지 않는다.
+ */
+export function isFieldVisible(field: IntakeField, kind: string | null): boolean {
+  return field !== "delivery" || REASON_BY_KIND[kind ?? ""] === "goods"
+}
 
 export const EVIDENCE_META: { id: EvidenceId; title: string; meta: string; badge: string; viewer: ViewerId }[] = [
   { id: "autopay", title: "통신비 자동이체 내역", meta: "2026.08.15 · 12개월", badge: "계좌", viewer: "bank" },
@@ -102,6 +121,13 @@ export const EVIDENCE_META: { id: EvidenceId; title: string; meta: string; badge
   { id: "bank", title: "입금 내역", meta: "2026.09.01 14:12", badge: "계좌", viewer: "bank" },
   { id: "shipping", title: "택배 송장", meta: "2026.09.01 16:05", badge: "배송", viewer: "shipping" },
 ]
+
+/** 거래 방식 선택지 → 계약의 `deliveryMethod`. */
+export const DELIVERY_BY_LABEL: Record<string, DeliveryMethod> = {
+  "택배로 보냈어요": "courier",
+  "직접 만나서 건넸어요": "in_person",
+  "해당 없어요": "not_applicable",
+}
 
 /** 문진의 한국어 선택지 → api-contract의 `reason` 4종. */
 export const REASON_BY_KIND: Record<string, ReasonType> = {
@@ -217,7 +243,10 @@ export const EVIDENCE_CATALOG: Record<ReasonType, ChecklistEntry[]> = {
     ...LEGAL_ENTRIES,
     {
       id: "goods.chat",
-      label: "거래 상대방과의 대화 내역",
+      // 중고거래 앱 거래 내역도 여기에 넣는다. **증거 유형을 새로 만들지 않는다** —
+      // 실제 유형은 AI의 `source_type` 6종 고정이라 프론트만 늘리면 죽은 코드가 된다
+      // (백엔드 회신 2026-08-25 B안 채택).
+      label: "거래 상대방과의 대화 · 중고거래 앱 거래 내역",
       tier: "fss",
       fulfillBy: "upload",
       // 이미 지운 사람은 다시 만들 수 없다(P-02 사례). 안내는 하되 막지는 않는다.
