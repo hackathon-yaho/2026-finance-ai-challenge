@@ -1,3 +1,5 @@
+import { useCallback, useState } from "react"
+import { PdfPreview } from "./PdfPreview"
 import { FIELD_LABELS, blankFieldLabels, readField, toPackageRequest } from "../lib/legalForm"
 import type { LegalFormField, LegalFormValues } from "../lib/legalForm"
 import type { ChecklistItem, DraftLine, TimelineEvent, UploadedFile } from "../types"
@@ -13,6 +15,10 @@ interface PreviewSheetProps {
   onToggleExcluded: (sentenceId: string) => void
   /** 3면 값이 틀렸을 때 되돌아갈 곳 — 편집 불가만 두면 막다른 길이 된다. */
   onBackToEvidence: () => void
+  /** 내려받을 파일을 만든다. 미리보기와 산출물이 **같은 함수**를 쓰게 해 어긋날 수 없게 한다. */
+  buildPdf: () => Promise<Blob>
+  /** 서버 텍스트 면(`/api/package/text`)이 아직 없는 상태인지 */
+  textPagesPending: boolean
   onDownload: () => void
   onClose: () => void
 }
@@ -69,9 +75,21 @@ export function PreviewSheet({
   excluded,
   onToggleExcluded,
   onBackToEvidence,
+  buildPdf,
+  textPagesPending,
   onDownload,
   onClose,
 }: PreviewSheetProps) {
+  /**
+   * 두 가지 보기를 둔다.
+   *
+   * - **정리해서 보기(기본)**: 문장을 빼고 넣는 편집이 즉시 반영된다. 실제 PDF는 서버가
+   *   만들므로 편집할 때마다 다시 부르면 느리다
+   * - **실제 문서**: 내려받을 파일 그대로. 한글 폰트 깨짐처럼 **HTML 미리보기가 구조적으로
+   *   못 잡는 사고**를 사용자가 받기 전에 볼 수 있다
+   */
+  const [view, setView] = useState<"summary" | "document">("summary")
+  const build = useCallback(() => buildPdf(), [buildPdf])
   const pad = width >= 640 ? 24 : 20
   const request = toPackageRequest(form)
   const blanks = blankFieldLabels(form)
@@ -95,6 +113,29 @@ export function PreviewSheet({
 
       <div className="min-h-0 flex-1 overflow-y-auto" style={{ padding: `${pad}px ${pad}px 24px` }}>
         <div className="mx-auto flex max-w-[560px] flex-col gap-4">
+          <div className="flex gap-1 rounded-xl bg-surface p-1">
+            {([
+              ["summary", "정리해서 보기"],
+              ["document", "실제 문서"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setView(value)}
+                aria-pressed={view === value}
+                className={`h-11 flex-1 rounded-lg text-[15px] font-semibold ${
+                  view === value ? "bg-bg text-ink shadow-sm" : "text-muted"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {view === "document" ? (
+            <PdfPreview build={build} textPagesPending={textPagesPending} />
+          ) : (
+          <>
           <Page no={1} title="이의제기신청서 (별지 제4호서식)">
             <p className="text-[13px] leading-normal text-muted">
               법에 정해진 서식 그대로 만들어져요. 아래는 여기에 들어갈 값이에요.
@@ -220,6 +261,8 @@ export function PreviewSheet({
                 ))}
             </ul>
           </div>
+          </>
+          )}
         </div>
       </div>
 

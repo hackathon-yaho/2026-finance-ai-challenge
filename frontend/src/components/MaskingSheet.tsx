@@ -25,6 +25,12 @@ export function MaskingSheet({ fileName, url, width, queueLabel, mode = "new", o
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 })
   const [confirmingSkip, setConfirmingSkip] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
+  /**
+   * 저장(내보내기) 실패. **로드 실패와 구분한다** — 파일은 멀쩡한데 미리보기 크기가 아직
+   * 측정되지 않았을 뿐인 경우가 있고(느린 기기·백그라운드 탭), 그때 "이미지가 손상됐다"고
+   * 말하면 사용자가 멀쩡한 자료를 버리고 다시 찍으러 간다.
+   */
+  const [exportFailed, setExportFailed] = useState(false)
   const [exporting, setExporting] = useState(false)
   const wide = width >= 720
 
@@ -129,18 +135,22 @@ export function MaskingSheet({ fileName, url, width, queueLabel, mode = "new", o
   // 화면 크기와 DPR에 좌우되면 안 된다 (lib/mask.ts 주석 참고).
   const exportWith = async (applied: MaskBox[]) => {
     const image = imageRef.current
-    if (!image || exporting) return
+    // 크기가 측정되기 전에 내보내면 마스킹 박스의 배율이 무한대가 되어 가린 영역이
+    // 조용히 사라진다 (lib/mask.ts가 그래서 거부한다). 측정될 때까지 아예 시도하지 않는다.
+    if (!image || !ready || exporting) return
     setExporting(true)
+    setExportFailed(false)
     try {
       const blob = await exportMaskedBlob(image, applied, size, MAX_IMAGE_EDGE)
       onConfirm(blob, applied.length > 0)
     } catch {
       setExporting(false)
-      setLoadFailed(true)
+      setExportFailed(true)
     }
   }
 
   const finish = () => {
+    if (!ready) return
     if (boxes.length === 0 && mode === "new") {
       setConfirmingSkip(true)
       return
@@ -251,7 +261,7 @@ export function MaskingSheet({ fileName, url, width, queueLabel, mode = "new", o
                 <button
                   type="button"
                   onClick={confirmSkip}
-                  disabled={exporting}
+                  disabled={!ready || exporting}
                   className="h-11 flex-1 rounded-xl bg-danger text-[15px] font-semibold text-white transition-opacity duration-200 disabled:opacity-40"
                 >
                   {exporting ? "저장하는 중…" : "그대로 보내기"}
@@ -260,6 +270,12 @@ export function MaskingSheet({ fileName, url, width, queueLabel, mode = "new", o
             </div>
           )}
         </div>
+
+        {exportFailed && (
+          <p className="flex-none px-5 pb-2 text-[13px] leading-normal text-warning">
+            지금은 저장하지 못했어요. 파일은 그대로 있으니 잠시 뒤 다시 눌러주세요.
+          </p>
+        )}
 
         {!confirmingSkip && !loadFailed && (
           <div className="flex flex-none items-center gap-3 border-t border-border px-5 py-4">

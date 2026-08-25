@@ -243,6 +243,9 @@ function App() {
           uploadedFiles={flow.uploadedFiles}
           excluded={flow.excludedSentences}
           onToggleExcluded={flow.toggleExcludedSentence}
+          // 미리보기와 다운로드가 **같은 함수**를 쓴다. 따로 만들면 보여준 것과 받는 것이 갈린다.
+          buildPdf={() => buildPackagePdf(null, flow.uploadedFiles)}
+          textPagesPending
           onBackToEvidence={() => {
             flow.closePreview()
             flow.go(2)
@@ -252,6 +255,7 @@ function App() {
               // 서버 PDF(텍스트 5종)는 `/api/package/text`가 열리면 앞에 붙는다.
               // 그때까지는 프론트 몫인 원본 이미지 페이지만으로 만든다.
               const pdf = await buildPackagePdf(null, flow.uploadedFiles)
+              // TODO(백엔드 연동): `/api/package/text` 응답을 첫 인자로 넘기면 텍스트 5종이 앞에 붙는다.
               downloadBlob(pdf, fileNameFor())
               flow.confirmPackage()
               flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")
