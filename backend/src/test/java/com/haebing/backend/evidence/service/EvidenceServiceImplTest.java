@@ -76,6 +76,39 @@ class EvidenceServiceImplTest {
         assertThat(session.getQualityFlags().get("evt_1_1").amountMismatch()).isFalse();
     }
 
+    /** 재계산 전 스냅샷이 아니라 세션에 반영된 최신 값이 이 호출의 응답에도 실려야 한다. */
+    @Test
+    void uploadImages_amountMismatch_reflectedInThisCallsResponseNotJustSession() {
+        when(aiClient.extractFromImage(any(), eq(0), any()))
+                .thenReturn(new ExtractResult(List.of(card("evt_0_1", 0, 700_000L, ExtractedEvent.PENDING)),
+                        Signals.empty(), Map.of("evt_0_1", new QualityFlags(false, false, false))));
+        service.uploadImages(session, List.of(file("a.png")), List.of(0));
+
+        when(aiClient.extractFromImage(any(), eq(1), any()))
+                .thenReturn(new ExtractResult(List.of(card("evt_1_1", 1, 450_000L, ExtractedEvent.PENDING)),
+                        Signals.empty(), Map.of("evt_1_1", new QualityFlags(false, false, false))));
+        ExtractResult response = service.uploadImages(session, List.of(file("b.png")), List.of(1));
+
+        assertThat(response.qualityFlags().get("evt_1_1").amountMismatch()).isTrue();
+        assertThat(session.getQualityFlags().get("evt_1_1").amountMismatch()).isTrue();
+    }
+
+    @Test
+    void uploadText_amountMismatch_reflectedInThisCallsResponseNotJustSession() {
+        when(aiClient.extractFromImage(any(), eq(0), any()))
+                .thenReturn(new ExtractResult(List.of(card("evt_0_1", 0, 700_000L, ExtractedEvent.PENDING)),
+                        Signals.empty(), Map.of("evt_0_1", new QualityFlags(false, false, false))));
+        service.uploadImages(session, List.of(file("a.png")), List.of(0));
+
+        when(aiClient.extractFromText(anyString()))
+                .thenReturn(new ExtractResult(List.of(card("evt_text_1", null, 450_000L, ExtractedEvent.PENDING)),
+                        Signals.empty(), Map.of("evt_text_1", new QualityFlags(false, false, false))));
+        ExtractResult response = service.uploadText(session, "본문");
+
+        assertThat(response.qualityFlags().get("evt_text_1").amountMismatch()).isTrue();
+        assertThat(session.getQualityFlags().get("evt_text_1").amountMismatch()).isTrue();
+    }
+
     @Test
     void uploadImages_invalidFileAmongValid_skipsInvalidKeepsValid() {
         when(fileValidator.detectContentType(any())).thenReturn("image/png", (String) null);
@@ -126,6 +159,16 @@ class EvidenceServiceImplTest {
                 new FieldConfidence("high", "high", "low", null, null), null, ExtractedEvent.PENDING));
 
         assertThat(service.hasBlockingUnconfirmedCards(session)).isFalse();
+    }
+
+    /** AI-server가 계약(field_confidence 항상 존재)을 어겨도 NPE로 500이 나지 않고, 값이 있으면 보수적으로 차단한다. */
+    @Test
+    void hasBlockingUnconfirmedCards_nullFieldConfidenceWithValue_blocksInsteadOfThrowing() {
+        session.upsertCard(new ExtractedEvent("evt_1", 0, "chat", "2026-09-01T00:00:00+09:00", "self", "요약", 1000L,
+                null, null, new Identifiers(null, null),
+                null, null, ExtractedEvent.PENDING));
+
+        assertThat(service.hasBlockingUnconfirmedCards(session)).isTrue();
     }
 
     @Test

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
 /** docs/backend/phase-2-session-intake.md 2-4·2-5·2-6. */
@@ -39,10 +40,19 @@ public class IntakeServiceImpl implements IntakeService {
             throw new BusinessException(ErrorCode.INVALID_FORM_FIELD, "dueNoticeStatus가 notified이면 dueNoticeDate가 필요합니다");
         }
 
+        DeadlineResponse deadline;
+        try {
+            deadline = deadlineCalculator.calculate(intake.get("when"), dueNoticeStatus, dueNoticeDate, LocalDate.now());
+        } catch (DateTimeParseException e) {
+            // dueNoticeDate가 YYYY-MM-DD 형식이 아니거나(예: "2026/10/15") 존재하지 않는 날짜(예: 2월 30일)다.
+            // 사용자 입력 오류이지 서버 오류가 아니다 — Exception 폴백(500)으로 새지 않게 여기서 400으로 정정한다.
+            throw new BusinessException(ErrorCode.INVALID_FORM_FIELD, "dueNoticeDate는 YYYY-MM-DD 형식의 유효한 날짜여야 합니다");
+        }
+
         // F2-03 — 문진이 바뀌면 하위 단계 결과를 무효화한다. 데모 핵심 장면이라 항상 초기화한다.
+        // 형식 검증 이후에 실행한다 — 잘못된 입력 때문에 앞서 계산해 둔 정상 상태를 지우지 않는다.
         session.invalidateDownstream();
 
-        DeadlineResponse deadline = deadlineCalculator.calculate(intake.get("when"), dueNoticeStatus, dueNoticeDate, LocalDate.now());
         return new IntakeResponse(true, NEXT_STAGE, deadline);
     }
 

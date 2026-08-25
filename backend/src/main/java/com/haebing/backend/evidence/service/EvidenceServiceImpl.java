@@ -75,6 +75,9 @@ public class EvidenceServiceImpl implements EvidenceService {
         newCards.forEach(session::upsertCard);
         newQualityFlags.forEach(session.getQualityFlags()::put);
         recomputeAmountMismatch(session);
+        // F4-07 — recompute가 세션의 amount_mismatch를 갱신한 뒤이므로, 응답도 세션에서 다시 읽어
+        // 재계산 전 스냅샷(newQualityFlags)을 그대로 내려보내지 않는다.
+        newQualityFlags.replaceAll((eventId, flags) -> session.getQualityFlags().get(eventId));
 
         return new ExtractResult(newCards, session.getSignals(), newQualityFlags);
     }
@@ -86,7 +89,10 @@ public class EvidenceServiceImpl implements EvidenceService {
         result.qualityFlags().forEach(session.getQualityFlags()::put);
         session.setSignals(session.getSignals().mergedWith(result.signals()));
         recomputeAmountMismatch(session);
-        return result;
+
+        Map<String, QualityFlags> updatedFlags = new HashMap<>();
+        result.qualityFlags().keySet().forEach(id -> updatedFlags.put(id, session.getQualityFlags().get(id)));
+        return new ExtractResult(result.cards(), session.getSignals(), updatedFlags);
     }
 
     @Override
@@ -127,8 +133,11 @@ public class EvidenceServiceImpl implements EvidenceService {
         for (ExtractedEvent card : session.getTimeline()) {
             if (!ExtractedEvent.PENDING.equals(card.confirmationStatus())) continue;
             FieldConfidence fc = card.fieldConfidence();
-            boolean dateBlocks = card.occurredAt() != null && FieldConfidence.LOW.equals(fc.occurredAt());
-            boolean amountBlocks = card.amount() != null && FieldConfidence.LOW.equals(fc.amount());
+            // 계약(internal-api-contract.md)은 field_confidence가 항상 채워진다고 보장하지만, AI-server가
+            // 이 계약을 어기면(계약 위반 하나로 게이팅 전체가 NPE→500이 되는 것을 막는다) 값이 있는데
+            // 신뢰도를 모르는 상태로 보고 보수적으로 차단한다 — 조용히 통과시키는 쪽이 더 위험하다(F4-06).
+            boolean dateBlocks = card.occurredAt() != null && (fc == null || FieldConfidence.LOW.equals(fc.occurredAt()));
+            boolean amountBlocks = card.amount() != null && (fc == null || FieldConfidence.LOW.equals(fc.amount()));
             if (dateBlocks || amountBlocks) return true;
         }
         return false;

@@ -49,7 +49,7 @@ class ReadinessServiceImplTest {
         ReadinessResponse response = service.evaluate(session);
 
         assertThat(response.readiness()).isEqualTo(ReadinessResponse.SUBMISSION_READY);
-        assertThat(response.notices()).contains(NoticeTexts.FINAL_DECISION_BY_BANK);
+        assertThat(response.notices()).contains(NoticeTexts.FINAL_DECISION_BY_BANK, NoticeTexts.PROCESSING_PERIOD);
     }
 
     @Test
@@ -89,7 +89,7 @@ class ReadinessServiceImplTest {
         ReadinessResponse response = service.evaluate(session);
 
         assertThat(response.readiness()).isEqualTo(ReadinessResponse.BANK_CHECK_REQUIRED);
-        assertThat(response.notices()).contains(NoticeTexts.HISTORY_NOTICE, NoticeTexts.FINAL_DECISION_BY_BANK);
+        assertThat(response.notices()).contains(NoticeTexts.HISTORY_NOTICE, NoticeTexts.FINAL_DECISION_BY_BANK, NoticeTexts.PROCESSING_PERIOD);
         assertNoBannedPhrases(response);
     }
 

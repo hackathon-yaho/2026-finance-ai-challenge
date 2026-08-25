@@ -120,6 +120,7 @@ public class ReadinessServiceImpl implements ReadinessService {
     private List<String> buildNotices(boolean hasUnconfirmedFields, List<String> blockingLabels, boolean hasHistory) {
         List<String> notices = new ArrayList<>();
         notices.add(NoticeTexts.FINAL_DECISION_BY_BANK);
+        notices.add(NoticeTexts.PROCESSING_PERIOD);
         if (hasUnconfirmedFields) {
             notices.add(NoticeTexts.unconfirmedFieldsExplanation());
         }
