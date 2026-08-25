@@ -568,10 +568,24 @@ export function useHaebingFlow() {
 
   const removeUploadedFile = useCallback(
     (id: string) => {
+      /**
+       * **이미 판독을 보낸 파일은 목록에서 뺄 수 없다.**
+       *
+       * `imageIndex`가 곧 배열 위치다. 가운데 하나를 빼면 뒤가 앞으로 당겨져, 서버 카드의
+       * `source_image_index`가 **다른 이미지를 가리키게 된다** — "원본 보기"와 4면
+       * "원본 n번"이 통째로 어긋나고, 사용자는 어긋난 줄도 모른다.
+       *
+       * 자료를 빼고 싶으면 카드의 `[이 자료 빼기]`를 쓰면 된다 — 그건 서버에서도 지운다.
+       */
+      const index = uploadedFiles.findIndex((f) => f.id === id)
+      if (live && index !== -1 && index < sentCount.current) {
+        showToast("이미 읽은 자료예요. 빼려면 아래 카드에서 [이 자료 빼기]를 눌러주세요")
+        return
+      }
       revokeUrl(uploadedFiles.find((f) => f.id === id)?.url)
       setUploadedFiles((prev) => prev.filter((f) => f.id !== id))
     },
-    [uploadedFiles, revokeUrl],
+    [live, uploadedFiles, revokeUrl, showToast],
   )
 
   const openTextEntry = useCallback((fromFailure = false) => {
@@ -709,6 +723,18 @@ export function useHaebingFlow() {
   }, [live])
 
   restartRef.current = restart
+
+  /**
+   * `imageIndex` → 브라우저 메모리의 업로드 파일 (F7-05).
+   *
+   * **서버는 이미지 파일을 주지 않는다** — 참조(`imageIndex`)만 온다. 원본은 우리 메모리에만
+   * 있고, 새로고침하면 사라진다. 그래서 **없을 수 있다는 것이 정상**이고, 호출부는 `null`을
+   * 받으면 "원본을 다시 올리면 확인할 수 있어요"로 안내한다.
+   */
+  const findSource = useCallback(
+    (imageIndex: number) => uploadedFiles[imageIndex] ?? null,
+    [uploadedFiles],
+  )
 
   /**
    * 제출 패키지 PDF. **텍스트 5면은 서버가, 원본 이미지 면은 브라우저가 만든다** (F8-01).
@@ -964,6 +990,7 @@ export function useHaebingFlow() {
     timeline,
     submitTimeline,
     buildPackage,
+    findSource,
     live,
     draftLines,
     checklist,

@@ -14,6 +14,9 @@ interface DraftStageProps {
   droppedCount: number
   onGenerate: () => void
   onOpenViewer: (id: ViewerId, note?: string | null) => void
+  /** `imageIndex` → 메모리에 있는 업로드 파일. 없으면 `null` (새로고침 등). */
+  findSource: (imageIndex: number) => { id: string } | null
+  onOpenSource: (fileId: string) => void
   onExportPackage: () => void
 }
 
@@ -39,6 +42,8 @@ export function DraftStage({
   droppedCount,
   onGenerate,
   onOpenViewer,
+  findSource,
+  onOpenSource,
   onExportPackage,
 }: DraftStageProps) {
   return (
@@ -76,27 +81,50 @@ export function DraftStage({
                   : "AI 초안 · 내려받기 전에 확인해주세요 · 최종 판단은 금융회사"}
               </div>
             </div>
-            {draftLines.map((line, i) => (
-              <div
-                key={i}
-                onClick={line.ref ? () => onOpenViewer(line.ref as ViewerId, line.note) : undefined}
-                className={`animate-fade-up px-5 py-4 opacity-0 ${i > 0 ? "border-t border-border" : ""} ${line.ref ? "cursor-pointer" : ""}`}
-                style={{ animationDelay: `${i * 0.14}s` }}
-              >
-                <div className="text-[15px] leading-relaxed">{line.text}</div>
-                {line.badge && (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <div
-                      className={`inline-flex h-[22px] items-center rounded-md px-2 text-[11px] font-semibold ${
-                        line.ref ? "bg-brand-subtle text-brand" : "bg-surface text-muted"
-                      }`}
-                    >
-                      {line.badge}
+            {draftLines.map((line, i) => {
+              /**
+               * F7-05 — 문장을 누르면 **근거가 된 원본**이 열린다. 이 서비스의 최대 차별점이다.
+               *
+               * 원본은 서버에 없다. `imageIndex`로 브라우저 메모리의 업로드 배열에서 찾는다.
+               * **없으면 배지를 회색으로 두고 왜 못 여는지 말한다** (F7-05 예외) — 새로고침
+               * 하면 메모리가 비므로 실제로 일어난다. 배지를 그대로 두고 눌러도 아무 일이
+               * 없게 하면 사용자는 고장으로 읽는다.
+               */
+              const source = line.imageIndex !== null && line.imageIndex !== undefined ? findSource(line.imageIndex) : null
+              const lostSource = (line.imageIndex ?? null) !== null && source === null
+              const openable = source !== null || line.ref !== null
+              const open = source
+                ? () => onOpenSource(source.id)
+                : line.ref
+                  ? () => onOpenViewer(line.ref as ViewerId, line.note)
+                  : undefined
+              return (
+                <div
+                  key={line.id ?? i}
+                  onClick={open}
+                  className={`animate-fade-up px-5 py-4 opacity-0 ${i > 0 ? "border-t border-border" : ""} ${openable ? "cursor-pointer" : ""}`}
+                  style={{ animationDelay: `${i * 0.14}s` }}
+                >
+                  <div className="text-[15px] leading-relaxed">{line.text}</div>
+                  {line.badge && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <div
+                        className={`inline-flex h-[22px] items-center rounded-md px-2 text-[11px] font-semibold ${
+                          openable ? "bg-brand-subtle text-brand" : "bg-surface text-muted"
+                        }`}
+                      >
+                        {line.badge}
+                      </div>
+                      {lostSource && (
+                        <span className="text-[11px] leading-normal text-muted">
+                          원본을 다시 올리면 확인할 수 있어요
+                        </span>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           {droppedCount > 0 && (

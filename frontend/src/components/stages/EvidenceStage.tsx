@@ -21,6 +21,8 @@ interface EvidenceStageProps {
   onToggle: (id: EvidenceId) => void
   onAddThreat: () => void
   onConfirmCard: (eventId: string) => void
+  /** F7-05 — `source_image_index`로 메모리의 원본을 찾는다. 없으면 `null`. */
+  findSource: (imageIndex: number) => { id: string } | null
   onEditCard: (eventId: string, patch: CardEdits) => void
   onRemoveCard: (eventId: string) => void
   onAnalyze: () => void
@@ -65,6 +67,7 @@ export function EvidenceStage({
   onToggle,
   onAddThreat,
   onConfirmCard,
+  findSource,
   onEditCard,
   onRemoveCard,
   onAnalyze,
@@ -175,6 +178,8 @@ export function EvidenceStage({
             onEdit={onEditCard}
             onRemove={onRemoveCard}
             onOpenViewer={onOpenViewer}
+            findSource={findSource}
+            onOpenSource={onPreviewUpload}
           />
         ))}
       </div>

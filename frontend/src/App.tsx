@@ -138,6 +138,7 @@ function App() {
                 onToggle={flow.toggle}
                 onAddThreat={flow.addThreat}
                 onConfirmCard={flow.confirmCard}
+                findSource={flow.findSource}
                 onEditCard={flow.editCard}
                 onRemoveCard={flow.removeCard}
                 onAnalyze={flow.analyze}
@@ -181,6 +182,9 @@ function App() {
                 droppedCount={flow.droppedCount}
                 onGenerate={flow.makeDraft}
                 onOpenViewer={flow.openViewer}
+                // F7-05 — 문장의 근거가 된 **실제 원본 이미지**를 연다. 목 뷰어가 아니다.
+                findSource={flow.findSource}
+                onOpenSource={flow.openLightbox}
                 onExportPackage={flow.openLegalForm}
               />
             )}

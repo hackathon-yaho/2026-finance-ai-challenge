@@ -9,6 +9,8 @@ interface ConfirmCardProps {
   onEdit: (eventId: string, patch: CardEdits) => void
   onRemove: (eventId: string) => void
   onOpenViewer: (id: ViewerId) => void
+  findSource?: (imageIndex: number) => { id: string } | null
+  onOpenSource?: (fileId: string) => void
 }
 
 const SOURCE_LABEL: Record<SourceType, string> = {
@@ -107,7 +109,7 @@ function FieldRow({ label, value, confidence, hasValue, settled, onEdit }: Field
   )
 }
 
-export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer }: ConfirmCardProps) {
+export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, findSource, onOpenSource }: ConfirmCardProps) {
   const [editing, setEditing] = useState<keyof CardEdits | null>(null)
   const [buffer, setBuffer] = useState("")
 
@@ -237,11 +239,19 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer }:
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {/* 텍스트로 쓴 카드는 볼 원본이 없다(`source_image_index === null`). 버튼을 두면
-            눌렀을 때 갈 곳이 없고, 있지도 않은 자료가 있는 것처럼 보인다. */}
+            눌렀을 때 갈 곳이 없고, 있지도 않은 자료가 있는 것처럼 보인다.
+
+            **올린 이미지가 메모리에 있으면 그걸 연다** (F7-05). 없으면 목 재현 화면으로
+            떨어진다 — 목 카드는 실제 업로드 장수와 무관한 인덱스를 들고 있어서 그렇다.
+            서버에 붙어 있으면 인덱스가 실제 배열 위치라 항상 진짜 원본이 열린다. */}
         {card.source_image_index !== null && (
           <button
             type="button"
-            onClick={() => onOpenViewer(VIEWER[card.source_type])}
+            onClick={() => {
+              const file = findSource?.(card.source_image_index as number)
+              if (file) onOpenSource?.(file.id)
+              else onOpenViewer(VIEWER[card.source_type])
+            }}
             className="h-11 rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink"
           >
             원본 보기
