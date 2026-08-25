@@ -59,7 +59,11 @@ export function RoutesStage({ showBizNotice }: RoutesStageProps) {
         </p>
       </div>
 
-      {/* 같은 문구가 이제 상단바에 전 화면 공통으로 있다. 여기 두면 한 화면에 두 번 나온다. */}
+      {/* 상단 배지는 진입 화면에만 있다. 접수 화면은 사용자가 실제로 서류를 내러 가는
+          자리라 같은 취지의 문장을 여기서 다시 말한다. */}
+      <p className="rounded-2xl bg-brand-subtle p-3.5 text-[13px] leading-normal text-brand">
+        이 화면은 제출 자료를 정리하는 도구예요. 지급정지 해제 여부는 은행 심사로 결정돼요.
+      </p>
     </div>
   )
 }

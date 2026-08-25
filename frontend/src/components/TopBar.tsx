@@ -17,17 +17,25 @@ export function TopBar({ stage, width, onBack, onStepClick }: TopBarProps) {
 
   return (
     <div className="sticky top-0 z-10 border-b border-border bg-bg">
-      {/* NFR·규제 대응 — `spec.md` 화면 정의서가 **공통 요소(전 화면)**로,
-          `privacy-and-safety.md`가 "프론트엔드 필수 구현"으로 지정한 문구다.
-          준비도 결과를 승인 예측으로 오해하는 것을 막는 장치라 한 화면만 빠져도 의미가 없다. */}
-      <div className="border-b border-border bg-subtle">
-        <p
-          className="mx-auto max-w-[720px] py-1.5 text-[11px] leading-normal text-muted"
-          style={{ padding: `6px ${pad}px` }}
-        >
-          이 화면은 제출 자료를 정리하는 도구예요. 지급정지 해제 여부는 은행 심사로 결정돼요.
-        </p>
-      </div>
+      {/*
+       * 규제 대응 문구 — 준비도 결과를 승인 예측으로 오해하는 것을 막는 장치다
+       * (PRD §11 오안내 책임, `privacy-and-safety.md` "상시 노출 배지").
+       *
+       * **진입 화면에서만 띄운다.** 모든 화면에 고정하면 6단계 내내 같은 문장이 따라붙어
+       * 오히려 읽히지 않는다. 대신 **판정이 나오는 화면은 각자 자기 문구를 갖는다** —
+       * 준비도는 "최종 판단은 은행이 합니다", 소명서는 "최종 판단은 금융회사",
+       * 접수 화면은 같은 문장을 본문 끝에 둔다. 오해가 생길 수 있는 자리는 다 덮인다.
+       *
+       * `spec.md` 화면 정의서는 이 배지를 "공통 요소(전 화면)"로 적고 있어 표기가 다르다.
+       * 백엔드에 정정을 요청해 뒀다 — `docs/request/backend/persistent-badge-placement.md`.
+       */}
+      {stage === 0 && (
+        <div className="border-b border-border bg-subtle">
+          <p className="mx-auto max-w-[720px] text-[11px] leading-normal text-muted" style={{ padding: `6px ${pad}px` }}>
+            이 화면은 제출 자료를 정리하는 도구예요. 지급정지 해제 여부는 은행 심사로 결정돼요.
+          </p>
+        </div>
+      )}
 
       <div className="mx-auto flex h-14 max-w-[720px] items-center gap-2" style={{ padding: `0 ${pad}px` }}>
         {showStepper && (
