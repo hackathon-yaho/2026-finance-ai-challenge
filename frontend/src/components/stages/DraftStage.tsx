@@ -1,3 +1,4 @@
+import { ChecklistPanel } from "../ChecklistPanel"
 import type { ChecklistItem, DraftLine, ViewerId } from "../../types"
 
 interface DraftStageProps {
@@ -5,6 +6,8 @@ interface DraftStageProps {
   draftShown: boolean
   draftLines: DraftLine[]
   checklist: ChecklistItem[]
+  selfHeld: ReadonlySet<string>
+  onToggleSelfHeld: (id: string) => void
   confirmedCount: number
   droppedCount: number
   onGenerate: () => void
@@ -22,17 +25,13 @@ function LoadingDots() {
   )
 }
 
-function checklistTag(item: ChecklistItem): { label: string; tone: "have" | "missing" | "na" } {
-  if (item.have) return { label: "보유", tone: "have" }
-  if (item.id === "threat") return { label: "해당 없음", tone: "na" }
-  return { label: "미보유", tone: "missing" }
-}
-
 export function DraftStage({
   drafting,
   draftShown,
   draftLines,
   checklist,
+  selfHeld,
+  onToggleSelfHeld,
   confirmedCount,
   droppedCount,
   onGenerate,
@@ -64,7 +63,11 @@ export function DraftStage({
           <div className="overflow-hidden rounded-[20px] border border-border">
             <div className="border-b border-border bg-subtle px-5 py-4">
               <div className="text-[15px] font-semibold">이의제기 사유 (별지 제4호서식)</div>
-              <div className="mt-0.5 text-xs text-muted">AI 초안 · 사용자 확인 완료 · 최종 판단은 금융회사</div>
+              {/* spec.md F8-01의 하단 표기는 "AI 초안 · 사용자 확인 완료 {시각}"인데, 사용자는 여기까지
+                  오는 동안 초안을 확인한 적이 없다 — 생성하면 바로 붙던 문구라 사실이 아니었다.
+                  확인 단계(S04-2 미리보기)가 들어오면 그때 "확인 완료 {시각}"을 붙인다.
+                  근거: docs/response/backend/draft-preview-and-edit.md §0·§5-2 */}
+              <div className="mt-0.5 text-xs text-muted">AI 초안 · 내려받기 전에 확인해주세요 · 최종 판단은 금융회사</div>
             </div>
             {draftLines.map((line, i) => (
               <div
@@ -96,29 +99,29 @@ export function DraftStage({
           )}
 
           <div>
-            <div className="mb-3 text-[17px] font-semibold tracking-tight">첨부 서류</div>
-            <div className="overflow-hidden rounded-2xl border border-border">
-              {checklist.map((item, i) => {
-                const tag = checklistTag(item)
-                return (
-                  <div key={item.id} className={`flex items-center gap-3 px-4 py-3.5 ${i > 0 ? "border-t border-border" : ""}`}>
-                    <div className="min-w-0 flex-1 text-[15px]">{item.label}</div>
-                    <div
-                      className={`flex-none rounded-md px-2 text-[11px] font-semibold leading-[22px] ${
-                        tag.tone === "have"
-                          ? "bg-success-subtle text-success"
-                          : tag.tone === "missing"
-                            ? "bg-danger-subtle text-danger"
-                            : "bg-surface text-muted"
-                      }`}
-                    >
-                      {tag.label}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            <p className="mt-2.5 text-xs leading-normal text-muted">신분증 사본은 여기에 올리지 않아요. 은행에 낼 때 직접 첨부해주세요.</p>
+            <div className="text-[17px] font-semibold tracking-tight">첨부 서류</div>
+            <p className="mt-1 mb-4 text-[13px] leading-normal text-muted">
+              성격이 다른 자료를 한 줄로 세우지 않았어요. 아래 순서대로 무게가 달라요.
+            </p>
+            <ChecklistPanel checklist={checklist} selfHeld={selfHeld} onToggleSelfHeld={onToggleSelfHeld} />
+          </div>
+
+          {/* spec.md F3-07 ③ "따로 챙기실 것" — 서비스가 받지 않는 법정 첨부서류를 내보내기
+              직전에 한 번 더 모아 보여준다. 서식에 (서명 또는 인) 란이 있는데 전자서명은
+              범위 밖이라 공란으로 나가고, 모르고 파일만 보내면 반려될 수 있다. */}
+          <div className="rounded-2xl bg-brand-subtle px-4 py-4">
+            <div className="text-[15px] font-semibold">따로 챙기실 것</div>
+            <ul className="mt-2.5 flex flex-col gap-2 text-[13px] leading-normal text-ink">
+              <li>
+                <span className="font-semibold">신청서 자필 서명</span> — 서식에 서명란이 있어요. 전자서명은 지원하지
+                않으니 <span className="font-semibold">출력해서 직접 서명한 뒤</span> 제출해주세요. 이메일·팩스로 낼
+                때는 서명한 종이를 다시 찍거나 스캔해서 보내시면 돼요.
+              </li>
+              <li>
+                <span className="font-semibold">명의인 신분증 사본</span> — 여기에 올리지 않아요. 은행에 낼 때 직접
+                첨부해주세요.
+              </li>
+            </ul>
           </div>
 
           <button
@@ -126,7 +129,7 @@ export function DraftStage({
             onClick={onExportPackage}
             className="h-12 rounded-2xl border border-border bg-bg text-[17px] font-bold text-ink"
           >
-            제출 패키지 6종 내보내기
+            제출 패키지 내보내기
           </button>
         </>
       )}

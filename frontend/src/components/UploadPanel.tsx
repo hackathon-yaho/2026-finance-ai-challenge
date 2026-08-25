@@ -1,7 +1,10 @@
 import { useRef, useState } from "react"
+import { EvidenceGuide } from "./EvidenceGuide"
 import type { UploadedFile } from "../types"
 
 interface UploadPanelProps {
+  /** 문진의 거래 성격. 사유별 업로드 안내(F3-07)의 입력이다. */
+  kind: string | null
   uploadedFiles: UploadedFile[]
   maxUploads: number
   uploadsLeft: number
@@ -13,6 +16,7 @@ interface UploadPanelProps {
 }
 
 export function UploadPanel({
+  kind,
   uploadedFiles,
   maxUploads,
   uploadsLeft,
@@ -39,6 +43,26 @@ export function UploadPanel({
         <p className="mt-1.5 text-[15px] leading-normal text-muted">
           대화·입금 내역·송장 캡처를 올리면 정리해드려요. 계좌번호 같은 정보는 올리기 전에 가릴 수 있어요.
         </p>
+      </div>
+
+      {/* F3-07 — 빈 업로드 박스만 두지 않는다. 사유별 목록을 파일 선택 영역 **위**에 둔다. */}
+      <EvidenceGuide kind={kind} />
+
+      {/* spec.md F10-03 — 진입 화면에서 본 보존 지침을 사용자는 여기까지 오면 기억하지 못한다.
+          자료를 모으는 이 순간이 실제로 지워지는 시점이라 한 번 더 노출한다. 이미 지운
+          사용자를 위한 복구 경로도 함께 둔다 (F5-04 대체 증빙의 앞단). */}
+      <div className="rounded-2xl bg-surface p-4">
+        <div className="text-[15px] font-semibold">가진 자료를 지우지 마세요</div>
+        <p className="mt-1 text-[13px] leading-normal text-muted">
+          정리가 끝날 때까지 대화방을 나가거나 메시지를 지우지 마세요. 남은 기록이 그대로 소명 근거가 돼요.
+        </p>
+        <div className="mt-3 text-[13px] font-semibold">이미 지웠다면 여기를 찾아보세요</div>
+        <ul className="mt-1 flex flex-col gap-1 text-[13px] leading-normal text-muted">
+          <li>· 메신저 — 대화 백업 기능으로 복원되는 경우가 있어요</li>
+          <li>· 중고거래 앱 — 앱 안의 거래 내역에서 다시 캡처할 수 있어요</li>
+          <li>· 문자 — 통신사 문자 보관함에 남아 있을 수 있어요</li>
+          <li>· 은행 앱 — 입출금 내역은 언제든 다시 캡처할 수 있어요</li>
+        </ul>
       </div>
 
       <div

@@ -79,6 +79,7 @@ function App() {
 
             {stage === 2 && (
               <EvidenceStage
+                kind={flow.intake.kind}
                 evidence={flow.evidence}
                 bankConfirmed={flow.bankConfirmed}
                 wide={wide}
@@ -120,11 +121,13 @@ function App() {
                 draftShown={flow.draftShown}
                 draftLines={flow.draftLines}
                 checklist={flow.checklist}
+                selfHeld={flow.selfHeld}
+                onToggleSelfHeld={flow.toggleSelfHeld}
                 confirmedCount={flow.confirmedCount}
                 droppedCount={flow.droppedCount}
                 onGenerate={flow.makeDraft}
                 onOpenViewer={flow.openViewer}
-                onExportPackage={() => flow.showToast("패키지를 준비하고 있어요")}
+                onExportPackage={() => flow.showToast("출력해서 서명란에 자필 서명한 뒤 제출해주세요")}
               />
             )}
 

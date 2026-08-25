@@ -57,10 +57,77 @@ export interface DraftLine {
   note?: string
 }
 
-export interface ChecklistItem {
-  id: EvidenceId
+/** api-contract의 `reason` 4종. 문진의 한국어 선택지는 REASON_BY_KIND로 여기에 매핑한다. */
+export type ReasonType = "goods" | "service" | "debt" | "unclear"
+
+/**
+ * 소명자료의 네 층 (reason-type-rules.md §2). **근거가 어디서 나왔는지**를 나타낸다.
+ * 화면 묶음과 문구 톤이 이 값으로 갈린다.
+ *
+ * legal      ① 법정 첨부서류 — 시행령 제7조
+ * fss        ② 금감원 표준 — 물품 거래·용역/급여 2종만 존재한다
+ * common     ③ 공통 최소 자료 — 근거 문서 없음. 참고 안내
+ * supporting ④ 보강 자료 — 실무 관행. 법령·금감원 근거 없음
+ */
+export type EvidenceTier = "legal" | "fss" | "common" | "supporting"
+
+/**
+ * 이 항목을 **누가 채우는가**.
+ *
+ * upload  — 서비스에 올리는 캡처
+ * self    — 서비스에 올리지 않고 사용자가 은행에 직접 첨부 (신분증·재직증명서 등)
+ * derived — 올린 자료에서 서버가 뽑아 채운다 (구매자–송금인 대조). 사용자가 갖다 낼 것이 없다
+ */
+export type FulfillBy = "upload" | "self" | "derived"
+
+/**
+ * 미보유일 때 무슨 일이 일어나는가. **tier와 독립된 축이다** — 같은 ②라도 항목마다 다르다.
+ *
+ * blocks — 준비도의 `필수증빙누락` 신호에 포함 (SUPPLEMENT_NEEDED)
+ * notice — "미보유 — 보완 요청 사유가 될 수 있어요" 문구만. 준비도를 깎지 않는다
+ * silent — 아무 표시도 하지 않는다
+ *
+ * `blocks`는 **사용자가 실제로 채울 수 있는 항목에만** 붙인다 — 이미 존재하거나 즉시 발급받을
+ * 수 있는 자료다. 사후에 만들어야 하는 자료에 붙이면 서비스가 증거 조작을 유도하는 셈이 된다.
+ */
+export type MissingEffect = "blocks" | "notice" | "silent"
+
+/**
+ * met                — 충족
+ * unmet              — 미보유
+ * unknown            — 확인 불가 (대조할 값 한쪽이 없음 등). **불일치가 아니다**
+ * needs_explanation  — 값은 나왔으나 소명서에 설명이 필요함 (구매자–송금인 불일치)
+ *                      **위험 신호가 아니다.** 준비도를 깎지 않고 경고색으로 칠하지 않는다
+ */
+export type ChecklistStatus = "met" | "unmet" | "unknown" | "needs_explanation"
+
+/** 택일(OR) 그룹의 선택지. 하나만 충족되면 그룹 전체가 met이다. */
+export interface ChecklistOption {
+  id: string
   label: string
-  have: boolean
+  /** upload 선택지를 채우는 업로드 자료 */
+  sources?: EvidenceId[]
+}
+
+/** 카탈로그 정의 — 사유유형별로 무엇을 묻는지. data.ts의 EVIDENCE_CATALOG가 값을 갖는다. */
+export interface ChecklistEntry {
+  id: string
+  label: string
+  tier: EvidenceTier
+  fulfillBy: FulfillBy
+  whenMissing: MissingEffect
+  /** 있으면 택일 그룹. 없으면 단일 항목 */
+  anyOf?: ChecklistOption[]
+  /** 단일 upload 항목을 채우는 업로드 자료 */
+  sources?: EvidenceId[]
+  /** 화면에 그대로 노출하는 보조 문구 */
+  note?: string
+}
+
+/** 판정 결과. `/api/readiness`·`/api/draft`의 `checklist` 배열 원소와 같은 모양이다. */
+export interface ChecklistItem extends Omit<ChecklistEntry, "anyOf"> {
+  status: ChecklistStatus
+  options?: (ChecklistOption & { status: ChecklistStatus })[]
 }
 
 export interface AmountInfo {

@@ -1,6 +1,5 @@
-import { CHECK_LABELS } from "../data"
 import { getAmountInfo } from "./amount"
-import type { ChecklistItem, DraftLine, EvidenceState, IntakeAnswers } from "../types"
+import type { DraftLine, EvidenceState, IntakeAnswers } from "../types"
 
 export function buildDraftLines(intake: IntakeAnswers, evidence: EvidenceState, bankConfirmed: boolean): DraftLine[] {
   const amountInfo = getAmountInfo(intake.amount)
@@ -67,18 +66,4 @@ export function buildDraftLines(intake: IntakeAnswers, evidence: EvidenceState, 
   })
 
   return lines
-}
-
-export function buildChecklist(intake: IntakeAnswers, evidence: EvidenceState, bankConfirmed: boolean): ChecklistItem[] {
-  const kind = intake.kind || "잘 모르겠어요"
-  const items = CHECK_LABELS[kind] ?? CHECK_LABELS["잘 모르겠어요"]
-  const withThreat: [typeof items[number][0] | "threat", string][] = [...items, ["threat", "협박 메시지 (해당 시)"]]
-
-  return withThreat.map(([id, label]) => {
-    if (id === "threat") {
-      return { id: "threat", label, have: evidence.threat }
-    }
-    const have = evidence[id] && (id !== "bank" || bankConfirmed)
-    return { id, label, have }
-  })
 }

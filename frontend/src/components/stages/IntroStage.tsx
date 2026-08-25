@@ -15,9 +15,9 @@ export function IntroStage({ wide }: IntroStageProps) {
         <div className={`font-bold tracking-tight ${wide ? "text-[40px] leading-[1.25]" : "text-[28px] leading-[1.25]"}`}>
           지급정지된 계좌,
           <br />
-          은행이 5영업일 안에
+          은행이 판단할 수 있는 형태로
           <br />
-          판단할 수 있게 정리해요
+          정리해드려요
         </div>
         <p className="mt-4 max-w-[520px] text-[17px] leading-relaxed tracking-tight text-muted">
           문진에 답하고 가진 자료를 올리면, 시간순 타임라인과 사실 진술서 초안까지 만들어드려요. 문장마다 어떤 자료에서

@@ -48,6 +48,17 @@ export function RoutesStage({ showBizNotice }: RoutesStageProps) {
         </div>
       )}
 
+      {/* 해제 이후 남는 불이익. "제출 준비 완료" 배지와 충돌하지 않도록 준비도 화면이 아니라
+          제출 이후 단계에 둔다. 단정하지 않는 톤 — 해제 경로가 실제로 존재한다. */}
+      <div className="rounded-2xl bg-surface p-4">
+        <div className="text-[15px] font-semibold">지급정지가 풀린 뒤에도 남을 수 있어요</div>
+        <p className="mt-1 text-[13px] leading-normal text-muted">
+          사기이용계좌 명의인으로 등록되면 은행연합회를 통해 다른 은행에도 공유되어, 신규 계좌 개설이나 카드 발급이
+          한동안 제한될 수 있어요. <b>지급정지 해제와는 별도 절차</b>이고, 은행 또는 은행연합회에 등록 해제를 따로
+          신청할 수 있어요.
+        </p>
+      </div>
+
       <p className="rounded-2xl bg-brand-subtle p-3.5 text-[13px] leading-normal text-brand">
         이 화면은 제출 자료를 정리하는 도구예요. 지급정지 해제 여부는 은행 심사로 결정돼요.
       </p>

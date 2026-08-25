@@ -188,6 +188,13 @@ export function MaskingSheet({ fileName, url, width, queueLabel, mode = "new", o
             계좌번호 · 주민등록번호 · 전화번호 · 주소 · 관련 없는 제3자 이름 위를 드래그해서 가려주세요. 그려진 칸은
             "가리기 완료" 전까지 다시 눌러서 지울 수 있어요.
           </p>
+          {/* F3-06 — 위 안내와 같은 크기로 병기한다. 각주로 줄이면 읽히지 않고, 사용자가 "제3자 이름"을
+              거래 상대방까지로 넓게 읽으면 구매자–송금인 대조(reason-type-rules.md §2-1)가 통째로 헛돈다.
+              가려진 이름은 null로 나가고 대조할 값이 없어진다. */}
+          <p className="flex-none rounded-xl bg-brand-subtle px-3.5 py-2.5 text-center text-[13px] leading-normal text-ink">
+            <span className="font-semibold">거래 상대방·입금자 이름은 가리지 마세요.</span> 은행이 "구매자와 송금인이 같은
+            사람인지" 확인하는 데 쓰여요.
+          </p>
           <p className="flex-none text-center text-[13px] font-semibold text-warning">
             "가리기 완료"를 누르면 가린 부분은 되돌릴 수 없어요.
           </p>

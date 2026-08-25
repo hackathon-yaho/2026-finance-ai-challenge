@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { INTAKE_PAGES, QUESTIONS } from "../data"
-import { buildChecklist, buildDraftLines } from "../lib/draft"
+import { buildChecklist } from "../lib/checklist"
+import { buildDraftLines } from "../lib/draft"
 import { getAmountInfo } from "../lib/amount"
 import { getDeadline } from "../lib/deadline"
 import { isAnswered } from "../lib/intake"
@@ -45,6 +46,9 @@ export function useHaebingFlow() {
   const [analyzed, setAnalyzed] = useState(false)
   const [timelineRunId, setTimelineRunId] = useState(0)
   const [historyOverride, setHistoryOverride] = useState<boolean | null>(null)
+  // fulfillBy: "self" 항목(신분증·재직증명서 등)은 서비스에 올리지 않으므로 보유 여부를
+  // 판정할 방법이 없다. 사용자가 직접 표시한 것만 충족으로 본다.
+  const [selfHeld, setSelfHeld] = useState<ReadonlySet<string>>(() => new Set())
   const [drafting, setDrafting] = useState(false)
   const [draftShown, setDraftShown] = useState(false)
   const [viewer, setViewer] = useState<ViewerId | null>(null)
@@ -195,6 +199,15 @@ export function useHaebingFlow() {
     }, 850)
   }, [])
 
+  const toggleSelfHeld = useCallback((id: string) => {
+    setSelfHeld((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
+    setDraftShown(false)
+  }, [])
+
   const toggleHistory = useCallback(() => {
     setHistoryOverride((prev) => (prev === true ? false : true))
     setDraftShown(false)
@@ -326,6 +339,7 @@ export function useHaebingFlow() {
     setAnalyzing(false)
     setAnalyzed(false)
     setHistoryOverride(null)
+    setSelfHeld(new Set())
     setDrafting(false)
     setDraftShown(false)
     setViewer(null)
@@ -351,9 +365,14 @@ export function useHaebingFlow() {
   const hasHistory = historyOverride === null ? intake.history === "있어요" : historyOverride
   const deadline = useMemo(() => getDeadline(intake), [intake])
 
+  // 체크리스트가 준비도의 입력이다 — Stage 3과 Stage 4가 같은 값을 봐야 한다.
+  const checklist = useMemo(
+    () => buildChecklist(intake.kind, evidence, bankConfirmed, selfHeld),
+    [intake.kind, evidence, bankConfirmed, selfHeld],
+  )
   const readiness = useMemo(
-    () => computeReadiness(intake, evidence, bankConfirmed, historyOverride),
-    [intake, evidence, bankConfirmed, historyOverride],
+    () => computeReadiness(intake, checklist, evidence.bank && !bankConfirmed, historyOverride),
+    [intake, checklist, evidence.bank, bankConfirmed, historyOverride],
   )
   const timeline = useMemo(
     () => (analyzed ? buildTimeline(evidence, intake.amount, bankConfirmed) : []),
@@ -361,10 +380,6 @@ export function useHaebingFlow() {
   )
   const draftLines = useMemo(
     () => (draftShown ? buildDraftLines(intake, evidence, bankConfirmed) : []),
-    [draftShown, intake, evidence, bankConfirmed],
-  )
-  const checklist = useMemo(
-    () => (draftShown ? buildChecklist(intake, evidence, bankConfirmed) : []),
     [draftShown, intake, evidence, bankConfirmed],
   )
   const confirmedCount = useMemo(() => {
@@ -418,6 +433,8 @@ export function useHaebingFlow() {
     historyOverride,
     hasHistory,
     toggleHistory,
+    selfHeld,
+    toggleSelfHeld,
     drafting,
     draftShown,
     makeDraft,

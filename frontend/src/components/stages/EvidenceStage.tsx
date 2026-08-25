@@ -7,6 +7,8 @@ import type { EvidenceId, EvidenceState, TimelineEvent, UploadedFile, ViewerId }
 const STICKY_HEADER_OFFSET = 72 // 56px top bar + a little breathing room
 
 interface EvidenceStageProps {
+  /** 문진의 거래 성격 — 사유별 업로드 안내(F3-07)로 내려보낸다. */
+  kind: string | null
   evidence: EvidenceState
   bankConfirmed: boolean
   wide: boolean
@@ -43,6 +45,7 @@ function LoadingDots() {
 }
 
 export function EvidenceStage({
+  kind,
   evidence,
   bankConfirmed,
   wide,
@@ -85,6 +88,7 @@ export function EvidenceStage({
   if (!filesReady) {
     return (
       <UploadPanel
+        kind={kind}
         uploadedFiles={uploadedFiles}
         maxUploads={maxUploads}
         uploadsLeft={uploadsLeft}

@@ -1,4 +1,12 @@
-import type { DueNoticeStatus, EvidenceId, IntakeField, ViewerId } from "./types"
+import type {
+  ChecklistEntry,
+  DueNoticeStatus,
+  EvidenceId,
+  EvidenceTier,
+  IntakeField,
+  ReasonType,
+  ViewerId,
+} from "./types"
 
 export const STEP_LABELS = ["상황 접수", "증거 정리", "준비도", "소명서", "접수"]
 
@@ -95,34 +103,240 @@ export const EVIDENCE_META: { id: EvidenceId; title: string; meta: string; badge
   { id: "shipping", title: "택배 송장", meta: "2026.09.01 16:05", badge: "배송", viewer: "shipping" },
 ]
 
-export const REQUIRED_EVIDENCE: Record<string, EvidenceId[]> = {
-  "중고 물건 판매": ["chat", "bank", "shipping", "autopay"],
-  "용역·알바 대가": ["chat", "bank", "autopay"],
-  "빌려준 돈 회수": ["chat", "bank", "autopay"],
-  "잘 모르겠어요": ["bank", "autopay"],
+/** 문진의 한국어 선택지 → api-contract의 `reason` 4종. */
+export const REASON_BY_KIND: Record<string, ReasonType> = {
+  "중고 물건 판매": "goods",
+  "용역·알바 대가": "service",
+  "빌려준 돈 회수": "debt",
+  "잘 모르겠어요": "unclear",
 }
 
-export const CHECK_LABELS: Record<string, [EvidenceId, string][]> = {
-  "중고 물건 판매": [
-    ["chat", "거래 대화 내역"],
-    ["bank", "입금 내역"],
-    ["shipping", "물품 발송 증빙"],
-    ["autopay", "생계 흔적 (자동이체)"],
+export const TIER_SECTIONS: { tier: EvidenceTier; title: string; desc: string }[] = [
+  { tier: "legal", title: "반드시 내야 하는 것", desc: "시행령 제7조가 정한 첨부서류예요." },
+  { tier: "fss", title: "은행이 바로 심사할 수 있는 자료", desc: "금융감독원이 정리한 기준이에요. 없다고 접수가 막히지는 않아요." },
+  { tier: "common", title: "있으면 도움이 되는 자료", desc: "정해진 기준이 없는 유형이라 참고로만 안내해요." },
+  { tier: "supporting", title: "함께 내면 도움이 되는 자료", desc: "관행상 함께 내는 자료예요. 없어도 불이익은 없어요." },
+]
+
+// ── 소명자료 카탈로그 (reason-type-rules.md §2 · spec.md F7-03) ──────────────
+//
+// 종전에는 사유마다 EvidenceId 평면 배열 하나(REQUIRED_EVIDENCE)를 두고 전부 AND로 봤다.
+// 그 구조는 두 가지를 표현할 수 없어서 실제 사용자를 막았다.
+//   ① 택일 — "계약서·세금계산서·거래명세서 중 하나"를 셋 다 요구했다
+//   ② 채울 수 없는 항목 — 개인 중고거래자는 사업자등록증을 발급받을 수 없는데
+//      미보유로 잡혀 영원히 "증빙 보완 필요"가 나왔다 (TC-21·TC-22)
+//
+// 그래서 층(tier)과 미보유 효과(whenMissing)를 **독립된 두 축**으로 분리했다.
+// 같은 ②(금감원 표준)라도 재직 증빙은 즉시 발급받을 수 있어 blocks이고,
+// 사업자등록증은 발급 자체가 불가능할 수 있어 silent다.
+const LEGAL_ENTRIES: ChecklistEntry[] = [
+  {
+    id: "legal.proof",
+    label: "사기이용계좌가 아니라는 사실을 증명하는 자료",
+    tier: "legal",
+    fulfillBy: "upload",
+    // 자유 형식이다. 확인된 자료가 하나라도 있으면 충족으로 본다 — 서비스 산출물
+    // 전체(진술서·타임라인·증빙목록·원본)가 여기에 해당한다 (spec.md F7-03 ①).
+    whenMissing: "blocks",
+    sources: ["chat", "bank", "shipping", "autopay", "threat"],
+    note: "정해진 양식이 없어요. 올리신 자료로 저희가 만들어드려요.",
+  },
+  {
+    id: "legal.id_copy",
+    label: "명의인 신분증 사본",
+    tier: "legal",
+    fulfillBy: "self",
+    // 서비스가 받지 않는 자료라 보유 여부를 판정할 수 없다. blocks로 두면 전원이
+    // 영원히 "보완 필요"가 된다 — 채울 수 없는 요구를 만들지 않는다.
+    whenMissing: "silent",
+    note: "여기에 올리지 마세요. 은행에 낼 때 직접 첨부해주세요.",
+  },
+]
+
+const SUPPORTING_ENTRIES: ChecklistEntry[] = [
+  {
+    id: "supporting.life_activity",
+    label: "생계 흔적 (통신비·공과금 자동이체)",
+    tier: "supporting",
+    fulfillBy: "upload",
+    // 간소화 절차의 고려 요소지 소명자료 요건이 아니다. 서비스는 생계 여부를
+    // 판정하지 않으므로(reason-type-rules.md §3) 준비도에 넣지 않는다.
+    whenMissing: "silent",
+    sources: ["autopay"],
+  },
+  {
+    id: "supporting.identity",
+    label: "재직증명서 · 소득금액증명원 · 예금거래내역서",
+    tier: "supporting",
+    fulfillBy: "self",
+    whenMissing: "silent",
+    note: "함께 제출하는 경우가 많아요. 여기에 올리지 않고 직접 첨부하시면 돼요.",
+  },
+  {
+    id: "supporting.threat",
+    label: "협박 메시지 (해당하는 경우에만)",
+    tier: "supporting",
+    fulfillBy: "upload",
+    whenMissing: "silent",
+    sources: ["threat"],
+  },
+  {
+    id: "supporting.police_record",
+    label: "경찰 신고 접수증 · 수사 결과 통지서 (해당하는 경우에만)",
+    tier: "supporting",
+    fulfillBy: "self",
+    // 해당하는 사람만 선택적으로 보게 둔다. "고소당하셨나요?" 같은 질문을 전면에 두지
+    // 않는다 — 이미 불안한 사용자에게 공포를 더한다 (evidence-structure-revision §6).
+    whenMissing: "silent",
+    note: "신고했거나 수사가 진행 중이라면 도움이 될 수 있어요. 해당 없으면 넘어가세요.",
+  },
+]
+
+const BANK_RECORD: ChecklistEntry = {
+  id: "common.bank_record",
+  label: "해당 입금 건의 계좌 거래내역",
+  tier: "common",
+  fulfillBy: "upload",
+  whenMissing: "notice",
+  sources: ["bank"],
+}
+
+const PAYER_MATCH: ChecklistEntry = {
+  id: "payer_match",
+  label: "구매자–송금인 일치 여부",
+  tier: "fss",
+  fulfillBy: "derived",
+  // 사용자가 갖다 낼 것이 없는 항목이다. 대조는 백엔드가 하고, 불일치는 위험 신호가
+  // 아니라 "설명이 필요한 항목"이다 (reason-type-rules.md §2-1, TC-25).
+  whenMissing: "silent",
+  note: "올리신 대화와 입금 내역에서 저희가 대조해요.",
+}
+
+export const EVIDENCE_CATALOG: Record<ReasonType, ChecklistEntry[]> = {
+  goods: [
+    ...LEGAL_ENTRIES,
+    {
+      id: "goods.chat",
+      label: "거래 상대방과의 대화 내역",
+      tier: "fss",
+      fulfillBy: "upload",
+      // 이미 지운 사람은 다시 만들 수 없다(P-02 사례). 안내는 하되 막지는 않는다.
+      whenMissing: "notice",
+      sources: ["chat"],
+    },
+    {
+      id: "goods.trade_doc",
+      label: "거래 사실을 보이는 서류",
+      tier: "fss",
+      fulfillBy: "upload",
+      // 개인 중고거래자는 셋 다 없는 것이 정상이고, 사후에 만들면 증거 조작이다.
+      whenMissing: "notice",
+      // 목 단계에서는 sources를 비워 둔다. 이 셋을 구분하려면 카드의 `source_type`이
+      // 필요한데 목 증거 유형(chat/bank/shipping/autopay/threat)에는 대응값이 없다.
+      // 없는 대응을 임의로 이어붙이면 백엔드가 이 파일을 참조 구현으로 읽을 때 틀린 매핑을
+      // 그대로 옮기게 된다. 실제 판정은 백엔드가 카드로 한다.
+      anyOf: [
+        { id: "goods.trade_doc.contract", label: "계약서" },
+        { id: "goods.trade_doc.tax_invoice", label: "세금계산서" },
+        { id: "goods.trade_doc.statement", label: "거래명세서" },
+      ],
+      note: "이 중 하나만 있으면 돼요. 개인 간 거래라 셋 다 없어도 괜찮아요.",
+    },
+    { ...PAYER_MATCH },
+    {
+      id: "goods.business_reg",
+      label: "사업자등록증",
+      tier: "fss",
+      fulfillBy: "self",
+      // 개인은 발급 자체가 불가능하다. 미보유를 붉게 칠하지 않는다 (TC-21).
+      whenMissing: "silent",
+      note: "사업자가 아니면 넘어가세요.",
+    },
+    { ...BANK_RECORD },
+    {
+      id: "goods.delivery",
+      label: "물품 발송 증빙 (택배 송장 등)",
+      tier: "common",
+      fulfillBy: "upload",
+      // 직거래는 송장이 원래 없다. 직거래 분기는 evidence-structure-revision §3
+      // 회신 후 확정한다 — 그때까지 준비도를 깎지 않는다.
+      whenMissing: "notice",
+      sources: ["shipping"],
+    },
+    ...SUPPORTING_ENTRIES,
   ],
-  "용역·알바 대가": [
-    ["chat", "용역 내용 증빙"],
-    ["bank", "입금 내역"],
-    ["shipping", "결과물 전달 기록"],
-    ["autopay", "생계 흔적 (자동이체)"],
+  service: [
+    ...LEGAL_ENTRIES,
+    {
+      id: "service.employment",
+      label: "일한 사실을 보이는 서류",
+      tier: "fss",
+      fulfillBy: "self",
+      // 근로자라면 즉시 온라인 발급이 가능한 자료다 — 채울 수 있으므로 blocks (TC-02).
+      whenMissing: "blocks",
+      anyOf: [
+        { id: "service.employment.insurance", label: "건강보험 자격득실 확인서" },
+        { id: "service.employment.certificate", label: "재직증명서" },
+      ],
+      note: "이 중 하나만 있으면 돼요. 정부24·건강보험공단에서 바로 뗄 수 있어요.",
+    },
+    {
+      id: "service.payroll",
+      label: "급여 입금내역",
+      tier: "fss",
+      fulfillBy: "upload",
+      whenMissing: "notice",
+      sources: ["bank"],
+    },
+    {
+      id: "service.work_record",
+      label: "용역 내용·결과물 전달 기록",
+      tier: "common",
+      fulfillBy: "upload",
+      whenMissing: "notice",
+      sources: ["chat"],
+    },
+    { ...PAYER_MATCH, label: "일을 맡긴 사람–송금인 일치 여부" },
+    ...SUPPORTING_ENTRIES,
   ],
-  "빌려준 돈 회수": [
-    ["chat", "대여 사실 증빙"],
-    ["bank", "최초 송금 기록"],
-    ["autopay", "생계 흔적 (자동이체)"],
+  // 채권 회수·미확정은 금감원 표준이 존재하지 않는다. 공통 최소 자료를 참고 안내로만
+  // 제시하고 "필수"라고 쓰지 않는다 (reason-type-rules.md §2-2, TC-22).
+  debt: [
+    ...LEGAL_ENTRIES,
+    {
+      id: "debt.contact",
+      label: "상대방과의 대화·연락 기록",
+      tier: "common",
+      fulfillBy: "upload",
+      whenMissing: "notice",
+      sources: ["chat"],
+    },
+    { ...BANK_RECORD },
+    {
+      id: "debt.loan_record",
+      label: "빌려준 사실을 보이는 자료 (차용증·최초 이체 기록)",
+      tier: "common",
+      fulfillBy: "self",
+      // 차용증 없는 대여가 흔하다(P-05). 없다고 표시조차 하지 않는다 (TC-22).
+      whenMissing: "silent",
+      note: "차용증이 없어도 괜찮아요. 송금 기록과 대화로도 대여 사실을 보일 수 있어요.",
+    },
+    { ...PAYER_MATCH, label: "빌려준 상대–송금인 일치 여부" },
+    ...SUPPORTING_ENTRIES,
   ],
-  "잘 모르겠어요": [
-    ["bank", "입금 내역"],
-    ["autopay", "생계 흔적 (자동이체)"],
+  unclear: [
+    ...LEGAL_ENTRIES,
+    {
+      id: "unclear.contact",
+      label: "상대방과의 대화·연락 기록",
+      tier: "common",
+      fulfillBy: "upload",
+      whenMissing: "notice",
+      sources: ["chat"],
+    },
+    { ...BANK_RECORD },
+    { ...PAYER_MATCH, label: "상대방–송금인 일치 여부" },
+    ...SUPPORTING_ENTRIES,
   ],
 }
 
@@ -135,5 +349,8 @@ export const ROUTES: { title: string; desc: string; badge: "official" | "seconda
 export const INTRO_STATS = [
   { title: "계좌 지급정지", desc: "5대 은행 · 최근 1년", value: "149,176건" },
   { title: "보이스피싱 발생", desc: "같은 기간 · 전년 대비", value: "▼35.5%" },
-  { title: "표준 심사 기간", desc: "자료를 충분히 갖춰 낸 경우", value: "5영업일" },
+  // 숫자 자체는 금감원 2026.5 기준의 사실이지만, "5영업일"은 **심사 결과 통보** 기한이지
+  // 돈을 쓸 수 있게 되는 시점이 아니다 (법 제8조 제2항 — 피해자 통보일로부터 2개월 제한).
+  // 첫 화면에서 이 구분이 빠지면 사용자가 해제 기한으로 읽는다.
+  { title: "심사 결과 통보", desc: "자료를 충분히 갖춰 낸 경우 · 해제 시점은 아니에요", value: "5영업일" },
 ]
