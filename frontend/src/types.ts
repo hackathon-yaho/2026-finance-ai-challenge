@@ -46,6 +46,10 @@ export type Confidence = "high" | "medium" | "low"
  * `intake`는 **AI가 아니라 백엔드가 문진 응답(지급정지일)으로 합성한 카드**다
  * (`event_id: "evt_intake_when"`, `source_image_index: null`). 증빙자료가 아니므로
  * 타임라인(3면)에는 있지만 **증빙자료 목록(4면)에는 없다.**
+ *
+ * `intake` 카드의 `confirmation_status`는 **항상 `user_confirmed`다** (계약 v1.11).
+ * 세션 타임라인에 저장되지 않고 조회할 때마다 새로 합성되므로 확인·게이팅 대상이 될 수
+ * 없다 — `pending`으로 오면 사용자가 확인할 화면이 없는데 F4-06 게이팅에 걸린다.
  */
 export type SourceType = "chat" | "bank" | "shipping" | "threat" | "autopay" | "unknown" | "intake"
 
