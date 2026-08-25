@@ -2,7 +2,7 @@
 
 - 대상: **프론트엔드 개발자**
 - 기준: 실제 구현된 백엔드 코드 (`backend/src/main/java`)
-- 최종 갱신: **2026-08-25** — AI 회신 반영으로 카드 스키마 3필드 추가·`evidenceRefs.type` 3종 확정 (엔드포인트는 여전히 전체 미구현)
+- 최종 갱신: **2026-08-25 ②** — 프론트 회신 반영으로 엔드포인트 2종 신설·`checklist` 스키마 전면 개정·서식 11필드 (엔드포인트는 여전히 전체 미구현)
 
 > **이 문서와 `../../docs/02-architecture/api-contract.md`의 관계**
 >
@@ -30,8 +30,10 @@
 | 4.1 | `GET /api/timeline` | 3 | 미구현 |
 | 4.2 | `POST /api/timeline/merge` | 3 | 미구현 (스코프 컷 후보) |
 | 5.1 | `POST /api/readiness` | 4 | 미구현 |
+| 5.2 | `POST /api/checklist/self-held` | 4 | 미구현 (2026-08-25 신설) |
 | 6.1 | `POST /api/draft` | 5 | 미구현 |
-| 6.2 | `POST /api/package/text` | 5 | 미구현 |
+| 6.2 | `POST /api/draft/revise` | 5 | 미구현 (2026-08-25 신설) |
+| 6.3 | `POST /api/package/text` | 5 | 미구현 |
 | 7.1 | `GET /actuator/health` | 1 | 미구현 |
 
 상태 값: `미구현` → `구현 완료` → (계약이 바뀌면) `구현 완료 (YYYY-MM-DD 개정)`
@@ -65,7 +67,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 허용 origin | `http://localhost:5173` (Vite 개발 서버) · 프론트 배포 도메인(확정 시 추가) |
+| 허용 origin | `http://localhost:5173` (Vite 개발 서버) · **`https://2026-finance-ai-challenge-tau.vercel.app`** (프론트 프로덕션, 2026-08-25 확정) |
 | 허용 헤더 | `Content-Type`, `X-Session-Hash` |
 | 허용 메서드 | `GET`, `POST`, `DELETE`, `OPTIONS` |
 | credentials | 사용하지 않음 |
@@ -190,13 +192,13 @@
 
 > 상태: **미구현** (Phase 2)
 
-**설명**: 6문항 응답을 세션에 저장하고, **이의제기 기한을 서버가 계산해** 함께 돌려줍니다.
+**설명**: 문진 응답을 세션에 저장하고, **이의제기 기한을 서버가 계산해** 함께 돌려줍니다.
 
 **사전 조건**: `X-Session-Hash` 필요.
 
 **Request Body**
 
-6문항이지만 공고 문항이 2필드로 쪼개져 **7개 필드**입니다.
+6문항이지만 공고 문항이 2필드로 쪼개져 **7개 필드**이고, **물품 거래일 때만 `deliveryMethod`가 하나 더** 붙습니다.
 
 | key | 설명 | 타입 | 필수 | 예시 |
 | --- | --- | --- | --- | --- |
@@ -207,8 +209,11 @@
 | kind | 사유유형. `goods` / `service` / `debt` / `unclear` | enum | Y | "goods" |
 | history | 과거 지급정지 이력 여부 | boolean | Y | false |
 | usage | 계좌 사용 빈도. `main` / `occasional` / `rare` | enum | Y | "main" |
+| **deliveryMethod** | 거래 방식. `courier` / `in_person` / `not_applicable`. **`kind !== "goods"`면 `null`** | enum \| null | N | "in_person" |
 
 > `amount`는 **사실 기재 전용**입니다. 준비도 판정에 사용되지 않습니다 — 소액 여부를 서비스가 판정하지 않기 때문입니다.
+
+> **`deliveryMethod` (2026-08-25 신설)** — 물품 거래를 고른 사용자에게만 묻는 조건부 문항입니다(`kind` 바로 다음). **직거래는 송장이 원래 없어서**, 이 값이 없으면 서버가 직거래 사용자에게 "발송 증빙 없음" 공백을 영원히 띄우고 준비도를 깎습니다. `in_person`이면 서버가 그 공백 판정을 건너뜁니다. 용역·채권 회수에는 배송 개념이 없어 묻지 않습니다 — `null`로 보내주세요.
 
 **Request Example**
 
@@ -448,8 +453,14 @@ Content-Type: application/json
 | key | 설명 | 타입 | Nullable |
 | --- | --- | --- | --- |
 | reason | 사유유형 `goods` / `service` / `debt` / `unclear` | enum | N |
-| checklist[].item | 점검 항목명 | String | N |
-| checklist[].status | `met` / `unmet` / `unknown` | enum | N |
+| checklist[].id | 항목 식별자. **불투명 문자열** | String | N |
+| checklist[].label | **화면에 그대로 노출**할 항목명 | String | N |
+| checklist[].tier | `legal` / `fss` / `common` / `supporting` — 근거 출처 | enum | N |
+| checklist[].fulfillBy | `upload`(올리는 캡처) / `self`(직접 첨부) / `derived`(서버가 채움) | enum | N |
+| checklist[].whenMissing | `blocks` / `notice` / `silent` — **미보유일 때 무슨 일이** | enum | N |
+| checklist[].status | `met` / `unmet` / `unknown` / `needs_explanation` | enum | N |
+| checklist[].note | 있으면 **화면에 그대로 노출**하는 보조 문구 | String | Y |
+| checklist[].options[] | **택일 그룹.** 하나라도 `met`이면 그룹 전체가 `met` | array | Y |
 | readiness | `SUBMISSION_READY` / `SUPPLEMENT_NEEDED` / `BANK_CHECK_REQUIRED` | enum | N |
 | missingItems[] | 부족한 자료 | String[] | N |
 | conflicts[] | 자료 간 충돌 | array | N |
@@ -468,6 +479,56 @@ Content-Type: application/json
 | --- | --- |
 | 200 | 산출 성공 |
 | 409 | `UNCONFIRMED_FIELDS` — 카드 확인 화면으로 유도 |
+| 410 | `SESSION_EXPIRED` |
+
+**체크리스트 렌더 규칙 (2026-08-25 확정)**
+
+- **미보유에 붉은색을 쓰지 마세요.** `whenMissing: "blocks"`만 주의색, 나머지 미보유는 중립색입니다. 채울 수 없는 항목까지 경고로 칠하면 서비스가 사용자를 탓하는 화면이 됩니다.
+- **`whenMissing: "silent"` + 미보유는 배지 자체를 렌더하지 않습니다** (사업자등록증, 차용증 등 — 애초에 발급이 불가능하거나 사후에 만들면 증거 조작이 되는 자료).
+- **`needs_explanation`·`unknown`은 중립색**입니다. `needs_explanation`은 구매자–송금인 불일치인데, **위험 신호가 아니며 준비도를 깎지 않습니다** — 통장협박·삼각사기 피해자는 원래 불일치합니다.
+- **택일 그룹(`options`)은 "이 중 하나만 있으면 돼요"로 묶어** 표시하세요. 하나라도 `met`이면 그룹 전체가 `met`입니다.
+- `fulfillBy: "self"` 항목은 서버가 보유 여부를 알 수 없습니다 — **5.2로 사용자 체크를 보내주세요.**
+
+---
+
+### 5.2 `POST /api/checklist/self-held` — 직접 첨부 항목 자가 진술
+
+> 상태: **미구현** (Phase 4) · 2026-08-25 신설
+
+**설명**: 체크리스트 항목 중 `fulfillBy: "self"`인 것(신분증 사본, 재직증명서, 소득금액증명원 등)은 **서비스에 올리지 않는 자료**라 서버가 보유 여부를 알 방법이 없습니다. 사용자가 "챙겼어요"를 체크하면 이 엔드포인트로 보내주세요.
+
+**사전 조건**: `X-Session-Hash` 필요.
+
+**Request Body**
+
+| key | 설명 | 타입 | 필수 |
+| --- | --- | --- | --- |
+| itemId | 단일 항목의 `id` **또는 택일 그룹의 옵션 `id`** | String | Y |
+| held | `true`면 `met`, `false`면 `unmet` | boolean | Y |
+
+```json
+{ "itemId": "service.employment.insurance", "held": true }
+```
+
+**Response**
+
+| key | 설명 | 타입 |
+| --- | --- | --- |
+| checklist[] | **갱신된 전체 체크리스트** (5.1과 같은 구조) | array |
+
+> **부분 갱신이 아니라 전체를 다시 내립니다.** 택일 그룹은 옵션 하나가 `met`이 되면 그룹 상태도 함께 바뀌기 때문입니다.
+
+**주의**
+
+- 이 값은 **사용자 자가 진술**이지 서류 자체가 아닙니다. **세션에만 남고 PDF·로그에 기록되지 않습니다.**
+- 값은 `/api/readiness`와 `/api/draft` **양쪽 체크리스트에 반영**됩니다 — 두 화면이 다른 상태를 보이지 않습니다.
+
+**Status**
+
+| status | 내용 |
+| --- | --- |
+| 200 | 갱신 성공 |
+| 400 | `INVALID_REQUEST` — 존재하지 않는 `itemId` |
 | 410 | `SESSION_EXPIRED` |
 
 ---
@@ -513,22 +574,88 @@ Content-Type: application/json
 
 ---
 
-### 6.2 `POST /api/package/text` — 텍스트 5종 PDF
+### 6.2 `POST /api/draft/revise` — 소명서 문장 수정·제외
 
-> 상태: **미구현** (Phase 5)
+> 상태: **미구현** (Phase 5, 8/29~8/31) · 2026-08-25 신설
 
-**설명**: 제출 패키지 6종 중 **텍스트 5종**(별지 제4호서식 작성 지원본 / 사실관계 진술서 / 타임라인 / 증빙목록 / 부족자료 체크리스트)을 A4 PDF로 생성합니다.
+**설명**: 미리보기(S04-2)에서 사용자가 문장을 고치거나 뺄 때 호출합니다.
 
-> ⚠️ **구성 변경 회신 대기.** 부족자료 체크리스트를 **은행 제출본에서 빼자**고 프론트에 제안한 상태입니다(`../../docs/request/frontend/legal-form-and-package.md` §3). 확정되면 5면 구성과 이 절을 함께 갱신합니다.
+**왜 필요한가**: 소명서 문장은 대부분 LLM이 생성한 값입니다. **"있는 사실을 틀리게 쓴 문장"**("발송했습니다"↔"수령했습니다")은 근거와 매칭되므로 사실 검증이 잡지 못합니다. 읽기 전용 미리보기만 있으면 사용자는 그 문장을 **발견만 하고 고치지 못한 채** 다운로드합니다.
 
-**⑤ 원본 이미지 페이지는 서버가 만들지 않습니다.** 프론트가 이 응답에 자기 blob으로 만든 이미지 페이지를 `pdf-lib`으로 병합해 최종 6종을 완성합니다.
+**Request Body**
 
-**Request Body** — 별지 제4호서식 8개 필드
+```json
+{ "sentences": [
+  { "sentenceId": "s3", "excluded": true },
+  { "sentenceId": "s5", "text": "2026년 9월 1일 물품을 발송하였습니다." }
+] }
+```
+
+| key | 설명 | 타입 | 필수 |
+| --- | --- | --- | --- |
+| sentences[].sentenceId | 대상 문장 id | String | Y |
+| sentences[].text | 새 문장 내용. **서버가 재검증합니다** | String | N |
+| sentences[].excluded | `true`면 산출물에서 제외. **되돌릴 수 있습니다** | boolean | N |
+
+> **`text`와 `excluded`는 분리돼 있습니다.** `text: ""`를 삭제 신호로 쓰지 마세요 — 원문이 사라져 "역시 넣을게요"가 안 됩니다.
+
+**Response**
+
+| key | 설명 | 타입 | Nullable |
+| --- | --- | --- | --- |
+| sentences[] | 갱신된 문장 목록 (6.1과 같은 구조) | array | N |
+| warning | 매칭이 끊겼을 때의 안내 문구. **그대로 노출** | String | Y |
+
+**⚠️ 수정한 문장은 삭제되지 않습니다**
+
+근거와 매칭되지 않아도 문장은 살아남고, `evidenceRefs`가 `[{ "type": "user_text" }]`로 바뀝니다. 자동 삭제는 **LLM 출력에 적용하는 규칙**이지 사람이 자기 사실을 적은 문장에 쓰는 규칙이 아닙니다.
+
+**화면에서 이 변화를 보여주세요.**
+
+| 편집 전 | 편집 후 | 렌더 |
+| --- | --- | --- |
+| `evidence` (근거 배지 + 원본 이동) | 여전히 매칭됨 | 그대로 |
+| `evidence` | **매칭 끊김** | 배지가 **"본인 진술"로 바뀌고 원본 이동 배지가 사라짐** |
+
+경고 문구는 읽고 넘기지만, 방금까지 "대화 캡처"라고 적혀 있던 배지가 바뀌는 건 눈에 보입니다 — **사용자가 무엇을 잃었는지 알려주는 신호**입니다.
+
+**Status**
+
+| status | 내용 |
+| --- | --- |
+| 200 | 갱신 성공 |
+| 400 | `INVALID_REQUEST` — 존재하지 않는 `sentenceId` |
+| 410 | `SESSION_EXPIRED` |
+| 504 | `TIMEOUT` — 재검증 시간 초과 |
+
+---
+
+### 6.3 `POST /api/package/text` — 제출 패키지 텍스트 면 PDF
+
+> 상태: **미구현** (Phase 5) · **2026-08-25 구성 개정**
+
+**설명**: 제출 패키지의 **텍스트 면**(표지 + 1~4면)을 A4 PDF로 생성합니다.
+
+| 면 | 내용 |
+| --- | --- |
+| 표지 | **제출 서류 목록** — 포함된 것 + 신청인이 따로 첨부하는 것 |
+| 1 | 별지 제4호서식 작성 지원본 |
+| 2 | 사실관계 진술서 (`excludedSentenceIds` 제외) |
+| 3 | 거래 타임라인 |
+| 4 | 증빙자료 목록 — **올린 자료의 목차** |
+| ~~5~~ | ~~부족자료 체크리스트~~ → **제출본에서 제외** |
+
+> **부족자료 체크리스트가 PDF에서 빠졌습니다 (2026-08-25 확정).** 미보유 항목 중에는 사용자가 애초에 채울 수 없는 것이 섞여 있고(개인의 사업자등록증 등), 화면에서 `silent`로 감춘 항목이 PDF에서 되살아나면 **"이 사람은 그것도 없다"를 사용자가 스스로 은행에 건네는 셈**이 됩니다. **화면의 체크리스트는 그대로 유지해주세요** — 사용자가 무엇을 더 준비할지 보는 용도입니다.
+
+**5면 원본 이미지 페이지는 서버가 만들지 않습니다.** 프론트가 이 응답에 자기 blob으로 만든 이미지 페이지를 `pdf-lib`으로 병합해 최종본을 완성합니다.
+
+**Request Body** — 별지 제4호서식 **11개 필드** + 제외 문장
 
 ```json
 {
-  "applicant": { "name": "", "birthDate": "", "address": "", "phone": "" },
-  "account":   { "bank": "", "branch": "", "depositType": "", "accountNumber": "" }
+  "applicant": { "name": "", "birthDate": "", "address": "", "phone": "", "mobile": "", "email": "" },
+  "account":   { "bank": "", "branch": "", "depositType": "", "accountNumber": "", "holderName": "" },
+  "excludedSentenceIds": ["s3", "s7"]
 }
 ```
 
@@ -538,16 +665,21 @@ Content-Type: application/json
 | applicant.birthDate | 신청인 생년월일 (`YYYY-MM-DD`) | String | **선택** |
 | applicant.address | 신청인 주소 | String | **선택** |
 | applicant.phone | 신청인 연락처 | String | **선택** |
+| **applicant.mobile** | 신청인 휴대전화번호 | String | **선택** |
+| **applicant.email** | 신청인 전자우편주소 | String | **선택** |
 | account.bank | 지급정지 계좌 — 금융회사 | String | **선택** |
 | account.branch | 지급정지 계좌 — 개설점포 | String | **선택** |
 | account.depositType | 지급정지 계좌 — 예금종별 | String | **선택** |
 | account.accountNumber | 지급정지 계좌 — 계좌번호 | String | **선택** |
+| **account.holderName** | 지급정지 계좌 — 명의인 | String | **선택** |
+| **excludedSentenceIds** | 2면에서 뺄 문장 id | String[] | **선택** (기본 `[]`) |
 
-**8개 전부 선택입니다. 빈 값이어도 400이 아닙니다.**
+**11개 전부 선택입니다. 빈 값이어도 400이 아닙니다.**
 
-- 빈 값이면 해당 칸이 **공란인 PDF**가 나오고, 5면 부족자료 체크리스트에 "직접 채워야 하는 항목"으로 표시됩니다.
+- 빈 값이면 해당 칸이 **공란인 PDF**가 나옵니다.
 - `applicant` / `account` 객체 자체를 생략하거나 `null`로 보내도 됩니다.
 - **폼에 필수 표시(`*`)를 붙이지 마세요.** 사용자가 계좌번호를 모르는 경우가 실제로 있고, 그 때문에 패키지 생성이 막히면 안 됩니다. 이 산출물은 제출용 완성본이 아니라 **작성 지원본**입니다.
+- **`holderName`**: "신청인과 동일" 체크박스를 **기본 체크**로 두고 `applicant.name`을 실어 보내면 됩니다. 법 제7조 제1항의 이의제기 주체가 명의인이라 둘이 다른 경우가 예외적입니다. **체크박스 상태는 보내지 않습니다** — 바디에는 항상 최종 문자열만 넣어주세요.
 
 **형식 검증은 합니다** (비어도 되지만, 값이 있으면 형식을 봅니다).
 
@@ -558,7 +690,9 @@ Content-Type: application/json
 
 **Response**: `application/pdf` **바이너리**. 그대로 `pdf-lib`에 넘기면 됩니다.
 
-> **이 8개 값은 PDF 생성에만 쓰이고 세션·DB·로그 어디에도 남지 않습니다.** 서버는 이 요청의 바디를 로깅하지 않습니다.
+> **서식 11개 값은 PDF 생성에만 쓰이고 세션·DB·로그 어디에도 남지 않습니다.** 서버는 이 요청의 바디를 로깅하지 않습니다. `excludedSentenceIds`도 세션에 저장하지 않습니다 — 이 호출에서만 쓰입니다.
+
+**PDF 하단 표기**: `AI 초안 · 사용자 확인 완료 {시각} · 최종 판단은 금융회사`. **`{시각}`은 다운로드를 누른 시각**입니다 — 초안 생성 시각이 아닙니다. 따라서 **"사용자 확인 완료" 표기는 미리보기를 거친 뒤에만** 화면에도 붙여주세요.
 
 **Status**
 
@@ -591,3 +725,9 @@ API를 완료하거나 계약이 바뀔 때마다 한 줄씩 남깁니다. **"�
 | 2026-08-24 | 전체 | 문서 신설. 0장(공통 사항) 작성, 엔드포인트 12종을 계약(`api-contract.md` v1.4) 기준으로 골격 작성. 구현은 전부 미착수 |
 | 2026-08-25 | `/api/evidence` | 카드에 **`source_type`·`counterparty_name`·`payer_name`** 추가, `field_confidence` 2키 확장. `source_image_index`를 Nullable로 정정(텍스트 입력 카드). 프론트 주의사항 4건 추가 (`unknown`은 정상 값 / 이름은 `null`이 흔함 / 대조는 백엔드 / `event_id`는 불투명) |
 | 2026-08-25 | `/api/draft` | **`evidenceRefs.type` 3종 확정**(`evidence`/`intake`/`user_text`)과 "본인 진술" 배지 규칙 명시. `imageIndex` 부재가 정상인 경우, `bbox`가 근사 좌표라는 점 추가 |
+| 2026-08-25 ② | 0.3 CORS | 프론트 프로덕션 도메인 `https://2026-finance-ai-challenge-tau.vercel.app` 등록 |
+| 2026-08-25 ② | `/api/intake` | **`deliveryMethod`** 추가 (물품 거래 조건부) — 직거래에 채울 수 없는 공백을 띄우던 문제 |
+| 2026-08-25 ② | `/api/readiness` | **`checklist` 스키마 전면 개정** — `{ item, status }` 2필드 → `id`·`label`·`tier`·`fulfillBy`·`whenMissing`·`status`·`note`·`options` 8필드. 택일(OR) 표현과 미보유 효과 구분이 종전 구조로는 불가능했음. 렌더 규칙 5건 추가 |
+| 2026-08-25 ② | `/api/checklist/self-held` | **신설** — 직접 첨부 항목의 보유 여부를 사용자 자가 진술로 수신 |
+| 2026-08-25 ② | `/api/draft/revise` | **신설** — 소명서 문장 수정·제외. 수정 문장은 삭제하지 않고 `user_text` + `warning` |
+| 2026-08-25 ② | `/api/package/text` | **서식 8 → 11필드**(`mobile`·`email`·`holderName`) + **`excludedSentenceIds`**. **면 구성 개정** — 부족자료 체크리스트 제외, 표지 신설, 4면은 "올린 자료의 목차". `{시각}` = 다운로드 시각. 절 번호 6.2 → **6.3** |

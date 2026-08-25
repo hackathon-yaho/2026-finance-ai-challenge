@@ -1,5 +1,15 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-25 ②, 백엔드)** — 근거: 프론트 회신 5건 (`../response/backend/evidence-structure-revision.md`, `legal-form-and-package.md`, `honest-disclosure-fixes.md`, `draft-preview-and-edit.md`, `deployment-domain.md`)
+> - **CORS 허용 origin에 프론트 프로덕션 도메인 추가** — `https://2026-finance-ai-challenge-tau.vercel.app` (프리뷰 와일드카드는 종전대로 불허)
+> - **`checklist` 스키마 전면 개정** — `{ item, status }` 2필드 → `id`·`label`·`tier`·`fulfillBy`·`whenMissing`·`status`·`note`·`options`. **택일(OR) 표현**과 **미보유 효과 구분**이 종전 구조로는 불가능했습니다
+> - **`POST /api/checklist/self-held` 신설** — 서비스가 받지 않는 자료(`fulfillBy: "self"`)의 보유 여부를 사용자 자가 진술로 받습니다
+> - **`POST /api/draft/revise` 신설** — 소명서 문장 수정·제외. 수정 문장은 삭제하지 않고 `user_text`로 유지 + `warning`
+> - **`/api/package/text` 요청 바디 8 → 11필드** (`mobile`·`email`·`holderName`) + **`excludedSentenceIds`** 추가
+> - **면 구성 개정** — 부족자료 체크리스트를 **제출본에서 제외**, **제출 서류 목록 표지 신설**, **4면 증빙목록의 출처를 `checklist` → 확인된 증거 카드로 정정**(종전 표기가 6면을 뺀 의미를 무력화하고 있었습니다)
+> - **`/api/intake`에 `deliveryMethod` 신설** — 직거래에 채울 수 없는 공백을 띄우던 문제
+> - **`notices`가 서버 단일 소스**임을 명시 (법 조문 근거 문구, 프론트는 순화 없이 그대로 노출)
+
 > **수정 기록 (2026-08-25, 백엔드)** — 근거: AI 회신 3건 (`../response/backend/card-source-type.md`, `payer-name-extraction.md`, `image-transfer-and-internal-auth.md`) 및 AI 요청 `../request/backend/draft-intake-input.md`
 > - **`/api/evidence` 카드 스키마에 3개 필드 추가** — `source_type`(6종, `unknown` 포함), `counterparty_name`, `payer_name`. `field_confidence`에도 이름 2종 키 추가
 > - **프론트 주의 사항 명시**: 두 이름 필드는 `null`이 흔하다(잘린 캡처·F3-06 마스킹) / **이름 대조 결과를 프론트가 계산하지 않는다** / 불일치를 경고색으로 칠하지 않는다 / `event_id`는 불투명 문자열
@@ -31,15 +41,17 @@
 | Method | Path | 설명 | Request | Response |
 | --- | --- | --- | --- | --- |
 | POST | `/api/session` | 세션 생성 | — | `{ sessionHash, expiresAt, demoMode }` |
-| POST | `/api/intake` | 문진 저장 | `{ when, dueNoticeStatus, dueNoticeDate, amount, kind, history, usage }` | `{ ok, nextStage, deadline }` |
+| POST | `/api/intake` | 문진 저장 | `{ when, dueNoticeStatus, dueNoticeDate, amount, kind, history, usage, deliveryMethod }` | `{ ok, nextStage, deadline }` |
 | POST | `/api/evidence` | 이미지 판독 (메모리 통과, 서버 미저장) | `multipart[]` (세션당 누적 최대 10장, 파일당 10MB, JPG/PNG, 클라이언트에서 리사이즈·마스킹 완료된 상태) | `{ cards: [...], signals, qualityFlags }` |
 | POST | `/api/evidence/confirm` | 추출 카드 확인·수정 저장 (FR-028) | `{ cardId, confirmed, corrections }` | `{ ok, confirmedCount, unconfirmedCount }` |
 | POST | `/api/evidence/text` | 텍스트 대체 입력 | `{ rawText }` | `{ cards: [...] }` |
 | GET | `/api/timeline` | 타임라인 조회 | — | `{ events: [...], gaps: [...], mergeCandidates: [...] }` |
 | POST | `/api/timeline/merge` | 중복 이벤트 병합 승인 (F5-02) | `{ mergeGroupIds, approved }` | `{ events: [...], gaps: [...], mergeCandidates: [...] }` |
+| POST | `/api/checklist/self-held` | **직접 첨부 항목 자가 진술** (2026-08-25 신설) | `{ itemId, held }` | `{ checklist: [...] }` |
 | POST | `/api/readiness` | 제출 준비도 점검 실행 | — | `{ reason, checklist, readiness, missingItems, conflicts, notices, smallAmountNotice, urgentAlert }` |
 | POST | `/api/draft` | 소명서 생성 | — | `{ draftText, sentences: [{ sentenceId, text, evidenceRefs: [...] }], checklist: [...] }` |
-| POST | `/api/package/text` | 제출 패키지 텍스트 5종 PDF 생성 (FR-047) | `{ applicant, account }` (별지 제4호서식 8개 필드, 서비스 미저장) | `application/pdf` |
+| POST | `/api/draft/revise` | **소명서 문장 수정·제외** (2026-08-25 신설) | `{ sentences: [{ sentenceId, text? , excluded? }] }` | `{ sentences: [...], warning }` |
+| POST | `/api/package/text` | 제출 패키지 텍스트 PDF 생성 (FR-047) | `{ applicant, account, excludedSentenceIds }` (별지 제4호서식 **11개 필드**, 서비스 미저장) | `application/pdf` |
 | DELETE | `/api/session` | 세션 즉시 파기 | — | `204` |
 | GET | `/actuator/health` | 헬스체크 (킵얼라이브용, DB 활동 포함) | — | `{ status: "UP", db: "OK" }` |
 
@@ -49,10 +61,12 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 허용 origin | `http://localhost:5173` (Vite 개발 서버) — 프론트 배포 도메인이 확정되면 이 표에 추가 |
+| 허용 origin | `http://localhost:5173` (Vite 개발 서버)<br>**`https://2026-finance-ai-challenge-tau.vercel.app`** (프론트 프로덕션, 2026-08-25 확정) |
 | 허용 헤더 | `Content-Type`, `X-Session-Hash` |
 | 허용 메서드 | `GET`, `POST`, `DELETE`, `OPTIONS` |
 | `credentials` | 사용하지 않음 (쿠키 미사용) |
+
+> **origin 끝에 슬래시를 붙이지 마세요.** origin 비교는 문자열 일치라 `https://….app/`은 매칭되지 않습니다. 프론트 배포 정보: `../response/backend/deployment-domain.md`.
 
 **프리뷰 도메인 와일드카드는 허용하지 않습니다.** Vercel/Netlify가 브랜치마다 만드는 프리뷰 서브도메인에 `*` 패턴을 열면 임의의 브랜치·포크 배포에서 이 API를 호출할 수 있게 됩니다. 프론트는 **프로덕션 도메인 1개 + `localhost:5173`** 만 사용하고, 프리뷰 확인은 로컬로 대체합니다(프론트 회신에서 "후자여도 문제없다"고 확인됨).
 
@@ -100,7 +114,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 
 ## `/api/intake` 요청 필드 정의
 
-문진은 6개 항목입니다(`../00-context/spec.md` F2-01).
+문진은 **6개 항목 + 물품 거래일 때만 1개 추가**입니다(`../00-context/spec.md` F2-01).
 
 | 필드 | 타입 | 값 | 비고 |
 | --- | --- | --- | --- |
@@ -111,6 +125,21 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 | `kind` | enum | `goods` \| `service` \| `debt` \| `unclear` | 사유유형 4종에 대응 |
 | `history` | boolean | 과거 지급정지 이력 여부 | `은행기준미상` 신호의 입력값 |
 | `usage` | enum | `main` \| `occasional` \| `rare` | 생계 흔적 증빙 점검 보조 |
+| **`deliveryMethod`** | enum \| null | `courier` \| `in_person` \| `not_applicable` \| null | **거래 방식** (2026-08-25 신설). `kind !== "goods"`면 `null` |
+
+### `deliveryMethod` — 직거래를 위한 필드 (2026-08-25 신설)
+
+**직거래는 송장이 원래 없습니다.** 그런데 F5-03 공백 탐지 규칙 ①이 `delivery_evidence == false` + 재화 거래를 곧바로 "발송 증빙 없음" 공백으로 판정하고, `delivery` 판단 기준은 **"송장·발송 기록"**(F4-02)입니다. 이대로 구현하면 **직거래 사용자에게 채울 방법이 없는 공백을 영원히 띄우고 준비도를 깎습니다.**
+
+| 값 | 뜻 | 백엔드 처리 |
+| --- | --- | --- |
+| `courier` | 택배 | 종전대로 — 송장·발송 기록으로 판정 |
+| **`in_person`** | **직거래(대면)** | **F5-03 ①의 "발송 증빙 없음" 공백을 띄우지 않습니다.** 체크리스트의 `goods.delivery` 라벨도 물품 사진·거래 장소·대면 인도 정황으로 바뀝니다 |
+| `not_applicable` | 해당 없음 | 공백 판정 제외 |
+| `null` | 물품 거래가 아니거나 미응답 | 종전 규칙 그대로 |
+
+- **물품 거래일 때만 묻습니다.** 용역·채권 회수에는 배송 개념이 없어 "해당 없음"만 고르게 되는 문항이 하나 생깁니다. 프론트는 `kind` 바로 다음에 조건부로 노출합니다 — 물품이면 7문항, 나머지는 6문항.
+- **B안(증거 유형 추가)을 쓰지 않은 이유**: 자료를 올린 뒤에야 직거래인 걸 알게 되어, F3-07이 풀려던 "다 올린 뒤에 알게 되는" 문제가 그대로 남습니다. 문진에서 확정하면 **업로드 전에** 무엇을 준비할지 안내할 수 있습니다.
 
 ## `/api/intake` 응답 — 이의제기 기한 (FR-014)
 
@@ -237,13 +266,46 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 
 > **스코프 컷 시 동작** — F5-02는 스코프 컷 순서 4번입니다(`../00-context/spec.md` §9). 컷하면 백엔드는 `mergeCandidates`를 **항상 빈 배열로** 내리고 `/api/timeline/merge`를 구현하지 않습니다. 프론트엔드는 빈 배열이면 병합 후보 UI를 렌더하지 않으므로, 어느 쪽을 컷해도 상대를 기다리지 않습니다. **컷 결정이 나면 `../response/frontend/`에 회신합니다.**
 
+## `/api/checklist/self-held` — 직접 첨부 항목 자가 진술 (2026-08-25 신설)
+
+체크리스트 항목 중 `fulfillBy: "self"`인 것(신분증 사본, 재직증명서, 소득금액증명원 등)은 **서비스에 올리지 않는 자료**라 서버가 보유 여부를 알 방법이 없습니다. 그런데 TC-02는 재직 증빙 미보유를 `SUPPLEMENT_NEEDED`로 요구하므로 **누군가는 "없다"고 말해줘야** 합니다. 사용자가 화면에서 "챙겼어요"를 체크하고, 그 값을 여기로 보냅니다.
+
+```json
+POST /api/checklist/self-held
+{ "itemId": "service.employment.insurance", "held": true }
+
+→ 200 { "checklist": [ /* 갱신된 전체 체크리스트 */ ] }
+```
+
+| 항목 | 내용 |
+| --- | --- |
+| `itemId` | 단일 항목의 `id` **또는 택일 그룹의 옵션 `id`** |
+| `held` | `true`면 해당 항목이 `met`, `false`면 `unmet` |
+| 응답 | **갱신된 전체 체크리스트.** 택일 그룹은 옵션 하나가 `met`이 되면 그룹 상태도 함께 바뀌므로, 부분 갱신이 아니라 전체를 다시 내립니다 |
+
+- **별도 엔드포인트로 둔 이유**: 체크리스트를 쓰는 화면이 **Stage 3(`/api/readiness`)과 Stage 4(`/api/draft`) 둘**입니다. `/api/readiness` 요청 바디에만 실으면 서버에 남지 않아 `/api/draft`가 그 값을 모르고, **두 화면이 서로 다른 체크리스트를 보게 됩니다.**
+- **이 값은 사용자 자가 진술이지 서류 자체가 아닙니다.** 세션에만 두고 **PDF·로그에 남기지 않습니다.**
+- 존재하지 않는 `itemId`면 `400` + `INVALID_REQUEST`.
+
 ## `/api/readiness` 응답
 
 ```json
 {
   "reason": "goods | service | debt | unclear",
   "checklist": [
-    { "item": "거래 대화 내역", "status": "met | unmet | unknown" }
+    {
+      "id": "service.employment",
+      "label": "일한 사실을 보이는 서류",
+      "tier": "fss",
+      "fulfillBy": "self",
+      "whenMissing": "blocks",
+      "status": "met",
+      "note": "이 중 하나만 있으면 돼요. 정부24·건강보험공단에서 바로 뗄 수 있어요.",
+      "options": [
+        { "id": "service.employment.insurance",   "label": "건강보험 자격득실 확인서", "status": "met" },
+        { "id": "service.employment.certificate", "label": "재직증명서",             "status": "unmet" }
+      ]
+    }
   ],
   "readiness": "SUBMISSION_READY | SUPPLEMENT_NEEDED | BANK_CHECK_REQUIRED",
   "missingItems": ["물품 발송 증빙"],
@@ -254,8 +316,40 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 }
 ```
 
+### `checklist` 항목 스키마 (2026-08-25 전면 개정)
+
+종전 `{ item, status }` 2필드를 대체합니다. 의미 정의의 단일 출처는 `../01-product/reason-type-rules.md` §3-2이고, 여기는 **전송 형식**입니다.
+
+| 필드 | 타입 | 내용 |
+| --- | --- | --- |
+| `id` | String | `"goods.trade_doc"` — **불투명 문자열.** 파싱해 의미를 꺼내지 마세요 |
+| `label` | String | **화면에 그대로 노출** |
+| `tier` | enum | `legal` / `fss` / `common` / `supporting` — ①②③④ (근거 출처) |
+| `fulfillBy` | enum | `upload`(올리는 캡처) / `self`(은행에 직접 첨부) / `derived`(서버가 뽑아 채움) |
+| `whenMissing` | enum | `blocks`(준비도 깎음) / `notice`(문구만) / `silent`(표시 안 함) |
+| `status` | enum | `met` / `unmet` / `unknown` / `needs_explanation` |
+| `note` | String? | 있으면 **화면에 그대로 노출**하는 보조 문구 |
+| `options` | array? | **택일 그룹.** 있으면 하나라도 `met`일 때 그룹 전체가 `met` |
+
+**원소는 항상 같은 모양입니다** — 단일 항목은 `options`가 없을 뿐입니다. 프론트가 분기 없이 그릴 수 있게 하기 위한 형태입니다.
+
+**프론트가 지킬 것**
+
+- **미보유에 붉은색을 쓰지 않습니다.** `blocks`만 주의색, 나머지 미보유는 중립색입니다. 채울 수 없는 항목까지 경고로 칠하면 서비스가 사용자를 탓하는 화면이 됩니다
+- **`whenMissing: "silent"` + 미보유는 배지 자체를 렌더하지 않습니다** (사업자등록증, 차용증 등)
+- **`needs_explanation`·`unknown`은 중립색**입니다 — "설명 필요" / "확인 불가". `needs_explanation`은 구매자–송금인 불일치인데, **위험 신호가 아니며 준비도를 깎지 않습니다**
+- `fulfillBy: "self"` 항목은 서버가 보유 여부를 알 수 없어 **사용자가 체크**합니다 (`POST /api/checklist/self-held`)
+
+### `notices` — 서버가 단일 소스입니다 (2026-08-25 확정)
+
+법 조문 근거 문구(법 제8조 제2항 등)는 **서버가 문자열로 내려주고, 프론트는 순화하지 않고 그대로 노출**합니다. FR-014의 `deadline.notice`를 그렇게 정한 것과 같은 이유입니다.
+
+- 세 상태 공통으로 **"최종 판단은 은행이 합니다"** 가 항상 포함됩니다 — 프론트는 이 문구를 생략하지 않습니다
+- **심사 결과 통보와 지급정지 해제를 분리한 문장**으로 씁니다 (`../00-context/spec.md` F6-05). 둘은 다른 시점입니다
+- 구매자–송금인 불일치 안내("이 차이를 소명서에 설명해야 한다")도 **서버가 씁니다** — `checklist[].note` 또는 `notices` 중 하나로. 대조 결과를 아는 쪽이 문구를 쓰는 것이 맞습니다
+- `../01-product/reason-type-rules.md` §4·§4-1의 금지 문구 원칙이 이 문자열에 그대로 적용됩니다
+
 - `readiness`가 `BANK_CHECK_REQUIRED`일 때 프론트엔드는 `../01-product/reason-type-rules.md` §4에 정의된 정직한 안내 문구를 그대로 노출합니다. 낙관적으로 순화하지 않습니다.
-- `notices`에는 세 상태 공통으로 "최종 판단은 은행이 합니다"가 항상 포함됩니다 — 프론트엔드는 이 문구를 생략하지 않습니다.
 - `smallAmountNotice`는 **판정이 아니라 정보 제공**입니다(PRD §4.3 소액 안내 카드). 고정 문구이며 입금액에 따라 문구가 달라지지 않습니다 — 소액 여부를 서비스가 판정하지 않기 때문입니다(§14 OI-01). 프론트엔드는 이 문구를 "소액에 해당하니 유리하다"처럼 단정적으로 바꾸지 않습니다.
 - `urgentAlert`는 협박 감지 여부이며 `readiness`와 독립적으로 산출됩니다.
 
@@ -300,20 +394,92 @@ FR-045가 정의한 근거 유형 셋과 1:1로 대응합니다. **`type`은 항
 - 자료 0건 경로(TC-06)에서는 **모든 문장이 `intake`** 이므로 전 문장에 "본인 진술" 배지가 붙습니다. 이것이 정상 동작이며, PRD가 요구하는 정직성 표기입니다.
 - `bbox`는 LLM 비전이 낸 **근사 좌표**입니다. 이미지를 열고 해당 위치로 스크롤하는 용도(P0)로는 충분하지만, **픽셀 단위 정밀 하이라이트(P1)를 전제로 UI를 설계하지 마세요.**
 
+## `/api/draft/revise` — 소명서 문장 수정·제외 (2026-08-25 신설)
+
+**왜 필요한가**: 소명서 문장은 대부분 LLM이 생성한 값입니다. **"있는 사실을 틀리게 쓴 문장"**(카드는 맞는데 "발송했습니다"를 "수령했습니다"로 뒤집는 경우)은 근거와 매칭되므로 F7-02 사실 검증이 잡지 못합니다. 읽기 전용 미리보기만 두면 사용자는 그 문장을 **발견만 하고 고치지 못한 채** 다운로드합니다.
+
+```json
+POST /api/draft/revise
+{
+  "sentences": [
+    { "sentenceId": "s3", "excluded": true },
+    { "sentenceId": "s5", "text": "2026년 9월 1일 물품을 발송하였습니다." }
+  ]
+}
+
+→ 200
+{
+  "sentences": [ { "sentenceId": "s5", "text": "...", "evidenceRefs": [ { "type": "user_text" } ] } ],
+  "warning": "수정하신 문장은 업로드 자료와 연결되지 않아 '본인 진술'로 표시됩니다."
+}
+```
+
+### `text`와 `excluded`를 분리합니다
+
+한 필드에 두 의미를 넣지 않습니다. **`text: ""`는 삭제 신호로 쓰지 않습니다** — 되돌릴 수 없고(원문이 사라짐), 빈 문자열과 공백만 입력한 값을 구분해야 하는 부담이 생깁니다.
+
+| 필드 | 뜻 |
+| --- | --- |
+| `text` | 문장을 이 내용으로 교체. **F7-02 재검증 대상** |
+| `excluded: true` | 문장을 산출물에서 제외. **되돌릴 수 있고, 재검증이 불필요**합니다 (새 사실을 만들지 않으므로) |
+
+### 수정된 문장은 삭제하지 않고 `user_text`로 유지합니다
+
+수정 후 어느 근거와도 매칭되지 않으면 **경고를 띄우되 문장은 살립니다.**
+
+**FR-045 ③의 "매칭 안 되는 문장 자동 삭제"는 LLM 출력에 적용하는 규칙**이고, 사람이 자기 사실을 적은 문장에 같은 규칙을 쓰면 성격이 다릅니다. FR-045 ⑤가 이미 `user_text`에 "본인 진술" 표기를 규정하고 있으므로, 살리는 쪽이 그 규정을 따르는 것입니다.
+
+**프론트는 `warning` 문구와 배지 변화를 함께 렌더합니다.**
+
+| 편집 전 | 편집 후 | 화면 |
+| --- | --- | --- |
+| `evidence` (근거 배지 + 원본 이동) | 여전히 매칭됨 | 그대로 |
+| `evidence` | **매칭 끊김** | 배지가 **"본인 진술"로 바뀌고 원본 이동 배지가 사라짐** |
+
+경고 문구는 읽고 넘기지만, 방금까지 "대화 캡처"라고 적혀 있던 배지가 "본인 진술"로 바뀌는 건 눈에 보입니다 — **사용자가 무엇을 잃었는지 알려주는 신호**입니다. `warning`은 서버가 준 문자열을 그대로 씁니다.
+
+### 편집 범위
+
+| 대상 | 편집 |
+| --- | --- |
+| 1면 서식 필드 | 자유 입력 (`/api/package/text` 바디) |
+| **2면 소명서 문장** | **수정 + 제외** ← 이 엔드포인트 |
+| 3면 타임라인 | **불가** — 고치면 소명서·증빙목록과 어긋납니다 |
+| 4면 증빙자료 목록 | **불가** — 확인된 카드에서 파생됩니다 |
+
+> 3면 값이 틀린 걸 발견한 사용자에게는 **"자료 확인으로 돌아가 고칠 수 있어요" 안내 + Stage 2 복귀 링크**를 둡니다 (F7-04 재생성 경로). 편집을 막아놓고 대안을 안 주면 사용자는 틀린 채로 다운로드합니다.
+
 ## `/api/package/text` — 제출 패키지 (FR-047)
 
-서버는 **텍스트 기반 5종**(별지 제4호서식 작성 지원본 / 사실관계 진술서 / 타임라인 / 증빙목록 / 부족자료 체크리스트)만 PDF로 생성합니다. 원본 이미지 페이지는 서버가 만들지 않습니다 — 프론트엔드가 이 응답에 브라우저 blob으로 만든 이미지 페이지를 `pdf-lib`으로 병합해 최종 6종 패키지를 완성합니다(`../00-context/spec.md` F7-06).
+서버는 **텍스트 기반 면들**을 PDF로 생성합니다. 원본 이미지 페이지는 서버가 만들지 않습니다 — 프론트엔드가 이 응답에 브라우저 blob으로 만든 이미지 페이지를 `pdf-lib`으로 병합해 최종 패키지를 완성합니다(`../00-context/spec.md` F7-06).
 
 **PDF 생성 주체는 서버(백엔드)입니다**(2026-08-24 확정). `spec.md` 총괄표의 `F8-01 담당 = C` 표기는 오류였으며 `A`로 정정했습니다.
 
-### 요청 바디 (2026-08-24 신설 — `GET` → `POST` 변경)
+### 면 구성 (2026-08-25 개정)
 
-PRD §4.4 별지 제4호서식 필드 매핑상 아래 8개 값은 **사용자 직접 입력이며 서비스가 저장하지 않습니다.** `GET` 쿼리로는 실을 수 없어 `POST`로 바꿨습니다.
+| 면 | 내용 | 만드는 쪽 |
+| --- | --- | --- |
+| 표지 | **제출 서류 목록** — 포함된 것 + 신청인이 따로 첨부하는 것 | 서버 |
+| 1 | 별지 제4호서식 이의제기신청서 작성 지원본 | 서버 |
+| 2 | 사실관계 진술서 | 서버 |
+| 3 | 시간순 거래 타임라인 | 서버 |
+| 4 | 증빙자료 목록 — **올린 자료의 목차** | 서버 |
+| 5 | 증빙별 원본 이미지 | **브라우저** |
+| ~~6~~ | ~~부족자료 체크리스트~~ | **제출본에서 제외** |
+
+> **부족자료 체크리스트를 제출본에서 뺀 이유**: 미보유 항목 중에는 **사용자가 애초에 채울 수 없는 것**이 섞여 있습니다(개인 중고거래자의 사업자등록증, 차용증 없는 대여의 차용증). 화면에서는 이것들을 `whenMissing: "silent"`로 두어 **표시조차 하지 않는데**, 같은 목록이 PDF가 되면 화면에서 감춘 항목이 제출본에서 되살아납니다. "이 사람은 사업자등록증도 차용증도 없다"는 문장을 사용자가 스스로 정리해 은행에 건네는 셈입니다. **부족자료 체크리스트는 화면에 그대로 있습니다** — 사용자가 무엇을 더 준비할지 보는 용도입니다.
+>
+> **4면도 같은 이유로 출처를 정정했습니다.** 종전에 4면 데이터 출처를 `/api/draft`의 `checklist`(첨부 서류 체크리스트)로 적어뒀는데, 그러면 6면을 빼도 **미보유 목록이 4면으로 그대로 나갑니다.** 4면은 **확인된 증거 카드에서 만드는 "올린 자료의 목차"** 이며, 뒤에 붙는 5면 원본 이미지와 짝을 이룹니다(`../00-context/prd.md` §4.4가 "타임라인 + 증빙목록 + 원본이미지"를 한 묶음으로 둔 구조).
+
+### 요청 바디 (2026-08-25 개정 — 서식 8 → **11필드**, `excludedSentenceIds` 추가)
+
+PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접 입력이며 서비스가 저장하지 않습니다.** `GET` 쿼리로는 실을 수 없어 `POST`입니다.
 
 ```json
 {
-  "applicant": { "name": "", "birthDate": "", "address": "", "phone": "" },
-  "account":   { "bank": "", "branch": "", "depositType": "", "accountNumber": "" }
+  "applicant": { "name": "", "birthDate": "", "address": "", "phone": "", "mobile": "", "email": "" },
+  "account":   { "bank": "", "branch": "", "depositType": "", "accountNumber": "", "holderName": "" },
+  "excludedSentenceIds": ["s3", "s7"]
 }
 ```
 
@@ -323,16 +489,22 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 8개 값은 **사용자 �
 | `applicant.birthDate` | 신청인 생년월일 | string (`YYYY-MM-DD`) | 선택 |
 | `applicant.address` | 신청인 주소 | string | 선택 |
 | `applicant.phone` | 신청인 연락처 | string | 선택 |
+| **`applicant.mobile`** | 신청인 휴대전화번호 | string | 선택 |
+| **`applicant.email`** | 신청인 전자우편주소 | string | 선택 |
 | `account.bank` | 지급정지 계좌 — 금융회사 | string | 선택 |
 | `account.branch` | 지급정지 계좌 — 개설점포 | string | 선택 |
 | `account.depositType` | 지급정지 계좌 — 예금종별 | string | 선택 |
 | `account.accountNumber` | 지급정지 계좌 — 계좌번호 | string | 선택 |
+| **`account.holderName`** | 지급정지 계좌 — 명의인 | string | 선택 |
+| `excludedSentenceIds` | 2면에서 제외할 문장 id | string[] | 선택 (기본 `[]`) |
 
-**8개 필드는 전부 선택입니다. 빈 값이어도 `400`을 내지 않습니다.**
+**11개 필드는 전부 선택입니다. 빈 값이어도 `400`을 내지 않습니다.**
 
-빈 값이 오면 해당 칸을 **공란으로 둔 PDF**를 생성하고, 5면 부족자료 체크리스트에 "직접 채워야 하는 항목"으로 표시합니다. 이 산출물은 제출용 완성본이 아니라 **작성 지원본**이며(FR-047), 사용자가 계좌번호나 개설점포를 모르는 경우가 실제로 있기 때문입니다. 모르는 값 때문에 패키지 생성 자체가 막히면 서비스가 목적을 잃습니다.
+빈 값이 오면 해당 칸을 **공란으로 둔 PDF**를 생성합니다. 이 산출물은 제출용 완성본이 아니라 **작성 지원본**이며(FR-047), 사용자가 계좌번호나 개설점포를 모르는 경우가 실제로 있기 때문입니다. 모르는 값 때문에 패키지 생성 자체가 막히면 서비스가 목적을 잃습니다. **폼에 필수 표시(`*`)를 붙이지 않습니다.**
 
-`applicant`/`account` 객체 자체를 생략하거나 `null`로 보내도 됩니다 — 8개 필드를 모두 공란으로 둔 것과 같게 처리합니다.
+`applicant`/`account` 객체 자체를 생략하거나 `null`로 보내도 됩니다 — 전부 공란으로 둔 것과 같게 처리합니다.
+
+> **`holderName`("신청인과 동일" 체크박스)**: 법 제7조 제1항의 이의제기 주체가 **명의인**이라 둘이 다른 경우가 예외적입니다. 프론트는 체크박스를 **기본 체크**로 두고 `applicant.name` 값을 그대로 실어 보냅니다. **체크박스 상태는 계약에 넣지 않습니다** — 요청 바디에는 항상 `holderName`에 최종 문자열이 들어옵니다.
 
 **형식 검증은 합니다** (선택이라는 것은 "비어도 된다"이지 "무엇이든 받는다"가 아닙니다).
 
@@ -342,7 +514,8 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 8개 값은 **사용자 �
 | `birthDate`는 값이 있으면 `YYYY-MM-DD` | `400` + `INVALID_FORM_FIELD` |
 
 - 응답은 `application/pdf` **바이너리**입니다. 프론트엔드는 이 응답을 그대로 `pdf-lib`에 넘깁니다.
-- **백엔드는 이 8개 값을 PDF 생성에만 사용하고 세션·DB·로그 어디에도 남기지 않습니다**(`../03-infra-ops/privacy-and-safety.md`). 요청 로깅 시 바디를 기록하지 않도록 주의합니다.
+- `excludedSentenceIds`에 있는 문장은 **2면 생성 시 제외**합니다. 세션에 상태를 만들지 않습니다 — 다운로드 시점에 한 번 전달되고 끝입니다. 존재하지 않는 id는 무시합니다.
+- **백엔드는 서식 11개 값을 PDF 생성에만 사용하고 세션·DB·로그 어디에도 남기지 않습니다**(`../03-infra-ops/privacy-and-safety.md`). 요청 로깅 시 바디를 기록하지 않도록 주의합니다.
 
 ## 공통 오류 응답
 
@@ -367,6 +540,8 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 8개 값은 **사용자 �
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.6 (2026-08-25 ②)**: 프론트 회신 5건 반영. **`checklist` 스키마 전면 개정**(2필드 → 8필드, 택일 `options`·`whenMissing` 신설). **`POST /api/checklist/self-held`·`POST /api/draft/revise` 신설.** `/api/package/text` **8 → 11필드** + `excludedSentenceIds`, **면 구성 개정**(부족자료 체크리스트 제외·표지 신설·4면 출처 정정). `/api/intake`에 `deliveryMethod` 신설. `notices` 서버 단일 소스 명시. CORS에 프론트 프로덕션 도메인 등록
+- v1.5 (2026-08-25): AI 회신 3건 반영. 카드 스키마에 `source_type`·`counterparty_name`·`payer_name` + `field_confidence` 2키 추가. `/api/draft` 응답의 `evidenceRefs.type` 3종(`evidence`/`intake`/`user_text`)과 "본인 진술" 배지 규칙 확정. `bbox`가 근사 좌표임을 명시
 - v1.4 (2026-08-24): `/api/package/text` `GET` → `POST` + 요청 바디 8개 필드 정의(전부 선택, `INVALID_FORM_FIELD` 신설). `GET /api/timeline`에 `mergeCandidates` 추가, `POST /api/timeline/merge` 신설(F5-02). `deadline.notice`는 항상 non-null임을 명시. `/api/evidence` 동시 요청 상한 4·업로드 크기 상한·서버 측 매직바이트 검증 명시. CORS 허용 origin·헤더 절 신설(`localhost:5173` 등록, 프리뷰 와일드카드 불허)
 - v1.3 (2026-08-23): `/api/session`에 `demoMode`, `/api/readiness`에 `smallAmountNotice` 추가. FR-028 게이팅의 서버 측 거부(`UNCONFIRMED_FIELDS`, 409) 명시. `/api/evidence` 1장씩 병렬 호출 방식 명시(F3-03)
 - v1.2 (2026-08-23): 세션 전달 방식을 커스텀 헤더 `X-Session-Hash`로 확정(TODO 줄 대체). `/api/intake` 응답에 `deadline` 추가(FR-014 계산 주체를 백엔드로 확정)

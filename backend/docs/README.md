@@ -223,6 +223,22 @@ FR-050~053, NFR-04·05·06·09는 프론트 소관이라 이 플랜에 없다.
 | **지급정지일 합성 이벤트** | `/internal/draft`의 `events`에 **넣지 않는다.** 타임라인 표시·공백 탐지에서는 그대로 사용 | Phase 5-1, `internal-api-contract.md` | 섞이면 AI가 `evidence` 근거로 오인해 "근거 있는 사실"처럼 서술함 |
 | **`evidenceRefs.type`** | **3종 확정** — `evidence` / `intake` / `user_text`. 뒤 둘은 "본인 진술" 배지 | `api-contract.md`, `api-spec.md`, Phase 5-1 | FR-045 근거 유형과 1:1. `imageIndex` 부재가 정상인 경우가 생김 |
 | **AI가 채우지 않는 값** | `checklist`는 항상 `[]`, `quality_flags.amount_mismatch`는 항상 `false` | `internal-api-contract.md` | 단일 출처가 백엔드. 이미지 1장만 보는 AI는 카드 간 교차 대조를 할 수 없음 |
+| **`필수증빙누락` 정의** | "체크리스트에 미보유 항목이 있음" → **"`whenMissing: blocks`인 항목 중 `met`이 아닌 것이 있음"** | `reason-type-rules.md` §3·§3-1, Phase 4 | 종전 정의 그대로 구현하면 **TC-21·TC-22가 깨짐** — 채울 수 없는 항목 때문에 사용자가 영원히 "보완 필요"에 갇힘 |
+| **층과 미보유 효과 분리** | `tier`(근거 출처)와 `whenMissing`(못 채우면 어떻게 되나)을 **독립된 두 축**으로 | 같은 문서 §3-1·§3-2 | 같은 ② 금감원 표준인데 TC-21(사업자등록증)과 TC-02(재직 증빙)의 기대 결과가 반대. 가르는 기준은 **"사용자가 실제로 채울 수 있는가"** — `blocks`는 이미 있거나 즉시 발급 가능한 자료에만 (사후에 만들면 **증거 조작**) |
+| **`checklist` 스키마** | `{ item, status }` → **8필드**(`id`·`label`·`tier`·`fulfillBy`·`whenMissing`·`status`·`note`·`options`) | `api-contract.md`, `api-spec.md`, Phase 4-3a | 택일(OR) 표현과 미보유 효과 구분이 2필드 구조로는 불가능. 프론트가 형태 확정 + 참조 구현(TC 8건 통과) — `response/backend/evidence-structure-revision.md` §2 |
+| **자가 진술 저장** | **`POST /api/checklist/self-held`** 신설 (readiness 바디에 싣지 않음) | `api-contract.md`, Phase 4-3a | 체크리스트를 쓰는 화면이 **Stage 3·4 둘**. 요청 바디에만 실으면 서버에 안 남아 두 화면이 다른 상태를 보임 |
+| **직거래 경로** | `/api/intake`에 **`deliveryMethod`** (물품 거래 조건부) + F5-03 ① 예외 | `spec.md` F2-01a·F5-03, `api-contract.md` | **직거래는 송장이 원래 없다.** 그대로 두면 채울 방법이 없는 공백을 띄우고 준비도를 깎음. B안(증거 유형 추가)은 **자료를 올린 뒤에야** 직거래인 걸 알게 되어 F3-07이 풀려던 문제가 남음 |
+| **플랫폼 거래 유형** | **추가하지 않음.** 업로드 안내 문구에만 명시 | `spec.md` F3-07 | `EvidenceId`는 프론트 목 전용 타입이고 실제 유형은 AI의 `source_type` 6종 고정 — **프론트만 고치면 죽은 코드**. 얻는 건 배지 문구뿐이고 판독 내용은 `chat`으로도 그대로 추출됨 |
+| **제출본 면 구성** | **부족자료 체크리스트 제외**(화면 유지), **표지 신설**, **4면 = 올린 자료의 목차** | `spec.md` F8-01·F7-06, `prd.md` FR-047, Phase 5-4 | 화면에서 `silent`로 감춘 미보유 항목이 **PDF에서 되살아남** — 사용자가 스스로 불리한 목록을 은행에 건네는 구조. 4면 출처가 `checklist`로 적혀 있어 5면만 빼면 반쪽이었음 |
+| **면별 항목·정렬 기준** | `spec.md` F8-01에 정의, **PDF가 단일 출처** | 같은 문서, Phase 5-4 | **같은 면을 백엔드(PDF)와 프론트(미리보기)가 각자 그림.** 기준이 없으면 미리 본 것과 받는 것이 어긋남. 금지 3건: 3면 `gaps` 금지 / 4면 파일명 금지(개인정보) / 4면 보유여부 금지 |
+| **서식 8 → 11필드** | `mobile`·`email`·`holderName` 추가 | `api-contract.md`, `spec.md` F7-06, `prd.md` §4.4 | 종전 8필드가 서식의 11개 기재란과 맞지 않았음 |
+| **문장 수정·제외** | **`POST /api/draft/revise`** 신설 (8/29~8/31) + `excludedSentenceIds` | `api-contract.md`, `prd.md` FR-045 ③·FR-048, `spec.md` F7-08 | **"있는 사실을 틀리게 쓴 문장"은 근거와 매칭되어 F7-02가 못 잡음.** 읽기 전용만 두면 사용자가 발견만 하고 못 고침 |
+| **FR-045 ③ 적용 범위** | 자동 삭제는 **LLM 출력에만**. 사용자 수정 문장은 `user_text`로 유지 + `warning` | `prd.md` FR-045 ③ (**PRD 개정**) | 사람이 자기 사실을 적은 문장에 LLM용 규칙을 쓰면 성격이 다름. ⑤가 이미 `user_text`에 "본인 진술"을 규정하고 있어, 삭제가 오히려 규정에 어긋남 |
+| **"사용자 확인 완료" 표기** | **미리보기를 거친 뒤에만**. PDF `{시각}` = **다운로드 시각** | `spec.md` F8-01·F7-08 | 초안 생성 직후 붙으면 사용자는 아무것도 확인하지 않은 상태 — "낙관적으로 순화하지 않는다"를 내세우는 이상 우리 화면의 표기부터 사실이어야 함 |
+| **F6-05 문구 분리** | "심사 결과 통보"와 "지급정지 해제"를 **분리해 서술** (법 제8조 제2항) | `spec.md` F6-05, `reason-type-rules.md` §4-1, Phase 4-7 | 종전 문구는 **왜 5영업일이 지나도 안 풀리는지**를 설명 못 함. 사용자는 "심사가 끝났는데 왜 계좌가 그대로냐"에서 서비스를 불신 |
+| **기간 수치 금지** | **"최대 3년"을 쓰지 않음.** "한동안" + 해제 경로 병기 | `spec.md` F9-03, `reason-type-rules.md` §4-1 | 1차 출처(은행연합회 규약·금융위·금감원 자료·법령) 미확인. **소액 기준을 추정하지 않기로 한 서비스**(OI-01)가 여기서만 후기 근거로 단정하면 앞뒤가 안 맞음 |
+| **`notices` 단일 소스** | **서버가 문자열로 내려주고 프론트는 순화 없이 노출** | `api-contract.md`, Phase 4-5 | 법 조문 근거 문구라 서버가 단일 소스여야 함 (FR-014 `deadline.notice`와 같은 구조) |
+| **CORS 프론트 도메인** | `https://2026-finance-ai-challenge-tau.vercel.app` (**슬래시 없이**) | `api-contract.md` CORS 절, Phase 6-5 | origin 비교는 문자열 일치. 프리뷰 와일드카드는 종전대로 불허 |
 
 ### 미확정 — 상대 역할 회신 대기
 
@@ -230,13 +246,15 @@ FR-050~053, NFR-04·05·06·09는 프론트 소관이라 이 플랜에 없다.
 
 **회신은 `../../docs/response/backend/`에 파일로 들어온다** (2026-08-23 신설 규칙). 요청 파일과 같은 이름으로 오므로, 막힌 작업을 재개하기 전에 이 폴더를 먼저 확인한다.
 
-| 항목 | 막히는 작업 | 요청 문서 |
+**2026-08-25 현재 — 백엔드를 막는 회신 대기 항목은 없다.** AI 4건·프론트 5건이 전부 도착했다. 남은 것은 구현뿐이며, 착수 순서는 `../../docs/05-planning/roadmap.md`의 백엔드 확정 작업 표(1~19번)를 따른다.
+
+| 항목 | 결과 | 회신 |
 | --- | --- | --- |
-| 증빙 구조 7건 + F3-06 안내 문구 | Phase 4 체크리스트 데이터 구조 | `../../docs/request/frontend/evidence-structure-revision.md` |
-| 서식 11필드·서명 안내·5면 구성 | Phase 5-4 `/api/package/text` | `../../docs/request/frontend/legal-form-and-package.md` |
-| 정직 고지 3건 (5영업일 카피·3년 제한·보존 지침) | 화면 문구 (백엔드 영향 적음) | `../../docs/request/frontend/honest-disclosure-fixes.md` |
-| 미리보기·수정 단계 | Phase 5-4 산출 시점 | `../../docs/request/frontend/draft-preview-and-edit.md` |
-| 프론트 배포 도메인 (CORS 등록용) | Phase 6 배포 (로컬은 `localhost:5173`으로 진행 가능) | 프론트 과제, 기한 9/5 — `../../docs/response/frontend/pdf-ownership-and-open-contracts.md` §2-5 |
+| 증빙 구조 8건 | **전부 회신.** 4건 구현 완료, 플랫폼 유형만 이견 → **B안(문구만) 채택** | `../../docs/response/backend/evidence-structure-revision.md` |
+| 서식 11필드·서명 안내·면 구성 | 3건 수용. 서명 안내 구현 완료 | `../../docs/response/backend/legal-form-and-package.md` |
+| 정직 고지 3건 | 전부 구현 완료. **"최대 3년"은 1차 출처 미확인으로 뺌** | `../../docs/response/backend/honest-disclosure-fixes.md` |
+| 미리보기·수정 단계 | 전부 수용. **자유 편집을 8/29~8/31로 앞당김** → 백엔드 수용 | `../../docs/response/backend/draft-preview-and-edit.md` |
+| 프론트 배포 도메인 | **확정** — `https://2026-finance-ai-challenge-tau.vercel.app` (기한 9/5보다 앞당김) | `../../docs/response/backend/deployment-domain.md` |
 
 > **2026-08-25 해소 — AI 회신 4건으로 Phase 3·5 블로커가 전부 풀렸습니다.** 이미지 전달 방식(raw body), 카드 `source_type`, 데모 응답 세트(v1 납품 완료 — `../../ai-server/demo/`), 이름 필드까지 확정됐고, AI가 보낸 `/internal/draft` `intake` 요청도 회신 완료입니다. 결론은 위 "확정" 표, 근거는 `../../docs/response/backend/` 4건과 `../../docs/response/ai/draft-intake-input.md`.
 >

@@ -12,7 +12,7 @@
 
 | 서비스 | 담당 | 권장 호스팅 | 비용 | 스핀다운 리스크 |
 | --- | --- | --- | --- | --- |
-| 프론트엔드 | 프론트 | Vercel / Netlify / Cloudflare Pages | $0 | 없음 (정적 파일) |
+| 프론트엔드 | 프론트 | **Vercel (Hobby) — 배포 완료 2026-08-25**<br>`https://2026-finance-ai-challenge-tau.vercel.app` | $0 | 없음 (정적 파일) |
 | 백엔드 | 백엔드 | Render Web Service (Starter) | $7/월 | 있음 → Starter로 제거 |
 | AI-server | AI | **Google Cloud Run** (Always Free 한도) | $0 | 없음 → 요청 시 자동 기동 + 킵얼라이브 |
 | Supabase (백엔드 전용) | 백엔드 | Supabase 무료 플랜 + 킵얼라이브 | $0 | 7일 비활성 시 일시정지 |
@@ -26,7 +26,9 @@
 정적 SPA는 Render Web Service보다 Vercel/Netlify/Cloudflare Pages 같은 정적 호스팅이 낫습니다. 스핀다운 개념이 없고 무료 티어로 충분합니다.
 
 **체크리스트**
-- [ ] Vercel/Netlify 등에 배포 (자동 배포 연동 권장 — main 브랜치 push 시 자동 배포)
+- [x] **Vercel(Hobby)에 배포 완료** (2026-08-25, 기한 9/5보다 앞당김) — 저장소 `frontend/`를 Root Directory로 지정, Vite 프리셋, **main 푸시 시 프로덕션 자동 갱신**. 확정 도메인: `https://2026-finance-ai-challenge-tau.vercel.app` (`../response/backend/deployment-domain.md`)
+- [x] SPA fallback(`vercel.json` rewrites)은 **넣지 않음** — 라우터 없이 단계 상태로만 화면을 바꾸는 구조라 경로가 `/` 하나뿐. 라우터 도입 시 추가
+- [ ] **심사 기간(9/7~9/11)에는 main에 푸시하지 않는다** — 자동 배포가 걸려 있어 푸시하면 심사 중에 화면이 바뀐다
 - [ ] 백엔드 API 엔드포인트 URL을 환경변수로 관리 (하드코딩 금지 — 배포 환경마다 바뀔 수 있음)
 - [ ] 백엔드와 CORS 협의 완료 (허용 origin에 프론트 배포 도메인 등록 요청). **`localhost:5173`은 이미 등록되어 로컬 연동은 도메인 확정 전에도 가능**하며, **프리뷰 서브도메인은 허용되지 않으므로 프리뷰 확인은 로컬로 대체**한다 (2026-08-24 확정)
 - [ ] 9/7~9/11 매일 아침 URL 직접 접속 확인 (로테이션에 포함)
@@ -43,7 +45,7 @@
 
 **체크리스트**
 - [ ] **9월 5일까지** Render Starter 플랜 전환 ($7/월, 스핀다운 제거)
-- [ ] CORS 설정 — **`http://localhost:5173`(Vite 개발 서버)을 먼저 등록** (2026-08-24 확정). 프론트 배포 도메인은 미정이므로 확정되면 추가하며, **프리뷰 서브도메인 와일드카드는 허용하지 않는다**(`../02-architecture/api-contract.md` CORS 절)
+- [ ] CORS 설정 — `allowedOrigins`에 **`http://localhost:5173`(Vite 개발 서버) + `https://2026-finance-ai-challenge-tau.vercel.app`(프론트 프로덕션, 2026-08-25 확정)** 두 개를 등록한다. **끝에 슬래시를 붙이지 않는다**(origin 비교는 문자열 일치). **프리뷰 서브도메인 와일드카드는 허용하지 않는다**(`../02-architecture/api-contract.md` CORS 절)
 - [ ] `spring.servlet.multipart.max-file-size` / `max-request-size`를 **10MB로 상향** — 기본값 1MB로는 1600px 리사이즈된 정상 캡처(장당 300KB~1MB)가 `400`으로 떨어진다 (F3-02 검증 ③)
 - [ ] Render 프록시의 요청 바디 상한이 10MB 요청을 통과시키는지 확인
 - [ ] `GET /actuator/health` 헬스체크 엔드포인트 구현 (킵얼라이브용) — 단순 상태 반환이 아니라 **DB에 실제로 쿼리를 날려야 함**
@@ -146,7 +148,7 @@ jobs:
 
 ## 전체 체크리스트 (심사 기간 대비)
 
-- [ ] (프론트) 9/5까지 정적 호스팅 배포 완료
+- [x] (프론트) 정적 호스팅 배포 완료 — **2026-08-25** (기한 9/5보다 앞당김)
 - [ ] (백엔드) 9/5까지 Render Starter 전환, CORS 설정, 킵얼라이브 워크플로 등록
 - [ ] (AI) 9/5까지 **Cloud Run 배포 완료**, 헬스체크 공개, 외부 모니터링 등록
 - [ ] (전원) 오프라인 데모 모드(`DEMO_MODE=true`) 동작 확인 — 발표 당일 네트워크 장애 대비

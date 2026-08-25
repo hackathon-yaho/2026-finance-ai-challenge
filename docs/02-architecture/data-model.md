@@ -69,7 +69,7 @@ record Session(
 
 **`rejectedMergeGroupIds`는 `mergeCandidates`를 재산출할 때마다 대조합니다.** `POST /api/timeline/merge`가 `approved: false`를 받으면 해당 `groupId`를 여기에 추가하고, 그 뒤로는 같은 이벤트 조합이 다시 후보로 뜨지 않게 합니다. 이벤트 자체는 병합하지 않습니다(F5-02).
 
-**별지 제4호서식 8개 필드(신청인 성명·생년월일·주소·연락처 / 계좌 금융회사·개설점포·예금종별·계좌번호)는 이 구조체에 없습니다.** `POST /api/package/text` 요청 바디로만 받아 PDF 생성에 즉시 사용하고 세션에 넣지 않습니다(`../00-context/spec.md` §5-2, `../03-infra-ops/privacy-and-safety.md`).
+**별지 제4호서식 11개 필드(신청인 성명·생년월일·주소·연락처·휴대전화번호·전자우편주소 / 계좌 금융회사·개설점포·예금종별·계좌번호·명의인)는 이 구조체에 없습니다.** `POST /api/package/text` 요청 바디로만 받아 PDF 생성에 즉시 사용하고 세션에 넣지 않습니다(`../00-context/spec.md` §5-2, `../03-infra-ops/privacy-and-safety.md`).
 
 > **필드 수 정정 예정**: 서식 원본 대조 결과 8개가 아니라 11개(휴대전화번호·전자우편주소·명의인 추가)로 확인됐습니다 — `../request/frontend/legal-form-and-package.md` 회신 대기 중. 회신 오면 이 문단과 §5-2를 함께 갱신합니다.
 

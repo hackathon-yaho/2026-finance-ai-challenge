@@ -66,12 +66,18 @@ record Session(
 | `kind` | enum | `goods` \| `service` \| `debt` \| `unclear` | 사유유형 |
 | `history` | boolean | 과거 지급정지 이력 | `은행기준미상` 신호 |
 | `usage` | enum | `main` \| `occasional` \| `rare` | 생계 흔적 점검 보조 |
+| **`deliveryMethod`** | enum \| null | `courier` \| `in_person` \| `not_applicable` \| null | **F5-03 ① 직거래 예외** (2026-08-25 신설). `kind !== "goods"`면 `null` |
 
 - [ ] 증분 저장 허용 — 프론트가 입력 즉시 호출한다 (F2-01 처리). 일부 필드만 온 요청을 거부하지 않는다
 - [ ] `dueNoticeStatus == notified`이면 `dueNoticeDate` 필수 검증
 - [ ] 응답 `{ ok, nextStage, deadline }` (2-5 참조)
 
 > **문항 수**: PRD FR-010·spec F2-01 모두 **6문항으로 정정 완료**됐다(2026-08-23 백엔드 / 08-24 프론트). 공고 문항 하나가 `dueNoticeStatus`+`dueNoticeDate` 2필드로 쪼개져 **6문항 = 7필드**다. **계약 문서인 `api-contract.md`를 따른다.**
+>
+> **2026-08-25 — 물품 거래일 때만 문항 하나가 늘어난다** (F2-01a). `kind == "goods"`면 거래 방식(`deliveryMethod`)을 묻고, 아니면 `null`이 온다. **용역·채권 회수에는 배송 개념이 없어** 무조건 7문항으로 늘리지 않았다.
+>
+> - [ ] `deliveryMethod`를 세션에 담고 **Phase 3의 F5-03 공백 탐지에 전달**한다. `in_person`이면 규칙 ①("발송 증빙 없음")을 적용하지 않는다 — 직거래는 송장이 원래 없어, 그대로 두면 **채울 방법이 없는 공백**을 띄우고 준비도를 깎는다 (TC-30)
+> - [ ] `history`·`dueNotice*`는 **소명서 생성 입력(`/internal/draft`의 `intake`)에 넣지 않는다** (Phase 5-1)
 
 > **`amount`를 준비도 판정에 절대 쓰지 않는다.** 소액 기준은 은행 내규로 비공개다 — `../../docs/00-context/prd.md` §14 OI-01.
 

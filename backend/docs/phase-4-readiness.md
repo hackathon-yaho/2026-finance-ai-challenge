@@ -1,5 +1,13 @@
 # Phase 4 — 제출 준비도 점검 (결정적 규칙 엔진)
 
+> ### ⚠️ 착수 전 반드시 읽을 것 (2026-08-25)
+>
+> **`필수증빙누락`의 정의가 바뀌었다.** 종전 문장("사유별 체크리스트에 미보유 항목이 있음")을 그대로 구현하면 **TC-21·TC-22가 깨지고, 채울 방법이 없는 항목 때문에 사용자가 영원히 "보완 필요"에 갇힌다.**
+>
+> 새 정의는 **`whenMissing == BLOCKS`인 항목 중 `MET`이 아닌 것이 있음**이다. §4-3a와 `../../docs/01-product/reason-type-rules.md` §3-1을 먼저 읽는다.
+>
+> **프론트가 같은 규칙으로 참조 구현을 냈고 TC 8건을 통과시켰다** (`../../docs/response/backend/evidence-structure-revision.md` §2-7 — `frontend/src/lib/checklist.ts`, `frontend/src/data.ts`의 `EVIDENCE_CATALOG`). 대조용으로 쓴다. 다만 **카탈로그의 사유별 항목 구성은 백엔드가 최종 소유**다.
+
 > 목표: `POST /api/readiness`가 세 상태 중 하나를 결정적으로 산출한다.
 >
 > 근거: `../../docs/01-product/reason-type-rules.md` (단일 출처), `../../docs/00-context/spec.md` F6-01~06, `../../docs/00-context/prd.md` §4.3
@@ -38,14 +46,62 @@
 
 - [ ] **입력은 `user_confirmed` 또는 `user_corrected` 카드뿐이다.** 미확인 카드는 충족 근거로 쓰지 않는다 (F6-03 수용 기준)
 - [ ] 점검 대상은 F7-03 사유별 체크리스트 (Phase 5 표와 동일한 데이터를 공유한다)
-- [ ] 항목별 출력 3값 — spec 본문의 한글 표기와 계약 필드명의 대응은 다음과 같다
+- [ ] 항목별 출력 4값 — spec 본문의 한글 표기와 계약 필드명의 대응은 다음과 같다
 
 | F6-03 본문 표기 | `api-contract.md` `status` 값 |
 | --- | --- |
 | 충족 | `met` |
 | 보완 필요 | `unmet` |
 | 확인 필요 | `unknown` |
+| 설명 필요 | `needs_explanation` (2026-08-25 추가 — 구매자–송금인 불일치) |
 - [ ] **금지: 입금액으로 소액 여부를 판정하지 않는다.** 금액은 사실 정보로만 기록
+
+### 4-3a. 체크리스트 항목 구조 (2026-08-25 확정) — **이 모양으로 만든다**
+
+프론트가 형태를 확정하고 참조 구현까지 냈다(`../../docs/response/backend/evidence-structure-revision.md` §2). 계약 본문은 `../../docs/02-architecture/api-contract.md`, 의미는 `../../docs/01-product/reason-type-rules.md` §3-2가 단일 출처다.
+
+```java
+record ChecklistItem(
+    String id,              // "goods.trade_doc" — 불투명 문자열
+    String label,           // 화면에 그대로 노출
+    Tier tier,              // LEGAL / FSS / COMMON / SUPPORTING
+    FulfillBy fulfillBy,    // UPLOAD / SELF / DERIVED
+    MissingEffect whenMissing, // BLOCKS / NOTICE / SILENT
+    Status status,          // MET / UNMET / UNKNOWN / NEEDS_EXPLANATION
+    String note,            // nullable — 화면에 그대로 노출
+    List<Option> options    // nullable — 택일 그룹
+) {}
+```
+
+- [ ] **`tier`와 `whenMissing`을 한 필드로 합치지 않는다.** 층(근거 출처)과 미보유 효과(못 채우면 어떻게 되나)는 **독립된 두 축**이다 — 같은 `FSS`인데 TC-21은 준비도를 깎으면 안 되고 TC-02는 깎아야 한다
+- [ ] **원소는 항상 같은 모양**이다. 단일 항목은 `options`가 `null`일 뿐 — 프론트가 분기 없이 그릴 수 있게 하기 위한 형태다
+- [ ] **택일 그룹은 하나라도 `MET`이면 그룹 전체가 `MET`** (TC-23)
+- [ ] `label`·`note`는 **화면에 그대로 나가는 문자열**이다. `reason-type-rules.md` §4·§4-1의 금지 문구 원칙이 적용된다
+
+#### `whenMissing` 판정 — `blocks`는 채울 수 있는 자료에만
+
+> **`blocks`는 이미 존재하거나 즉시 발급받을 수 있는 자료에만 붙인다.** 사후에 만들어야 하는 자료에 붙이면 서비스가 **증거 조작을 유도**하는 셈이 된다.
+
+| 항목 | `whenMissing` | 이유 |
+| --- | --- | --- |
+| `legal.proof` (사기이용계좌가 아니라는 자료) | `BLOCKS` | 자유 형식 — 확인된 업로드 자료 **1건이라도 있으면 `MET`**. 자료 0건이면 TC-06이 `SUPPLEMENT_NEEDED` |
+| `legal.id_copy` (신분증 사본) | **`SILENT`** | ①이라 필수인 건 맞지만 서비스가 받지 않아 판정 불가. `BLOCKS`면 **전원이 영원히 보완 필요**다. 화면에서 "반드시 내야 하는 것" 맨 앞에 두는 것으로 해결한다 |
+| `service.employment` (자격득실·재직증명 택일) | `BLOCKS` | 정부24·건강보험공단에서 **즉시 무료 발급** — 채울 수 있다 (TC-02) |
+| `goods.business_reg` (사업자등록증) | **`SILENT`** | 개인은 **발급 자체가 불가능** (TC-21) |
+| `goods.trade_doc` (계약서·세금계산서·거래명세서) | **`SILENT`** | 개인 간 거래엔 원래 없고 **사후에 만들면 증거 조작**이다 |
+| `debt.*` (차용증 등) | **`SILENT`** | 금감원 표준이 없는 유형 (TC-22) |
+| `supporting.*` (재직증명서·소득금액증명원·수사 자료) | **`SILENT`** | 실무 관행이지 요건이 아니다 |
+
+- [ ] **항목을 새로 추가할 때 이 기준으로 판단한다.** 기준 없이 늘리면 또 흔들린다
+
+#### `fulfillBy: SELF` 항목은 사용자 자가 진술로 받는다
+
+서비스에 올리지 않는 자료라 보유 여부를 알 방법이 없다. 그런데 TC-02는 재직 증빙 미보유를 `SUPPLEMENT_NEEDED`로 요구하므로 누군가는 "없다"고 말해줘야 한다.
+
+- [ ] **`POST /api/checklist/self-held`** — `{ itemId, held }` → 갱신된 **전체 체크리스트** 반환 (택일 그룹은 옵션 하나가 바뀌면 그룹 상태도 바뀌므로 부분 갱신 불가)
+- [ ] 세션에 `Map<String,Boolean>`으로 보관한다. **Stage 3·4가 같은 값을 봐야** 하므로 요청 바디에만 싣지 않는다
+- [ ] **PDF·로그에 남기지 않는다.** 사용자 자가 진술이지 서류 자체가 아니다
+- [ ] 존재하지 않는 `itemId`면 `400` + `INVALID_REQUEST`
 
 ### 사유별 증빙 (F7-03) — 3단 구조
 
@@ -65,7 +121,7 @@
 | 채권 회수 (`debt`) · 사유 미확정 (`unclear`) | **표준 없음** → ③ 적용 |
 
 - [ ] **택일 항목은 OR로 구현한다.** 그룹 안에서 하나라도 충족되면 그룹 전체가 `met`. 전부 AND로 묶으면 금감원이 완화한 기준을 되돌리는 것이 된다
-- [ ] `필수증빙누락` 신호는 **②에만** 반응한다. ③·④는 이 신호에 넣지 않는다
+- [ ] **`필수증빙누락` 신호는 `whenMissing == BLOCKS`인 항목에만 반응한다** (2026-08-25 정정 — 종전 "②에만 반응한다"는 틀렸다). **층이 아니라 `whenMissing`이 기준**이다 — 같은 ②라도 사업자등록증은 `SILENT`, 재직 증빙은 `BLOCKS`다. 4-3a 참조
 
 **③ 공통 최소 자료 (표준 없는 유형 · 참고 안내)**
 
@@ -90,7 +146,7 @@
 | 신호 | 정의 |
 | --- | --- |
 | `hasUnconfirmedFields` | 사용자가 확인하지 않은 카드 또는 낮은 신뢰도 필드가 남아 있음 |
-| `hasMissingRequiredEvidence` | 사유별 체크리스트에 미보유 항목이 있음 |
+| `hasMissingRequiredEvidence` | **`whenMissing == BLOCKS`인 항목 중 `MET`이 아닌 것이 있음** (2026-08-25 정정) |
 | `hasConflicts` | `signals.quality_flags.amount_mismatch` 또는 날짜·배송상태 불일치 |
 | `hasUnknownBankCriteria` | **과거 지급정지 이력 있음** OR 은행 내규 기준을 서비스가 알 수 없는 항목 |
 
@@ -128,7 +184,8 @@ enum NameMatch { MATCH, MISMATCH, UNKNOWN }
 ```json
 {
   "reason": "goods | service | debt | unclear",
-  "checklist": [{ "item": "거래 대화 내역", "status": "met | unmet | unknown" }],
+  "checklist": [{ "id": "...", "label": "...", "tier": "...", "fulfillBy": "...",
+                  "whenMissing": "...", "status": "...", "note": "...", "options": [...] }],
   "readiness": "SUBMISSION_READY | SUPPLEMENT_NEEDED | BANK_CHECK_REQUIRED",
   "missingItems": ["물품 발송 증빙"],
   "conflicts": [],
@@ -138,7 +195,10 @@ enum NameMatch { MATCH, MISMATCH, UNKNOWN }
 }
 ```
 
+- [ ] **`checklist` 원소는 4-3a의 8필드 구조**다. 종전 `{ item, status }` 2필드가 아니다
 - [ ] **`notices`에 "최종 판단은 은행이 합니다"를 세 상태 모두에 항상 포함한다** (`api-contract.md`, F6-04)
+- [ ] **`notices`는 서버가 단일 소스다** — 법 조문 근거 문구를 문자열로 내려주고 프론트는 순화 없이 그대로 노출한다. FR-014 `deadline.notice`와 같은 구조
+- [ ] **구매자–송금인 불일치 안내 문구도 서버가 쓴다** — `checklist[].note` 또는 `notices` 중 하나로. 대조 결과를 아는 쪽이 문구를 쓰는 게 맞다
 - [ ] `urgentAlert`는 협박 감지 여부이며 **`readiness`와 독립적으로** 산출한다
 - [ ] `hasConflicts`의 입력인 `amount_mismatch`는 **Phase 3의 금액 교차 대조(F4-07)** 가 세운다. 그쪽이 구현되지 않으면 이 분기는 영원히 false다
 
@@ -156,9 +216,12 @@ enum NameMatch { MATCH, MISMATCH, UNKNOWN }
 - [ ] **상태별 예측값을 만들지 않는다. 세 상태 모두에 동일한 고정 문구를 내려준다.**
 - [ ] 고정 문구 (F6-05, 토씨 그대로):
 
-> "이의제기신청서와 소명자료를 충분히 구비하여 제출한 경우 금융회사는 5영업일 내 심사결과를 통보합니다. 자료 보완이 필요한 경우 처리기간이 추가될 수 있으며, 5영업일 내 지급정지 해제를 보장하는 것은 아닙니다."
+> "이의제기신청서와 소명자료를 충분히 구비하여 제출한 경우 금융회사는 5영업일 내 **심사 결과를 통보**합니다. 자료 보완이 필요한 경우 처리기간이 추가될 수 있습니다.
+>
+> **심사 결과 통보와 지급정지 해제는 다릅니다.** 통신사기피해환급법 제8조 제2항에 따라, 피해자에게 통보한 날부터 2개월이 지나기 전에는 지급정지를 종료할 수 없습니다. **5영업일 내 해제를 뜻하지 않습니다.**"
 
 - [ ] **누락 개수로 연장일수를 자동 예측하지 않는다** (FR-034)
+- [ ] **"심사 결과 통보"와 "지급정지 해제"를 반드시 분리해 쓴다** (2026-08-25 정정). 종전 문구는 "5영업일 내 해제를 보장하지 않는다"까지만 적어 **왜 5영업일이 지나도 안 풀리는지**를 설명하지 못했다. 법 제8조 제2항의 2개월 제한이 별도로 작동한다는 사실이 빠지면 사용자는 "심사가 끝났는데 왜 계좌가 그대로냐"에서 서비스를 불신한다
 
 ## 4-8. 준비도 근거 설명 (F6-06)
 
