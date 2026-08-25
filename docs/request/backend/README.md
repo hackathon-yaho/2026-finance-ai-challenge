@@ -22,5 +22,6 @@
 | [page3-and-biz-notice.md](page3-and-biz-notice.md) | ✅ 회신 완료 (2026-08-26) | 해소 — 3면도 `confirmed` 카드만(A), F10-05 트리거 단순화(A) |
 | [local-integration-findings.md](local-integration-findings.md) | ✅ 회신 완료 (2026-08-26) | 해소 — 6건 전부 수정. CORS 프리플라이트 500·AI-server 미설정 400·`evt_intake_when` 계약 편입 등. **프론트가 프리플라이트 200 재확인 완료** |
 | [demo-mode-fixture-ids.md](demo-mode-fixture-ids.md) | ✅ 회신 완료 (2026-08-26) | 해소 — 픽스처 반환 시 `event_id`·`source_image_index` 재발급, `evidenceRefs` 범위 초과 시 `user_text`로 하향, `AI_CONFIG_ERROR` 처리 확인 |
+| [h2c-upgrade-breaks-ai-call.md](h2c-upgrade-breaks-ai-call.md) | ⏳ 회신 대기 (2026-08-26) | **평문 HTTP에서 백엔드↔AI-server 실연동이 전부 실패.** JDK HttpClient의 h2c 업그레이드로 요청 본문이 유실됨 — RestClient를 HTTP/1.1로 고정 필요 |
 
-> **2026-08-26 기준 대기 중인 요청이 없습니다.**
+> **2026-08-26 기준 회신 대기 1건** — `h2c-upgrade-breaks-ai-call.md`. **로컬 실연동을 막고 있습니다.**
