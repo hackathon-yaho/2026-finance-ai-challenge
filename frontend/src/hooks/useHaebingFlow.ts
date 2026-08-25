@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { INTAKE_PAGES, QUESTIONS } from "../data"
-import { blockingCards, buildCards, confirmedEvidence, evidenceIdOf, pendingCards } from "../lib/cards"
+import { applyCardStates, blockingCards, buildCards, confirmedEvidence, evidenceIdOf, pendingCards } from "../lib/cards"
 import type { CardState } from "../lib/cards"
 import { buildChecklist } from "../lib/checklist"
 import { EMPTY_LEGAL_FORM } from "../lib/legalForm"
@@ -10,8 +10,10 @@ import { getAmountInfo } from "../lib/amount"
 import { getDeadline } from "../lib/deadline"
 import { isAnswered } from "../lib/intake"
 import { computeReadiness } from "../lib/readiness"
-import { buildTimeline } from "../lib/timeline"
+import { buildTimeline, buildTimelineFromCards } from "../lib/timeline"
+import { buildTextCards, scrubPii } from "../lib/textEntry"
 import { MAX_UPLOADS, REJECT_MESSAGE, validateImageFile } from "../lib/upload"
+import type { ExtractedCard } from "../types"
 import type {
   CardEdits,
   DueNoticeStatus,
@@ -76,6 +78,16 @@ export function useHaebingFlow() {
   const liveUrls = useRef(new Set<string>())
 
   const [filesReady, setFilesReady] = useState(false)
+  /**
+   * 텍스트 직접 입력 (F3-04).
+   *
+   * `entryMode`가 `"text"`면 카드가 목 이미지가 아니라 사용자가 쓴 글에서 나온다.
+   * 두 경로의 카드를 섞지 않는다 — 섞으면 사용자가 올리지도 쓰지도 않은 사건이 문서에 들어간다.
+   */
+  const [entryMode, setEntryMode] = useState<"upload" | "text">("upload")
+  const [textEntryOpen, setTextEntryOpen] = useState(false)
+  const [textEntryFromFailure, setTextEntryFromFailure] = useState(false)
+  const [textCards, setTextCards] = useState<ExtractedCard[]>([])
   const [pendingQueue, setPendingQueue] = useState<PendingUpload[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [lightboxFileId, setLightboxFileId] = useState<string | null>(null)
@@ -361,7 +373,28 @@ export function useHaebingFlow() {
     [uploadedFiles, revokeUrl],
   )
 
+  const openTextEntry = useCallback((fromFailure = false) => {
+    setTextEntryFromFailure(fromFailure)
+    setTextEntryOpen(true)
+  }, [])
+
+  const closeTextEntry = useCallback(() => setTextEntryOpen(false), [])
+
+  const submitTextEntry = useCallback((raw: string) => {
+    // 보내기 전에 가린다 — 이미지에서 사용자가 직접 가린 뒤 전송하는 것과 같은 원칙이다.
+    const { text } = scrubPii(raw)
+    const cards = buildTextCards(text)
+    setTextCards(cards)
+    setEntryMode("text")
+    setTextEntryOpen(false)
+    setCardStates({})
+    setFilesReady(true)
+    setAnalyzed(false)
+    setDraftShown(false)
+  }, [])
+
   const proceedFromUpload = useCallback(() => {
+    setEntryMode("upload")
     setFilesReady(true)
     setAnalyzed(false)
     setDraftShown(false)
@@ -423,6 +456,9 @@ export function useHaebingFlow() {
     setViewerNote(null)
     setToast(null)
     setFilesReady(false)
+    setEntryMode("upload")
+    setTextEntryOpen(false)
+    setTextCards([])
     liveUrls.current.forEach((url) => URL.revokeObjectURL(url))
     liveUrls.current.clear()
     setPendingQueue([])
@@ -442,7 +478,13 @@ export function useHaebingFlow() {
   const hasHistory = historyOverride === null ? intake.history === "있어요" : historyOverride
   const deadline = useMemo(() => getDeadline(intake), [intake])
 
-  const cards = useMemo(() => buildCards(evidence, intake.amount, cardStates), [evidence, intake.amount, cardStates])
+  const cards = useMemo(
+    () =>
+      entryMode === "text"
+        ? applyCardStates(textCards, cardStates)
+        : buildCards(evidence, intake.amount, cardStates),
+    [entryMode, textCards, evidence, intake.amount, cardStates],
+  )
   const blocking = useMemo(() => blockingCards(cards), [cards])
   const unconfirmedCount = useMemo(() => pendingCards(cards).length, [cards])
   // 확인된 카드만 준비도·체크리스트·소명서의 입력이 된다 (F6-03).
@@ -465,8 +507,14 @@ export function useHaebingFlow() {
     [intake, checklist, unconfirmedCount, blocking.length, historyOverride],
   )
   const timeline = useMemo(
-    () => (analyzed ? buildTimeline(evidence, intake.amount, bankConfirmed) : []),
-    [analyzed, evidence, intake.amount, bankConfirmed],
+    () =>
+      !analyzed
+        ? []
+        : // 텍스트 경로는 **사용자가 쓴 것만** 나와야 한다. 목 시나리오 문구를 섞지 않는다.
+          entryMode === "text"
+          ? buildTimelineFromCards(cards)
+          : buildTimeline(evidence, intake.amount, bankConfirmed),
+    [analyzed, entryMode, cards, evidence, intake.amount, bankConfirmed],
   )
   // 확인된 카드만 소명서에 들어간다 (F4-06 "미확인 카드의 날짜·금액이 본문에 나타나지 않음").
   const draftLines = useMemo(
@@ -556,6 +604,12 @@ export function useHaebingFlow() {
     confirmedCount,
     droppedCount,
     filesReady,
+    entryMode,
+    textEntryOpen,
+    textEntryFromFailure,
+    openTextEntry,
+    closeTextEntry,
+    submitTextEntry,
     uploadedFiles,
     maxUploads: MAX_UPLOADS,
     uploadsLeft: Math.max(0, MAX_UPLOADS - (uploadedFiles.length + pendingQueue.length)),

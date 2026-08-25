@@ -43,13 +43,24 @@ function formatAmount(value: number | null): string {
   return value === null ? "미상" : `${value.toLocaleString("ko-KR")}원`
 }
 
+/**
+ * **없는 시각을 만들어 보여주지 않는다.**
+ *
+ * 텍스트 직접 입력(F3-04)은 날짜만 있고 시각이 없는 값을 만든다 — 사용자가 "9월 1일쯤"
+ * 이라고만 했기 때문이다. 이걸 `new Date()`에 통째로 넣으면 자정으로 해석돼 화면에
+ * "09:00"이 찍힌다(UTC 자정의 KST 표기). 사용자가 말하지 않은 시각이 문서 만드는 화면에
+ * 나타나는 것이라 F3-04의 수용 기준을 정면으로 어긴다.
+ */
 function formatWhen(value: string | null): string {
   if (!value) return "미상"
+  const day = formatDot(value.slice(0, 10))
+  // 날짜만 있는 값(YYYY-MM-DD)은 날짜만 보여준다.
+  if (!value.includes("T")) return day
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   const hh = String(date.getHours()).padStart(2, "0")
   const mm = String(date.getMinutes()).padStart(2, "0")
-  return `${formatDot(value.slice(0, 10))} ${hh}:${mm}`
+  return `${day} ${hh}:${mm}`
 }
 
 interface FieldRowProps {
@@ -221,13 +232,17 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer }:
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onOpenViewer(VIEWER[card.source_type])}
-          className="h-11 rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink"
-        >
-          원본 보기
-        </button>
+        {/* 텍스트로 쓴 카드는 볼 원본이 없다(`source_image_index === null`). 버튼을 두면
+            눌렀을 때 갈 곳이 없고, 있지도 않은 자료가 있는 것처럼 보인다. */}
+        {card.source_image_index !== null && (
+          <button
+            type="button"
+            onClick={() => onOpenViewer(VIEWER[card.source_type])}
+            className="h-11 rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink"
+          >
+            원본 보기
+          </button>
+        )}
         {!confirmed && (
           <button
             type="button"

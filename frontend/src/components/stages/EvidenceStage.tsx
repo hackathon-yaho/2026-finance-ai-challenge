@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { ConfirmCard } from "../ConfirmCard"
+import { TextEntryPanel } from "../TextEntryPanel"
 import { UploadPanel } from "../UploadPanel"
 import type { CardEdits, EvidenceId, EvidenceState, ExtractedCard, TimelineEvent, UploadedFile, ViewerId } from "../../types"
 
@@ -25,6 +26,11 @@ interface EvidenceStageProps {
   onAnalyze: () => void
   onOpenViewer: (id: ViewerId) => void
   filesReady: boolean
+  textEntryOpen: boolean
+  textEntryFromFailure: boolean
+  onOpenTextEntry: () => void
+  onCloseTextEntry: () => void
+  onSubmitTextEntry: (text: string) => void
   uploadedFiles: UploadedFile[]
   maxUploads: number
   uploadsLeft: number
@@ -64,6 +70,11 @@ export function EvidenceStage({
   onAnalyze,
   onOpenViewer,
   filesReady,
+  textEntryOpen,
+  textEntryFromFailure,
+  onOpenTextEntry,
+  onCloseTextEntry,
+  onSubmitTextEntry,
   uploadedFiles,
   maxUploads,
   uploadsLeft,
@@ -87,9 +98,15 @@ export function EvidenceStage({
     wasAnalyzing.current = analyzing
   }, [analyzing])
 
+  // S02-1 — 캡처가 없거나 판독이 통째로 실패한 사용자의 길 (F3-04 · NFR-07)
+  if (textEntryOpen) {
+    return <TextEntryPanel fromFailure={textEntryFromFailure} onSubmit={onSubmitTextEntry} onBack={onCloseTextEntry} />
+  }
+
   if (!filesReady) {
     return (
       <UploadPanel
+        onOpenTextEntry={onOpenTextEntry}
         kind={kind}
         uploadedFiles={uploadedFiles}
         maxUploads={maxUploads}

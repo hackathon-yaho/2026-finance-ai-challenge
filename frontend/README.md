@@ -27,6 +27,7 @@
 | 기능 | 위치 |
 | --- | --- |
 | 이미지 리사이즈·마스킹 (canvas, 장변 1600px) | `lib/mask.ts` · `components/MaskingSheet.tsx` |
+| 텍스트 경로의 개인정보 마스킹 (전송 전, 정규식) | `lib/textEntry.ts` |
 | 제출 패키지 PDF 병합·다운로드 | `lib/pdf.ts` |
 | 실제 문서 미리보기 (pdf.js 렌더) | `lib/pdfRender.ts` · `components/PdfPreview.tsx` |
 | 공개 API 클라이언트 (세션 헤더·오류 매핑·동시 4 상한) | `lib/api/` — **아직 화면에 연결하지 않음** |
@@ -65,6 +66,7 @@ src/
 │   ├── ConfirmCard.tsx  # 추출 카드 확인·수정 (F4-06)
 │   ├── ChecklistPanel.tsx  # 첨부 서류 체크리스트 — 4개 층·택일 그룹 (F7-03)
 │   ├── EvidenceGuide.tsx   # 사유별 업로드 안내 (F3-07)
+│   ├── TextEntryPanel.tsx  # 텍스트 직접 입력 (S02-1 · F3-04)
 │   ├── LegalFormSheet.tsx  # 별지 제4호서식 11필드 입력 (S04-1)
 │   ├── PreviewSheet.tsx    # 제출 패키지 미리보기 (S04-2)
 │   ├── PdfPreview.tsx      # 그 안의 "실제 문서" 보기
@@ -78,6 +80,7 @@ src/
 │   ├── checklist.ts     # 소명자료 판정 (층 · 택일 · 직접 첨부)
 │   ├── readiness.ts     # 제출 준비도 산출
 │   ├── legalForm.ts     # 서식 11필드 검증
+│   ├── textEntry.ts     # 서술 → 카드 · 전송 전 개인정보 마스킹
 │   ├── mask.ts          # 리사이즈·마스킹 (실제 canvas 처리)
 │   ├── pdf.ts           # 패키지 PDF 병합
 │   ├── pdfRender.ts     # PDF 화면 렌더
@@ -95,6 +98,9 @@ src/
   [`../docs/01-product/reason-type-rules.md`](../docs/01-product/reason-type-rules.md) §2입니다
 - **준비도·체크리스트 판정은 백엔드가 최종 소유**합니다. `lib/`의 함수들은 API를 붙이기
   전까지 같은 규칙을 대신 계산할 뿐이며, 규칙을 바꿔야 하면 위 문서를 먼저 고칩니다
+- **없는 값을 만들어 보여주지 않습니다.** 텍스트 직접 입력(F3-04)은 사용자가 "9월 1일쯤"이라고만
+  하면 시각을 만들지 않습니다. 날짜만 있는 값에 `new Date()`를 쓰면 자정이 09:00으로 찍히므로
+  주의하세요 — 실제로 한 번 새어나갔던 자리입니다
 - **승인·기각을 예측하는 문구를 쓰지 않습니다.** 세 상태 모두에 "최종 판단은 은행이 합니다"를
   병기합니다
 

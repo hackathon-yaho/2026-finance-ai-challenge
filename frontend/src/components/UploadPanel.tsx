@@ -12,6 +12,8 @@ interface UploadPanelProps {
   onRemoveFile: (id: string) => void
   onPreviewFile: (id: string) => void
   onEditFile: (id: string) => void
+  /** F3-04 진입점. 캡처가 없는 사용자가 여기서 빠져나간다. */
+  onOpenTextEntry: () => void
 }
 
 export function UploadPanel({
@@ -23,6 +25,7 @@ export function UploadPanel({
   onRemoveFile,
   onPreviewFile,
   onEditFile,
+  onOpenTextEntry,
 }: UploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -130,7 +133,13 @@ export function UploadPanel({
 
       {/* 다음으로 넘어가는 버튼은 하단 고정 CTA가 맡는다 (App). 같은 일을 하는 버튼을 둘 두면
           어느 쪽이 진짜인지 알 수 없고, 하단 CTA가 비활성으로 남아 막힌 화면처럼 보인다. */}
-      <p className="text-xs leading-normal text-muted">자료가 없어도 문진 응답만으로 진행할 수 있어요.</p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-normal text-muted">
+        <span>캡처가 없으신가요?</span>
+        <button type="button" onClick={onOpenTextEntry} className="font-semibold text-brand underline">
+          글로 직접 쓰기
+        </button>
+        <span>· 자료가 없어도 문진 응답만으로 진행할 수 있어요.</span>
+      </div>
     </div>
   )
 }

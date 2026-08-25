@@ -48,7 +48,7 @@ function App() {
   // 업로드 서브스텝(자료를 올리는 중)에서는 하단 CTA가 "이 자료로 계속하기"를 맡는다.
   // 종전에는 패널 안에 실제 동작 버튼이 있고 하단 CTA는 "준비도 보기"가 비활성으로 떠 있어,
   // 화면에서 가장 눈에 띄는 버튼이 눌리지 않는 상태였다.
-  const uploading = stage === 2 && !flow.filesReady
+  const uploading = stage === 2 && !flow.filesReady && !flow.textEntryOpen
 
   const ctaDisabled =
     (stage === 1 && !flow.intakePageAnswered) ||
@@ -131,6 +131,11 @@ function App() {
                 onAnalyze={flow.analyze}
                 onOpenViewer={flow.openViewer}
                 filesReady={flow.filesReady}
+                textEntryOpen={flow.textEntryOpen}
+                textEntryFromFailure={flow.textEntryFromFailure}
+                onOpenTextEntry={() => flow.openTextEntry(false)}
+                onCloseTextEntry={flow.closeTextEntry}
+                onSubmitTextEntry={flow.submitTextEntry}
                 uploadedFiles={flow.uploadedFiles}
                 maxUploads={flow.maxUploads}
                 uploadsLeft={flow.uploadsLeft}
@@ -173,7 +178,9 @@ function App() {
         </div>
       </div>
 
-      <BottomCta label={ctaLabel} disabled={ctaDisabled} width={width} onClick={handleCta} />
+      {/* 텍스트 입력 화면(S02-1)은 자체 버튼("이 내용으로 정리하기")을 갖는다.
+          하단 CTA까지 두면 같은 자리에 다른 일을 하는 버튼이 둘이 된다. */}
+      {!flow.textEntryOpen && <BottomCta label={ctaLabel} disabled={ctaDisabled} width={width} onClick={handleCta} />}
 
       {flow.dateSheet && (
         <DateSheet

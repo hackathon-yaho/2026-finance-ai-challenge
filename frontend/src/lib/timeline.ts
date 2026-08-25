@@ -1,5 +1,5 @@
 import { getAmountInfo } from "./amount"
-import type { EvidenceState, TimelineEvent } from "../types"
+import type { EvidenceState, ExtractedCard, TimelineEvent } from "../types"
 
 export function buildTimeline(evidence: EvidenceState, amount: number | null, bankConfirmed: boolean): TimelineEvent[] {
   const amountInfo = getAmountInfo(amount)
@@ -40,4 +40,20 @@ export function buildTimeline(evidence: EvidenceState, amount: number | null, ba
   }
 
   return out
+}
+
+/**
+ * 카드에서 바로 타임라인을 만든다 — 텍스트 직접 입력(F3-04) 경로가 쓴다.
+ *
+ * 이미지 경로의 `buildTimeline`은 목 시나리오를 고정 문구로 그리지만, 텍스트 경로는
+ * **사용자가 쓴 것만** 나와야 한다. 없는 시각을 만들지 않으므로 날짜가 없는 카드는
+ * "시각 미상"으로 둔다.
+ */
+export function buildTimelineFromCards(cards: ExtractedCard[]): TimelineEvent[] {
+  const dated = [...cards].sort((a, b) => (a.occurred_at ?? "9999").localeCompare(b.occurred_at ?? "9999"))
+  return dated.map((card) => ({
+    time: card.occurred_at ? card.occurred_at.replace(/-/g, ".") : "시각 미상",
+    text: card.summary,
+    threat: card.source_type === "threat",
+  }))
 }

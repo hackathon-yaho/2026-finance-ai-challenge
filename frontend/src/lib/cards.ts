@@ -164,6 +164,11 @@ function applyState(card: ExtractedCard, state: CardState | undefined): Extracte
   }
 }
 
+/** 텍스트 경로(F3-04)로 만든 카드에도 같은 확인·수정 상태를 입힌다. */
+export function applyCardStates(cards: ExtractedCard[], states: Record<string, CardState>): ExtractedCard[] {
+  return cards.map((card) => applyState(card, states[card.event_id]))
+}
+
 export function buildCards(
   evidence: EvidenceState,
   amount: number | null,
