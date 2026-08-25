@@ -17,6 +17,15 @@ public interface EvidenceService {
 
     ConfirmResponse confirm(Session session, ConfirmRequest request);
 
-    /** FR-028 게이팅 — 날짜/금액이 low 신뢰도인 미확인 카드가 있는지(값이 있는 경우에 한함). Phase 4의 /api/readiness가 쓴다. */
+    /**
+     * FR-028 서버 측 하드 게이팅 — 날짜/금액이 low 신뢰도인 미확인 카드가 있는지(값이 있는 경우에 한함).
+     * 있으면 /api/readiness 자체를 409로 거부한다(Phase 3 "게이팅" 절).
+     */
     boolean hasBlockingUnconfirmedCards(Session session);
+
+    /**
+     * F6-04 hasUnconfirmedFields 신호 — 신뢰도와 무관하게 미확인(pending) 카드가 하나라도 있는지.
+     * 위 하드 게이팅보다 넓다 — low 신뢰도가 아닌 미확인 카드는 통과는 시키되 SUPPLEMENT_NEEDED로만 반영한다.
+     */
+    boolean hasAnyPendingCard(Session session);
 }

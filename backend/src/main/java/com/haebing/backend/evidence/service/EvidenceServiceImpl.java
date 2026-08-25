@@ -134,6 +134,12 @@ public class EvidenceServiceImpl implements EvidenceService {
         return false;
     }
 
+    @Override
+    public boolean hasAnyPendingCard(Session session) {
+        return session.getTimeline().stream()
+                .anyMatch(card -> ExtractedEvent.PENDING.equals(card.confirmationStatus()));
+    }
+
     /**
      * F4-07 — 세션에 쌓인 카드들의 amount를 서로 대조한다. 서버 몫(LLM은 이미지 1장씩만 보므로 판단 불가).
      * 값이 있는 금액들이 전부 같지 않으면, 금액이 있는 모든 카드에 amount_mismatch를 세운다.

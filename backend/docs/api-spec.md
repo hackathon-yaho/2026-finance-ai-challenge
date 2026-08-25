@@ -29,8 +29,8 @@
 | 3.3 | `POST /api/evidence/text` | 3 | 구현 완료 (AI-server 연동 미검증) |
 | 4.1 | `GET /api/timeline` | 3 | 구현 완료 |
 | 4.2 | `POST /api/timeline/merge` | 3 | 구현 완료 |
-| 5.1 | `POST /api/readiness` | 4 | 미구현 |
-| 5.2 | `POST /api/checklist/self-held` | 4 | 미구현 (2026-08-25 신설) |
+| 5.1 | `POST /api/readiness` | 4 | 구현 완료 |
+| 5.2 | `POST /api/checklist/self-held` | 4 | 구현 완료 |
 | 6.1 | `POST /api/draft` | 5 | 미구현 |
 | 6.2 | `POST /api/draft/revise` | 5 | 미구현 (2026-08-25 신설) |
 | 6.3 | `POST /api/package/text` | 5 | 미구현 |
@@ -443,7 +443,7 @@ Content-Type: application/json
 
 ### 5.1 `POST /api/readiness` — 준비도 점검
 
-> 상태: **미구현** (Phase 4)
+> 상태: **구현 완료** (2026-08-26, Phase 4)
 
 **설명**: 확인된 카드와 문진 응답으로 **결정적 규칙 엔진**이 제출 준비 상태를 산출합니다. **LLM을 쓰지 않습니다.**
 
@@ -496,11 +496,20 @@ Content-Type: application/json
 >
 > 지금은 목에 값이 있어 문제가 드러나지 않지만 **연동하면 `undefined`가 됩니다.** `sources`는 카탈로그(로컬 상수) 쪽에만 두고 **API 응답 타입에서는 빼거나 optional로** 분리해주세요.
 
+> **⚠️ 실제 API가 프론트 목(`frontend/src/data.ts` `EVIDENCE_CATALOG`)과 다르게 내려주는 항목 2개** (2026-08-26, 문서를 따름 — `reason-type-rules.md` §2-1·§3-1이 근거):
+>
+> | 항목 | 목 | 실제 API | 이유 |
+> | --- | --- | --- | --- |
+> | `goods.trade_doc`(계약서·세금계산서·거래명세서) | `whenMissing: "notice"`, `fulfillBy: "upload"` | `whenMissing: "silent"`, **`fulfillBy: "self"`** | "사후에 만들면 증거 조작"이라는 문서 원칙상 notice(가서 받아오라는 뉘앙스)는 맞지 않음. AI `source_type`에 이 서류를 가리키는 값이 없어 upload로 판정 불가 — self-held로 받는다 |
+> | `payer_match`(구매자–송금인 일치 여부) | goods/service/debt/unclear **4개 유형 전부**에 존재 | **`goods`에만** 존재. `service`/`debt`/`unclear` 응답의 `checklist`에는 이 항목이 아예 없음 | `reason-type-rules.md`가 "이 항목은 ② 금감원 표준 층에만 존재한다(물품 거래). 나머지 유형에는 넣지 않는다"고 명시 |
+>
+> 두 번째 항목은 화면에서 "일을 맡긴 사람–송금인 일치 여부"(service)처럼 리라벨링해 렌더하고 있었다면, **service/debt/unclear 사유에서는 그 카드 자체를 제거**해야 합니다.
+
 ---
 
 ### 5.2 `POST /api/checklist/self-held` — 직접 첨부 항목 자가 진술
 
-> 상태: **미구현** (Phase 4) · 2026-08-25 신설
+> 상태: **구현 완료** (2026-08-26, Phase 4)
 
 **설명**: 체크리스트 항목 중 `fulfillBy: "self"`인 것(신분증 사본, 재직증명서, 소득금액증명원 등)은 **서비스에 올리지 않는 자료**라 서버가 보유 여부를 알 방법이 없습니다. 사용자가 "챙겼어요"를 체크하면 이 엔드포인트로 보내주세요.
 
@@ -730,6 +739,7 @@ API를 완료하거나 계약이 바뀔 때마다 한 줄씩 남깁니다. **"�
 
 | 날짜 | 대상 | 내용 |
 | --- | --- | --- |
+| 2026-08-26 | 5.1·5.2 | Phase 4 완료 — 결정적 규칙 엔진(`ReadinessService`, LLM 미사용), F6-01~06·F6-09 구현, 구매자–송금인 이름 대조(결정적), TC-01~06·21~23 단위테스트. 프론트 목(`EVIDENCE_CATALOG`) 대조 결과 **2곳은 문서를 따라 목과 다르게 구현** — `goods.trade_doc`(silent+self), `payer_match`(goods 전용). 상세는 5.1 절 참조 |
 | 2026-08-25 ③ | 3.1~4.2 | Phase 3 완료 — `AiClient`(raw body, 1회 재시도), 파일 검증(매직바이트), F4-07 금액 교차 대조, F4-06 게이팅·카드 확인/삭제, F5-01~04 타임라인 정렬·병합 후보·공백 탐지·대체 증빙. `imageIndex`·`gaps` 스키마를 `api-contract.md`에 신설. **AI-server 미배포로 실제 연동은 미검증** — 검증 항목은 아래 참조 |
 | 2026-08-25 ② | 1.1·1.2·2.1 | Phase 2 완료 — 인메모리 세션(16자 해시, 30분 슬라이딩 TTL), `X-Session-Hash` 인터셉터, 문진 증분 저장(부분 덮어쓰기 없음), FR-014 기한 계산. `/api/intake`의 필수 필드를 실제 구현(전부 선택 + `notified`↔`dueNoticeDate` 상호 검증)에 맞게 정정 |
 | 2026-08-25 | 7.1 | Phase 1 완료 — 프로젝트 골격, docker-compose 로컬 DB, `GET /actuator/health` 구현(DB 실쓰기 포함), CORS(`X-Session-Hash` 허용), multipart 10MB, 나눔고딕 폰트 리소스 반영 |
