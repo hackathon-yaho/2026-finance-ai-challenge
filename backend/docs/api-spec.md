@@ -489,6 +489,10 @@ Content-Type: application/json
 - **택일 그룹(`options`)은 "이 중 하나만 있으면 돼요"로 묶어** 표시하세요. 하나라도 `met`이면 그룹 전체가 `met`입니다.
 - `fulfillBy: "self"` 항목은 서버가 보유 여부를 알 수 없습니다 — **5.2로 사용자 체크를 보내주세요.**
 
+> **⚠️ `sources`는 응답에 없습니다.** 프론트 참조 구현(`frontend/src/types.ts`)의 `ChecklistItem`이 `ChecklistEntry`를 `extends`해서 `sources: EvidenceId[]`가 응답 타입에 딸려 들어가 있는데, 그건 **목에서 `status`를 계산하기 위한 입력**입니다. 실제로는 **서버가 확인된 카드로 `status`를 계산해서 내려주므로** 이 필드를 보내지 않습니다.
+>
+> 지금은 목에 값이 있어 문제가 드러나지 않지만 **연동하면 `undefined`가 됩니다.** `sources`는 카탈로그(로컬 상수) 쪽에만 두고 **API 응답 타입에서는 빼거나 optional로** 분리해주세요.
+
 ---
 
 ### 5.2 `POST /api/checklist/self-held` — 직접 첨부 항목 자가 진술
