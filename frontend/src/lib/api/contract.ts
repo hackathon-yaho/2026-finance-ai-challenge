@@ -199,6 +199,11 @@ export interface RevisedSentence {
  */
 export interface ReviseResponse {
   sentences: RevisedSentence[]
+  /**
+   * 고친 문장이 어느 근거와도 매칭되지 않을 때 서버가 채운다. **그대로 노출한다.**
+   * 문장을 지우지 않는 대신 무엇을 잃었는지 알려주는 자리다 (계약 §`/api/draft/revise`).
+   */
+  warning: string | null
 }
 
 /** 자가 진술 체크 (`POST /api/checklist/self-held`). 응답은 **갱신된 전체 체크리스트**다. */

@@ -150,6 +150,8 @@ export function useHaebingFlow() {
   /** `VITE_API_BASE_URL`이 설정돼 있으면 실제 호출, 아니면 목. 실행 중에 바뀌지 않는다. */
   const live = useRef(api.isApiConfigured()).current
   const [server, setServer] = useState<ServerState>(EMPTY_SERVER)
+  /** `/api/draft/revise`가 준 경고. 서버 문자열을 그대로 노출한다. */
+  const [reviseWarning, setReviseWarning] = useState<string | null>(null)
   const [sessionReady, setSessionReady] = useState(!live)
   // `runLive`가 `restart`보다 위에 있어야 하는데 서로를 참조한다. ref로 끊는다.
   const restartRef = useRef<(() => void) | null>(null)
@@ -716,6 +718,7 @@ export function useHaebingFlow() {
     setLightboxFileId(null)
     setEditingFileId(null)
     setServer(EMPTY_SERVER)
+    setReviseWarning(null)
     sentCount.current = 0
     // 세션도 새로 판다. 이전 세션에 남은 카드가 다음 사용자의 준비도에 섞이면 안 된다.
     if (live) void api.createSession().catch(() => null)
@@ -723,6 +726,8 @@ export function useHaebingFlow() {
   }, [live])
 
   restartRef.current = restart
+  // 목 경로에서 편집할 때 기준이 될 현재 문장들. `draftLines`가 아래에서 계산되므로 ref로 받는다.
+  const draftLinesRef = useRef<DraftLine[]>([])
 
   /**
    * `imageIndex` → 브라우저 메모리의 업로드 파일 (F7-05).
@@ -734,6 +739,62 @@ export function useHaebingFlow() {
   const findSource = useCallback(
     (imageIndex: number) => uploadedFiles[imageIndex] ?? null,
     [uploadedFiles],
+  )
+
+  /**
+   * 문장 자유 편집 (F7-08 · `POST /api/draft/revise`).
+   *
+   * **왜 필요한가**: 소명서 문장은 대부분 LLM이 만든 값이고, "발송했습니다"를
+   * "수령했습니다"로 뒤집는 실수는 근거와 매칭되므로 F7-02가 잡지 못한다. 읽기 전용이면
+   * 사용자는 틀린 문장을 **발견만 하고 고치지 못한 채** 내려받는다.
+   *
+   * **고친 문장은 지우지 않는다.** 근거와 매칭되지 않으면 경고를 띄우되 문장은 살리고
+   * 배지를 "본인 진술"로 바꾼다 — 자동 삭제는 LLM 출력에 적용하는 규칙이지 사람이 자기
+   * 사실을 적은 문장에 쓸 규칙이 아니다 (FR-045 ③ 개정).
+   */
+  const reviseSentence = useCallback(
+    async (sentenceId: string, text: string) => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      const apply = (lines: DraftLine[]): DraftLine[] =>
+        lines.map((line) =>
+          line.id === sentenceId
+            ? // 손으로 고친 문장은 더 이상 이미지 근거가 아니다. 배지와 원본 연결을 함께 뗀다 —
+              // 경고 문구는 읽고 넘겨도, 배지가 바뀌는 건 눈에 보인다.
+              { ...line, text: trimmed, badge: "본인 진술", ref: null, imageIndex: null }
+            : line,
+        )
+      if (!live) {
+        setServer((prev) => ({ ...prev, draftLines: apply(prev.draftLines ?? draftLinesRef.current) }))
+        // 목은 근거 재검증을 할 수 없다. 할 수 있는 척하지 않고 같은 취지를 그대로 말한다.
+        setReviseWarning("수정하신 문장은 업로드 자료와 연결되지 않아 '본인 진술'로 표시됩니다.")
+        return
+      }
+      const res = await runLive(() => api.reviseDraft([{ sentenceId, text: trimmed }]))
+      if (!res) return
+      setReviseWarning(res.warning ?? null)
+      setServer((prev) => {
+        const base = apply(prev.draftLines ?? draftLinesRef.current)
+        // 서버가 돌려준 문장만 갱신한다. **응답 배열로 통째로 갈아끼우지 않는다** —
+        // 제외한 문장이 배열에서 빠져 오므로(계약 v1.9) 덮으면 되돌릴 수단이 사라진다.
+        const revised = new Map(res.sentences.map((sentence) => [sentence.sentenceId, sentence]))
+        return {
+          ...prev,
+          draftLines: base.map((line) => {
+            const hit = revised.get(line.id)
+            if (!hit) return line
+            const imageRef = hit.evidenceRefs.find((ref) => ref.type === "evidence" && ref.imageIndex !== undefined)
+            return {
+              ...line,
+              text: hit.text,
+              badge: imageRef ? `근거 · 원본 ${(imageRef.imageIndex ?? 0) + 1}번` : "본인 진술",
+              imageIndex: imageRef?.imageIndex ?? null,
+            }
+          }),
+        }
+      })
+    },
+    [live, runLive],
   )
 
   /**
@@ -910,6 +971,7 @@ export function useHaebingFlow() {
             : buildDraftLines(intake, confirmed, true, documentAmount),
     [server.draftLines, draftShown, entryMode, intake, cards, confirmed, documentAmount],
   )
+  draftLinesRef.current = draftLines
   const confirmedCount = cards.length - unconfirmedCount
   // 확인하지 않아 문서에서 빠진 자료 수. 사용자가 "왜 문장이 적지?"를 알 수 있어야 한다.
   const droppedCount = unconfirmedCount
@@ -991,6 +1053,8 @@ export function useHaebingFlow() {
     submitTimeline,
     buildPackage,
     findSource,
+    reviseSentence,
+    reviseWarning,
     live,
     draftLines,
     checklist,

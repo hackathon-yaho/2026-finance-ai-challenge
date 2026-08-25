@@ -270,6 +270,8 @@ function App() {
           cards={flow.cards}
           excluded={flow.excludedSentences}
           onToggleExcluded={flow.toggleExcludedSentence}
+          onRevise={flow.reviseSentence}
+          reviseWarning={flow.reviseWarning}
           // 미리보기와 다운로드가 **같은 함수**를 쓴다. 따로 만들면 보여준 것과 받는 것이 갈린다.
           buildPdf={flow.buildPackage}
           // 서버가 붙으면 텍스트 5면이 실제로 들어온다 — 그때는 "아직 없다"고 말하지 않는다.

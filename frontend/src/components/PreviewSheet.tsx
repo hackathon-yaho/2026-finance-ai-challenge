@@ -14,6 +14,9 @@ interface PreviewSheetProps {
   cards: ExtractedCard[]
   excluded: ReadonlySet<string>
   onToggleExcluded: (sentenceId: string) => void
+  /** 문장 자유 편집 (F7-08). `POST /api/draft/revise`로 간다. */
+  onRevise: (sentenceId: string, text: string) => Promise<void>
+  reviseWarning: string | null
   /** 3면 값이 틀렸을 때 되돌아갈 곳 — 편집 불가만 두면 막다른 길이 된다. */
   onBackToEvidence: () => void
   /** 내려받을 파일을 만든다. 미리보기와 산출물이 **같은 함수**를 쓰게 해 어긋날 수 없게 한다. */
@@ -87,6 +90,8 @@ export function PreviewSheet({
   cards,
   excluded,
   onToggleExcluded,
+  onRevise,
+  reviseWarning,
   onBackToEvidence,
   buildPdf,
   textPagesPending,
@@ -104,6 +109,8 @@ export function PreviewSheet({
   const [view, setView] = useState<"summary" | "document">("summary")
   const build = useCallback(() => buildPdf(), [buildPdf])
   const pad = width >= 640 ? 24 : 20
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState("")
   const request = toPackageRequest(form)
   const blanks = blankFieldLabels(form)
   const included = draftLines.filter((line) => !excluded.has(line.id))
@@ -224,21 +231,73 @@ export function PreviewSheet({
             </p>
           </Page>
 
+          {/* F7-08 편집 범위 — 2면만 문장 수정·제외가 된다. 3·4면은 편집 불가이고,
+              대신 3면 옆에 자료 확인으로 돌아가는 길을 둔다(막다른 길 방지). */}
           <Page no={2} title="사실관계 진술서">
             <p className="text-[13px] leading-normal text-muted">
-              빼고 싶은 문장은 눌러서 뺄 수 있어요. 뺀 문장은 서류에 들어가지 않아요.
+              틀린 문장은 고치고, 빼고 싶은 문장은 뺄 수 있어요. 뺀 문장은 서류에 들어가지 않아요.
             </p>
             <ul className="mt-3 flex flex-col gap-2">
               {draftLines.map((line) => {
                 const off = excluded.has(line.id)
+                const editing = editingId === line.id
+                if (editing) {
+                  return (
+                    <li key={line.id} className="flex flex-col gap-2">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-xl border border-brand bg-bg p-3 text-[15px] leading-relaxed"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await onRevise(line.id, editText)
+                            setEditingId(null)
+                          }}
+                          className="h-11 rounded-lg bg-ink px-4 text-[13px] font-semibold text-white"
+                        >
+                          저장
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          className="h-11 rounded-lg border border-border px-4 text-[13px] font-semibold text-muted"
+                        >
+                          취소
+                        </button>
+                        {/* 고치면 근거 연결이 끊길 수 있다는 것을 **누르기 전에** 말해준다. */}
+                        <span className="text-xs leading-normal text-muted">
+                          고치면 근거 연결이 끊겨 "본인 진술"이 될 수 있어요
+                        </span>
+                      </div>
+                    </li>
+                  )
+                }
                 return (
-                  <li key={line.id} className="flex items-start gap-3">
+                  <li key={line.id} className="flex items-start gap-2">
                     <div className={`min-w-0 flex-1 text-[15px] leading-relaxed ${off ? "text-muted line-through" : ""}`}>
                       {line.text}
                       {line.badge && (
                         <span className="ml-2 align-middle text-[11px] font-semibold text-muted">{line.badge}</span>
                       )}
                     </div>
+                    {/* 뺀 문장은 고칠 수 없다 — 서류에 안 들어가는 문장을 다듬게 두면
+                        무엇이 최종본인지 헷갈린다. 되돌린 뒤에 고치면 된다. */}
+                    {!off && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(line.id)
+                          setEditText(line.text)
+                        }}
+                        className="h-11 flex-none rounded-lg border border-border px-3 text-xs font-semibold text-muted"
+                      >
+                        고치기
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => onToggleExcluded(line.id)}
@@ -252,6 +311,12 @@ export function PreviewSheet({
                 )
               })}
             </ul>
+            {/* 서버가 준 문구를 그대로 쓴다. 문장은 지우지 않고 살린 채로 무엇을 잃었는지만 알린다. */}
+            {reviseWarning && (
+              <p className="mt-3 rounded-xl bg-warning-subtle p-3 text-[13px] leading-normal text-warning">
+                {reviseWarning}
+              </p>
+            )}
             {included.length === 0 && (
               <p className="mt-3 text-[13px] leading-normal text-warning">
                 문장을 모두 뺐어요. 진술서가 비어 있는 채로 나가요.
