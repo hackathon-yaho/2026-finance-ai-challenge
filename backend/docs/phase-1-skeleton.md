@@ -4,7 +4,7 @@
 >
 > 근거: `../../docs/05-planning/roadmap.md` 1행(스켈레톤), `../../docs/02-architecture/data-model.md`
 
-> **배포는 이 Phase에서 하지 않는다** (2026-08-23 팀 결정). Render 배포·환경변수 등록·Starter 전환은 **로컬 테스트가 전부 끝난 뒤 Phase 6에서 한 번에** 진행한다.
+> **배포는 이 Phase에서 하지 않는다** (2026-08-23 팀 결정). Render 배포·환경변수 등록·킵얼라이브 등록은 **로컬 테스트가 전부 끝난 뒤 Phase 6에서 한 번에** 진행한다. (2026-08-25 ② — Starter 전환은 없다. Free 플랜 + cron-job.org로 확정, `../../docs/03-infra-ops/deployment-and-uptime.md` §2)
 >
 > 다만 `../../docs/03-infra-ops/deployment-and-uptime.md` 서두가 경고하듯, 제출 URL이 2026.9.7 11:00 ~ 9.11 23:59 동안 접근 불가하면 **대회 결격**이다. 배포를 뒤로 미루는 만큼 Phase 6를 심사 기간에 바짝 붙이지 않도록 여유를 둔다.
 
@@ -95,7 +95,7 @@ com.haebing.backend
 
 ## 이 Phase에서 하지 않는 것
 
-- **Render 배포·환경변수 등록·Starter 전환 (전부 Phase 6)**
+- **Render 배포·환경변수 등록·킵얼라이브 등록 (전부 Phase 6, Free 플랜)**
 - 세션·문진·판독 로직 (Phase 2~3)
 - 인증·로그인 — **회원가입/로그인은 범위 외**다 (`../../docs/00-context/prd.md` §4.6)
 - Redis 등 외부 세션 저장소 도입 (인메모리로 충분, `data-model.md`)

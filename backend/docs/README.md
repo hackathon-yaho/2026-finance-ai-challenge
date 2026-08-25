@@ -81,7 +81,7 @@
 | 3 | [phase-3-evidence-timeline.md](phase-3-evidence-timeline.md) | `/api/evidence` 오케스트레이션, AiClient, 카드 확인, 타임라인 조립 |
 | 4 | [phase-4-readiness.md](phase-4-readiness.md) | ReadinessService(결정적 규칙 엔진), 체크리스트, 고정 안내 문구 |
 | 5 | [phase-5-draft-package.md](phase-5-draft-package.md) | `/api/draft`, 사실검증 재시도, 제출 패키지 PDF |
-| 6 | [phase-6-infra-ops.md](phase-6-infra-ops.md) | DEMO_MODE, 익명 통계, 로깅, **배포(Render·Supabase)**, 킵얼라이브, Starter 전환 |
+| 6 | [phase-6-infra-ops.md](phase-6-infra-ops.md) | DEMO_MODE, 익명 통계, 로깅, **배포(Render Free·Supabase)**, cron-job.org 킵얼라이브 |
 
 **배포는 Phase 6에 몰려 있다** (2026-08-23 팀 결정). Phase 1~5는 docker-compose Postgres로 로컬에서만 돌리고, Render·Supabase 연결은 로컬 테스트가 전부 끝난 뒤 한 번에 한다.
 

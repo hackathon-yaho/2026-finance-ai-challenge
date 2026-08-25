@@ -29,7 +29,7 @@
 | 내부 API 계약 | **변경 없음** — 경로·헤더·스키마·오류 코드 전부 그대로 |
 | 킵얼라이브 | `GET {AI_SERVER_URL}/internal/health` 그대로 (무인증 200) |
 | 타임아웃·재시도 | 그대로 (추출 20s / 소명서 15s, 1회 재시도) |
-| 비용 | AI-server 인프라 $7/월 → **$0**. 팀 총액 월 $14 → $7 |
+| 비용 | AI-server 인프라 $7/월 → **$0**. 백엔드도 이후 Free+크론으로 전환해 팀 총액 월 $14 → **$0** (2026-08-25 ②, `../../response/backend/deployment-domain.md` 이후 팀 결정) |
 
 **백엔드가 할 일은 없습니다.** URL 값만 나중에 받으시면 됩니다. 다만 Phase 6 문서(`backend/docs/phase-6-infra-ops.md`)에 Render 전제로 적어두신 게 있으면 이 참에 확인해 주세요.
 
