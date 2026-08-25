@@ -7,6 +7,8 @@
 > **개정 (2026-08-25, AI)** — AI-server 배포처를 Render Starter → Google Cloud Run(무료 한도)으로 변경. 코드 변경 없음. 상세·근거는 §3.
 >
 > **개정 (2026-08-25 ②, 백엔드)** — **백엔드도 Render Starter($7/월) → 무료 티어로 되돌립니다.** 대신 **외부 크론(cron-job.org, 10분 주기)으로 스핀다운 임계값(15분 무활동)에 닿기 전에 계속 깨웁니다.** 이건 새로 만드는 방법이 아니라 **`spec.md` F11-01에 이미 있던 원래 설계**(외부 크론이 `/actuator/health`를 10분마다 호출)입니다 — Starter 전환 판단이 이 설계를 반영하지 않고 "스핀다운이 실재하니 무조건 유료"로 앞서 나간 것이었습니다. 팀 총 비용은 월 $7 → **$0**. 근거·잔여 리스크는 §2.
+>
+> **개정 (2026-08-26 ③, 백엔드)** — 8/25판이 제안한 이중화 2종(Supabase용 GitHub Actions 워크플로, cron-job.org용 백업 모니터)을 **둘 다 만들지 않기로 했습니다.** 지금 단계에서 이 정도 이중화는 과하다고 판단했고, cron-job.org 단일 지점 장애 리스크는 그대로 받아들입니다. 심사 기간이 가까워지면(9/6 최종 점검) 필요성을 다시 봅니다. 상세는 §2.
 
 ## 왜 이게 성립하는가 — 그리고 남는 리스크
 
@@ -16,10 +18,10 @@
 
 | 리스크 | 내용 | 대응 |
 | --- | --- | --- |
-| **cron-job.org 자체 장애·지연** | 제3자 무료 서비스라 SLA가 없습니다. 핑이 15분 이상 늦으면 그 순간 스핀다운이 실제로 일어날 수 있습니다 | **이중화**: cron-job.org 외에 UptimeRobot 등 **최소 1개 백업 모니터**를 같은 엔드포인트에 등록합니다(§2). 하나가 늦어도 다른 쪽이 메웁니다 |
+| **cron-job.org 자체 장애·지연** | 제3자 무료 서비스라 SLA가 없습니다. 핑이 15분 이상 늦으면 그 순간 스핀다운이 실제로 일어날 수 있습니다 | **2026-08-26 ③ 결정: 받아들입니다.** 백업 모니터(UptimeRobot 등) 이중화를 검토했으나 지금 단계에서는 과하다고 판단해 두지 않기로 했습니다. 실제로 발생해도 영향은 재기동 지연(약 1분) 정도이고, 9/6 최종 점검에서 재검토합니다 |
 | **월 750 무료 인스턴스시간 소진** | 계속 깨워두는 건 사실상 24시간 가동이라, 한 달 내내 그러면 720시간 이상을 씁니다(한도 750시간) | **배포를 늦게 시작하는 팀 계획과 맞물립니다.** Phase 6까지 배포를 미루기로 했으므로(§ "배포는 각자, Phase 6에 몰아서"), 실제 상시 가동 구간은 9월 초~9/11로 짧습니다. **9/6 점검 때 Render 대시보드에서 남은 시간을 확인**합니다(전체 체크리스트에 추가) |
 
-**결론**: 접속 불가 구간이 "이론상 0"이라는 점은 Starter와 같지만, **제3자 서비스에 기대는 만큼 보장은 약합니다.** 이중화와 시간 확인으로 그 격차를 좁히는 구조입니다.
+**결론**: 접속 불가 구간이 "이론상 0"이라는 점은 Starter와 같지만, **제3자 서비스에 기대는 만큼 보장은 약합니다.** 지금 단계에서는 이중화 없이 그 격차를 그대로 받아들이기로 했습니다.
 
 ## 한눈에 보기
 
@@ -71,18 +73,18 @@
 | 타임아웃 | 60초 이상 (재기동 콜드스타트 감안) |
 | 알림 | 실패 시 이메일 알림 **활성화 필수** |
 
-- [ ] **백업 모니터를 1개 더 등록한다** (UptimeRobot 등) — cron-job.org가 제3자 무료 서비스라 SLA가 없다. 하나가 지연돼도 다른 쪽이 15분 안에 요청을 넣는다
+- [x] ~~백업 모니터를 1개 더 등록한다~~ — **2026-08-26 ③ 결정: 두지 않음.** cron-job.org 단일 지점 장애 리스크를 받아들인다(위 "왜 이게 성립하는가" 표 참조)
 - [ ] `/actuator/health`는 **DB에 실제로 쿼리를 날려야 한다** — 단순 상태 반환이면 Render는 깨워도 Supabase 7일 비활성은 못 막는다 (`spec.md` F11-01 구현 그대로)
 - [ ] 킵얼라이브 등록은 **실제 배포 직후**(Phase 6) 시작한다. 개발 중 계속 켜두면 750시간 한도를 조기에 갉아먹는다
 
 **체크리스트**
 - [ ] **배포는 Phase 6에서** (기존 팀 결정 그대로 — 로컬 테스트 끝난 뒤 한 번에) — Render Free 플랜으로 Web Service 생성
-- [ ] 위 킵얼라이브 2종(cron-job.org + 백업 1개) 등록
+- [ ] cron-job.org 등록 (백업 모니터는 2026-08-26 ③ 결정으로 두지 않음)
 - [ ] CORS 설정 — `allowedOrigins`에 **`http://localhost:5173`(Vite 개발 서버) + `https://2026-finance-ai-challenge-tau.vercel.app`(프론트 프로덕션, 2026-08-25 확정)** 두 개를 등록한다. **끝에 슬래시를 붙이지 않는다**(origin 비교는 문자열 일치). **프리뷰 서브도메인 와일드카드는 허용하지 않는다**(`../02-architecture/api-contract.md` CORS 절)
 - [ ] `spring.servlet.multipart.max-file-size` / `max-request-size`를 **10MB로 상향** — 기본값 1MB로는 1600px 리사이즈된 정상 캡처(장당 300KB~1MB)가 `400`으로 떨어진다 (F3-02 검증 ③)
 - [ ] Render 프록시의 요청 바디 상한이 10MB 요청을 통과시키는지 확인
 - [ ] `GET /actuator/health` 헬스체크 엔드포인트 구현 — 단순 상태 반환이 아니라 **DB에 실제로 쿼리를 날려야 함**
-- [ ] Supabase 킵얼라이브 워크플로 등록 (아래 참조) — `/actuator/health`가 DB 쿼리를 날리므로 cron-job.org 핑이 **Supabase도 함께 깨운다**. GitHub Actions 워크플로는 그 위의 이중 안전망이다
+- [x] ~~Supabase 킵얼라이브 워크플로 등록~~ — **2026-08-26 백엔드 결정: 만들지 않음.** `/actuator/health`가 DB 쿼리를 날리므로 cron-job.org 10분 핑이 **Supabase도 함께 깨운다** — Supabase 7일 비활성 임계값에 10분 주기는 이미 크게 여유 있어, 별도 워크플로가 추가로 지키는 구간이 실질적으로 없다고 판단했다. cron-job.org 자체가 지연·장애로 죽는 경우(그때는 Render도 이미 스핀다운 중)에 대한 이중 방어는 §2 결정대로 두지 않고 리스크를 받아들인다
 - [ ] AI-server 내부 API 호출 타임아웃·재시도 설정 (`../02-architecture/internal-api-contract.md`)
 - [ ] Render 컨테이너에 한글 폰트(`fonts-nanum` 등) 설치 — 없으면 PDF 생성 시 한글이 깨짐
 - [ ] **9/6 점검**: Render 대시보드에서 남은 인스턴스시간 확인 (750시간 중 잔여)
@@ -138,54 +140,20 @@ AI-server는 Supabase에 접근하지 않습니다. 통계 저장은 백엔드�
 | DB 용량 | 프로젝트당 500MB (여유) |
 | 백업 | 없음 — 스키마를 코드로 관리 (`../02-architecture/data-model.md`) |
 
-### 킵얼라이브 워크플로 (백엔드가 등록)
+### 킵얼라이브 워크플로 — 만들지 않기로 함 (2026-08-26 ③, 백엔드)
 
-> GitHub Actions는 **UTC로 실행**되므로 KST 대비 9시간 차이를 주석으로 표시했습니다.
+> **개정**: 8/25판은 GitHub Actions 워크플로(`.github/workflows/keepalive.yml`, 주 2회)를 cron-job.org의 이중 안전망으로 제안했으나, **백엔드가 만들지 않기로 했습니다.** 이유: `/actuator/health`가 DB에 실제로 쓰기 때문에(F11-01) cron-job.org의 **10분 주기** 핑이 Render뿐 아니라 Supabase(7일 비활성 임계값)도 이미 계속 깨웁니다 — 10분은 7일에 비해 압도적으로 여유가 있어, 주 2회 워크플로가 추가로 막아주는 구간이 사실상 없습니다.
+>
+> 원래 이중화의 취지(cron-job.org 자체가 지연·장애로 죽는 경우 대비)는 여전히 유효한 리스크입니다. 다만 §2에서 백업 모니터도 함께 두지 않기로 했으므로, 이 리스크는 이중화 없이 그대로 받아들이는 것으로 정리합니다. 별도 GitHub Actions 워크플로를 하나 더 두는 것도 어차피 중복이라고 판단했습니다.
 
-**이 워크플로와 §2의 cron-job.org는 목적이 다릅니다.** cron-job.org(10분 주기)는 **Render 스핀다운**(15분 임계값)을 막는 주 방어선이고, `/actuator/health`가 DB 쿼리를 날리므로 Supabase도 덤으로 깨웁니다. 아래 워크플로(주 2회)는 **cron-job.org가 실패했을 때의 이중 안전망**입니다 — Supabase의 7일 비활성 임계값에는 주 2회로 충분히 여유가 있지만, Render 스핀다운 방지에는 쓸 수 없는 주기입니다(10분 임계값에는 턱없이 느림). 두 메커니즘 모두 켜져 있어야 합니다.
-
-```yaml
-# .github/workflows/keepalive.yml
-name: keepalive
-
-on:
-  schedule:
-    - cron: "0 0 * * 0,3"  # UTC 기준 일·수요일 00:00 = KST 09:00
-  workflow_dispatch:
-
-jobs:
-  ping-supabase:
-    runs-on: ubuntu-latest
-    steps:
-      - name: ping supabase
-        run: |
-          curl -sS -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/keepalive" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{}'
-
-  ping-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - name: ping backend health
-        run: curl -sS -o /dev/null "${{ secrets.BACKEND_URL }}/actuator/health"
-
-  ping-ai-server:
-    runs-on: ubuntu-latest
-    steps:
-      - name: ping ai-server health
-        run: curl -sS -o /dev/null "${{ secrets.AI_SERVER_URL }}/internal/health"
-```
-
-필요한 GitHub Secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `BACKEND_URL`, `AI_SERVER_URL`. 저장소 Settings → Secrets and variables → Actions에서 등록합니다. **백엔드 담당이 이 워크플로 파일을 등록**하고, AI 개발자에게 `AI_SERVER_URL` 값을 요청합니다.
+**필요한 GitHub Secrets는 없습니다** (이 워크플로가 없으므로 `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`BACKEND_URL`/`AI_SERVER_URL`을 저장소 Secrets로 등록할 필요가 없습니다 — 단, `AI_SERVER_URL`은 백엔드 배포 환경변수로는 여전히 필요합니다, §2 참조).
 
 **무료/유료 판단 기준 (2026-08-25 ② 정정)**: 대회 규칙상 URL 미접근은 결격 사유입니다. 판단 기준은 "무료냐 유료냐"가 아니라 **"접속 불가 구간이 생기느냐"** 입니다 — 이 기준 자체는 그대로입니다. 다만 **"Render Free는 스핀다운이 실재하니 무조건 유료"라는 8/25 초판의 결론이 성급했습니다.** 외부 크론이 임계값보다 짧은 주기로 계속 요청을 넣으면 스핀다운은 애초에 발생하지 않고, 이건 `spec.md` F11-01에 이미 설계돼 있던 방식이었습니다. AI-server가 Cloud Run으로 간 이유(코드 무변경 + 콜드스타트가 구조적으로 더 안전)는 그대로 유효합니다.
 
 ## 전체 체크리스트 (심사 기간 대비)
 
 - [x] (프론트) 정적 호스팅 배포 완료 — **2026-08-25** (기한 9/5보다 앞당김)
-- [ ] (백엔드) **Render Free 플랜**으로 배포(Phase 6), CORS 설정, **cron-job.org + 백업 모니터 1개** 등록
+- [ ] (백엔드) **Render Free 플랜**으로 배포(Phase 6), CORS 설정, **cron-job.org** 등록 (백업 모니터는 2026-08-26 ③ 결정으로 두지 않음)
 - [ ] (AI) 9/5까지 **Cloud Run 배포 완료**, 헬스체크 공개, 외부 모니터링 등록
 - [ ] (전원) 오프라인 데모 모드(`DEMO_MODE=true`) 동작 확인 — 발표 당일 네트워크 장애 대비
 - [ ] (전원) 9/6 밤: 3개 서비스 전체 플로우 3회 완주 확인 + **백엔드 Render 잔여 인스턴스시간 확인**

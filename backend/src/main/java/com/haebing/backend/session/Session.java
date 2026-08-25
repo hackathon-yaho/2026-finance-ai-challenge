@@ -44,6 +44,9 @@ public class Session {
     private volatile Readiness readiness;
     @Setter
     private volatile String draftText;
+    /** F11-02 — session_stat/stage_event 적재용. 세션이 도달한 마지막 단계(1~5), 아직 없으면 0. */
+    @Setter
+    private volatile int lastStage = 0;
 
     public Session(String hash, Instant expiresAt) {
         this.hash = hash;

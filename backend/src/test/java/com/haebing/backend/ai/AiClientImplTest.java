@@ -1,5 +1,7 @@
 package com.haebing.backend.ai;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.haebing.backend.ai.demo.DemoFixtures;
 import com.haebing.backend.ai.dto.ExtractResult;
 import com.haebing.backend.common.global.ErrorCode;
 import com.haebing.backend.common.global.exception.BusinessException;
@@ -44,7 +46,8 @@ class AiClientImplTest {
     private RestClient.Builder builder = RestClient.builder();
     private MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
     private RestClient sharedClient = builder.build();
-    private AiClientImpl client = new AiClientImpl(sharedClient, sharedClient, "test-token");
+    private DemoFixtures demoFixtures = new DemoFixtures(new ObjectMapper());
+    private AiClientImpl client = new AiClientImpl(sharedClient, sharedClient, "test-token", demoFixtures, false);
 
     @Test
     void extractFromImage_success_parsesCardsSignalsQualityFlags() {
@@ -98,16 +101,26 @@ class AiClientImplTest {
     }
 
     @Test
-    void extract_429_throwsQuotaExceededWithoutRetry() {
+    void extract_429_fallsBackToDemoFixtureWithoutRetry() {
         server.expect(requestTo("/internal/extract?image_index=0"))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS)
                         .contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"QUOTA_EXCEEDED\"}"));
 
-        assertThatThrownBy(() -> client.extractFromImage(new byte[]{1}, 0, "image/png"))
-                .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.QUOTA_EXCEEDED);
+        // F4-05 — 재시도하지 않고, 예외 대신 데모 응답으로 폴백한다.
+        ExtractResult result = client.extractFromImage(new byte[]{1}, 0, "image/png");
+
+        assertThat(result.cards().get(0).eventId()).isEqualTo("evt_0_1");
         server.verify(); // 딱 1번만 호출됐어야 한다 (재시도 없음)
+    }
+
+    @Test
+    void demoMode_true_returnsFixtureWithoutCallingNetwork() {
+        AiClientImpl demoClient = new AiClientImpl(sharedClient, sharedClient, "test-token", demoFixtures, true);
+
+        ExtractResult result = demoClient.extractFromImage(new byte[]{1}, 0, "image/png");
+
+        assertThat(result.cards().get(0).eventId()).isEqualTo("evt_0_1");
+        server.verify(); // 등록된 기대 요청이 없으므로, 실제로 호출됐다면 이 시점 전에 이미 실패했을 것이다
     }
 
     @Test

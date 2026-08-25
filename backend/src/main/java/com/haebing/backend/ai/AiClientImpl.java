@@ -1,5 +1,6 @@
 package com.haebing.backend.ai;
 
+import com.haebing.backend.ai.demo.DemoFixtures;
 import com.haebing.backend.ai.dto.DraftRequest;
 import com.haebing.backend.ai.dto.DraftResult;
 import com.haebing.backend.ai.dto.ExtractResult;
@@ -31,45 +32,72 @@ public class AiClientImpl implements AiClient {
     private final RestClient extractRestClient;
     private final RestClient draftRestClient;
     private final String internalToken;
+    private final DemoFixtures demoFixtures;
+    private final boolean demoMode;
 
     public AiClientImpl(RestClient extractRestClient, RestClient draftRestClient,
-                         @Value("${app.internal-token}") String internalToken) {
+                         @Value("${app.internal-token}") String internalToken,
+                         DemoFixtures demoFixtures,
+                         @Value("${app.demo-mode}") boolean demoMode) {
         this.extractRestClient = extractRestClient;
         this.draftRestClient = draftRestClient;
         this.internalToken = internalToken;
+        this.demoFixtures = demoFixtures;
+        this.demoMode = demoMode;
     }
 
     @Override
     public ExtractResult extractFromImage(byte[] imageBytes, int imageIndex, String contentType) {
-        return withRetry(() -> extractRestClient.post()
-                .uri(uriBuilder -> uriBuilder.path("/internal/extract").queryParam("image_index", imageIndex).build())
-                .contentType(MediaType.parseMediaType(contentType))
-                .header("X-Internal-Token", internalToken)
-                .body(imageBytes)
-                .retrieve()
-                .body(ExtractResult.class), ErrorCode.EXTRACTION_FAILED, FALLBACK_TEXT_INPUT);
+        if (demoMode) return demoFixtures.extractForImage(imageIndex);
+        try {
+            return withRetry(() -> extractRestClient.post()
+                    .uri(uriBuilder -> uriBuilder.path("/internal/extract").queryParam("image_index", imageIndex).build())
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header("X-Internal-Token", internalToken)
+                    .body(imageBytes)
+                    .retrieve()
+                    .body(ExtractResult.class), ErrorCode.EXTRACTION_FAILED, FALLBACK_TEXT_INPUT);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() != ErrorCode.QUOTA_EXCEEDED) throw e;
+            log.warn("[AiClient] QUOTA_EXCEEDED — 데모 응답으로 폴백 (F4-05)");
+            return demoFixtures.extractForImage(imageIndex);
+        }
     }
 
     @Override
     public ExtractResult extractFromText(String rawText) {
-        return withRetry(() -> extractRestClient.post()
-                .uri("/internal/extract")
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("X-Internal-Token", internalToken)
-                .body(new TextExtractRequest(rawText))
-                .retrieve()
-                .body(ExtractResult.class), ErrorCode.EXTRACTION_FAILED, FALLBACK_TEXT_INPUT);
+        if (demoMode) return demoFixtures.extractForText();
+        try {
+            return withRetry(() -> extractRestClient.post()
+                    .uri("/internal/extract")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("X-Internal-Token", internalToken)
+                    .body(new TextExtractRequest(rawText))
+                    .retrieve()
+                    .body(ExtractResult.class), ErrorCode.EXTRACTION_FAILED, FALLBACK_TEXT_INPUT);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() != ErrorCode.QUOTA_EXCEEDED) throw e;
+            log.warn("[AiClient] QUOTA_EXCEEDED — 데모 응답으로 폴백 (F4-05)");
+            return demoFixtures.extractForText();
+        }
     }
 
     @Override
     public DraftResult draft(DraftRequest request) {
-        return withRetry(() -> draftRestClient.post()
-                .uri("/internal/draft")
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("X-Internal-Token", internalToken)
-                .body(request)
-                .retrieve()
-                .body(DraftResult.class), ErrorCode.DRAFT_FAILED, null);
+        if (demoMode) return demoFixtures.draft();
+        try {
+            return withRetry(() -> draftRestClient.post()
+                    .uri("/internal/draft")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .header("X-Internal-Token", internalToken)
+                    .body(request)
+                    .retrieve()
+                    .body(DraftResult.class), ErrorCode.DRAFT_FAILED, null);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() != ErrorCode.QUOTA_EXCEEDED) throw e;
+            log.warn("[AiClient] QUOTA_EXCEEDED — 데모 응답으로 폴백 (F4-05)");
+            return demoFixtures.draft();
+        }
     }
 
     private <T> T withRetry(Supplier<T> call, ErrorCode primaryFailureCode, String fallback) {

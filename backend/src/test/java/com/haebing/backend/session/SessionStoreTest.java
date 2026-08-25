@@ -1,5 +1,6 @@
 package com.haebing.backend.session;
 
+import com.haebing.backend.stats.service.StatsService;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -8,7 +9,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SessionStoreTest {
 
-    private final SessionStore store = new SessionStore();
+    private final StatsService noopStats = new StatsService() {
+        public void recordStageComplete(Session session, int stage) {}
+        public void recordAbandon(Session session) {}
+        public void recordSessionEnd(Session session) {}
+    };
+    private final SessionStore store = new SessionStore(noopStats);
 
     @Test
     void create_issuesSixteenCharHashWithSlidingTtl() {
@@ -49,5 +55,38 @@ class SessionStoreTest {
     @Test
     void find_unknownHash_returnsEmpty() {
         assertThat(store.find("does-not-exist")).isEmpty();
+    }
+
+    @Test
+    void destroy_recordsSessionEnd() {
+        java.util.List<String> calls = new java.util.ArrayList<>();
+        StatsService spyStats = new StatsService() {
+            public void recordStageComplete(Session session, int stage) {}
+            public void recordAbandon(Session session) { calls.add("abandon"); }
+            public void recordSessionEnd(Session session) { calls.add("sessionEnd"); }
+        };
+        SessionStore spyStore = new SessionStore(spyStats);
+        Session session = spyStore.create();
+
+        spyStore.destroy(session.getHash());
+
+        assertThat(calls).containsExactly("sessionEnd"); // 명시적 파기는 abandon이 아니다
+    }
+
+    @Test
+    void cleanupExpired_recordsAbandonThenSessionEnd() {
+        java.util.List<String> calls = new java.util.ArrayList<>();
+        StatsService spyStats = new StatsService() {
+            public void recordStageComplete(Session session, int stage) {}
+            public void recordAbandon(Session session) { calls.add("abandon"); }
+            public void recordSessionEnd(Session session) { calls.add("sessionEnd"); }
+        };
+        SessionStore spyStore = new SessionStore(spyStats);
+        Session session = spyStore.create();
+        session.setExpiresAt(Instant.now().minusSeconds(1));
+
+        spyStore.cleanupExpired();
+
+        assertThat(calls).containsExactly("abandon", "sessionEnd");
     }
 }

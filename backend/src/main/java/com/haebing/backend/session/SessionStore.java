@@ -1,5 +1,7 @@
 package com.haebing.backend.session;
 
+import com.haebing.backend.stats.service.StatsService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,12 +20,15 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SessionStore {
 
     static final Duration TTL = Duration.ofMinutes(30);
     private static final int HASH_LENGTH = 16;
     private static final String HASH_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
     private static final int MAX_SESSIONS = 10_000; // 저장소 포화 방어 (F1-01 예외)
+
+    private final StatsService statsService;
 
     private final SecureRandom random = new SecureRandom();
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
@@ -53,8 +58,10 @@ public class SessionStore {
     }
 
     public void destroy(String hash) {
-        // 파기 직전 익명 통계 적재 훅 (Phase 6, session_stat/stage_event) — 여기서는 자리만 잡아둔다.
-        sessions.remove(hash);
+        Session session = sessions.remove(hash);
+        if (session != null) {
+            statsService.recordSessionEnd(session);
+        }
     }
 
     private String generateHash() {
@@ -71,15 +78,22 @@ public class SessionStore {
                 .ifPresent(s -> sessions.remove(s.getHash()));
     }
 
-    /** 만료된 세션을 주기적으로 정리한다 (data-model.md 백엔드 체크리스트). */
+    /** 만료된 세션을 주기적으로 정리한다 (data-model.md 백엔드 체크리스트). TTL 만료는 abandon으로 적재한다(F11-02). */
     @Scheduled(fixedRate = 60_000)
     void cleanupExpired() {
         Instant now = Instant.now();
-        int before = sessions.size();
-        sessions.values().removeIf(s -> s.getExpiresAt().isBefore(now));
-        int removed = before - sessions.size();
-        if (removed > 0) {
-            log.info("[SessionStore] 만료 세션 {}건 정리", removed);
+        java.util.List<Session> expired = new java.util.ArrayList<>();
+        sessions.values().removeIf(s -> {
+            boolean isExpired = s.getExpiresAt().isBefore(now);
+            if (isExpired) expired.add(s);
+            return isExpired;
+        });
+        for (Session session : expired) {
+            statsService.recordAbandon(session);
+            statsService.recordSessionEnd(session);
+        }
+        if (!expired.isEmpty()) {
+            log.info("[SessionStore] 만료 세션 {}건 정리", expired.size());
         }
     }
 }

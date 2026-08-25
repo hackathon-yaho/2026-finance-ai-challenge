@@ -35,3 +35,7 @@ cors:
 logging:
   level:
     com.haebing.backend: info
+  # F11-04 — 오류 로그에 세션 해시·엔드포인트가 실리도록 MDC(SessionInterceptor가 심음)를 포함한다.
+  # 이미지 내용·추출 텍스트·소명서 본문·파일명은 어떤 로그 문구에도 넣지 않는다.
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%X{sessionHash:-'-'}] [%X{endpoint:-'-'}] %logger{36} - %msg%n"
