@@ -50,7 +50,7 @@ create index idx_event_session on stage_event(session_hash);
 record Session(
     String hash,
     Instant expiresAt,                        // 30분 TTL
-    Map<String,String> intake,                // 문진 6문항
+    Map<String,String> intake,                // 문진 6문항 + deliveryMethod(물품 거래 조건부)
     List<ExtractedEvent> timeline,
     List<MergeCandidate> mergeCandidates,     // F5-02 — 병합 후보 (자동 병합 금지)
     Set<String> rejectedMergeGroupIds,        // F5-02 — approved:false로 거절된 groupId. 이후 mergeCandidates 산출 시 제외
@@ -58,6 +58,7 @@ record Session(
     Readiness readiness,
     String draftText,
     Map<String,Boolean> cardConfirmed,        // FR-028 — 카드별 확인 상태
+    Map<String,Boolean> selfHeldItems,        // 2026-08-25 — 직접 첨부 항목 자가 진술 (POST /api/checklist/self-held)
     List<SentenceEvidence> sentenceEvidence,  // FR-046 — (imageIndex, bbox) 참조만
     Map<String,QualityFlags> qualityFlags     // FR-029
 ) {}
@@ -71,7 +72,9 @@ record Session(
 
 **별지 제4호서식 11개 필드(신청인 성명·생년월일·주소·연락처·휴대전화번호·전자우편주소 / 계좌 금융회사·개설점포·예금종별·계좌번호·명의인)는 이 구조체에 없습니다.** `POST /api/package/text` 요청 바디로만 받아 PDF 생성에 즉시 사용하고 세션에 넣지 않습니다(`../00-context/spec.md` §5-2, `../03-infra-ops/privacy-and-safety.md`).
 
-> **필드 수 정정 예정**: 서식 원본 대조 결과 8개가 아니라 11개(휴대전화번호·전자우편주소·명의인 추가)로 확인됐습니다 — `../request/frontend/legal-form-and-package.md` 회신 대기 중. 회신 오면 이 문단과 §5-2를 함께 갱신합니다.
+> **2026-08-25 확정** — 서식 필드는 8개가 아니라 **11개**입니다(휴대전화번호·전자우편주소·명의인 추가). 프론트 회신으로 확정돼 계약·명세를 전부 갱신했습니다: `../response/backend/legal-form-and-package.md` §1.
+>
+> **`excludedSentenceIds`도 이 구조체에 없습니다.** `POST /api/package/text` 요청 바디로 한 번 받아 2면 렌더에만 쓰고 세션에 남기지 않습니다.
 
 ## 이미지 처리 (Storage를 거치지 않음)
 

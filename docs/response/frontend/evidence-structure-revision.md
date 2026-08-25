@@ -138,3 +138,20 @@ POST /api/checklist/self-held   { "itemId": "...", "held": true }
 | 4 | 카드 이름 2행 노출 (§5 — `/api/evidence` 연동 시) |
 
 **§2-7 참조 구현은 백엔드가 `ReadinessService` 짤 때 대조용으로 쓰겠습니다.** TC 8건 실행 결과까지 붙여주신 게 큰 도움이 됩니다 — 제 구현이 다른 결과를 내면 그쪽이 틀린 것으로 보고 먼저 의심하겠습니다.
+
+### ⚠️ 참조 구현을 보다가 하나 — `sources`는 응답에 없습니다
+
+`frontend/src/types.ts`의 `ChecklistItem`이 `ChecklistEntry`를 `extends`해서 **`sources: EvidenceId[]`가 응답 타입에 딸려 들어가 있습니다.**
+
+```ts
+export interface ChecklistItem extends Omit<ChecklistEntry, "anyOf"> {
+  status: ChecklistStatus
+  options?: (ChecklistOption & { status: ChecklistStatus })[]
+}
+```
+
+`sources`는 **목에서 `status`를 계산하기 위한 입력**이고(`checklist.ts:36`의 `uploadStatus`), 실제로는 **서버가 확인된 카드로 `status`를 계산해서 내려줍니다.** 프론트가 이 값을 받을 이유가 없어 **계약에 넣지 않았습니다.**
+
+**연동 시 `undefined`가 됩니다.** 지금 목에서는 값이 있으니 이걸 렌더에 쓰고 있어도 문제가 안 드러납니다. `sources`를 **카탈로그(로컬 상수) 쪽에만 두고 API 응답 타입에서는 빼거나 optional로** 분리해주세요. 계약 문서에도 같은 주의를 적어뒀습니다.
+
+`anyOf`(카탈로그) → `options`(응답)로 이름을 나눠 두신 건 정확합니다 — 계약도 `options`입니다.

@@ -39,7 +39,7 @@
 | 개인정보 삭제 시점과 방식 | `../03-infra-ops/privacy-and-safety.md` |
 | 배포 환경 제약 (서비스별 Render/정적호스팅) | `../03-infra-ops/deployment-and-uptime.md` |
 | CORS 허용 도메인 | `../02-architecture/api-contract.md` "CORS 허용 origin·헤더" 절 — `localhost:5173` 등록 완료(2026-08-24), 프론트 배포 도메인은 확정되는 즉시 같은 표에 추가 |
-| 텍스트 5종 PDF 생성 주체 | **서버(백엔드, F8-01)** — `../00-context/spec.md` F7-06 분담표. 프론트는 `pdf-lib` **병합**만 담당 |
+| 텍스트 면 PDF 생성 주체 | **서버(백엔드, F8-01)** — `../00-context/spec.md` F7-06 분담표. 프론트는 `pdf-lib` **병합**만 담당. 면 구성·항목·정렬 기준은 **F8-01이 단일 출처**이고 미리보기(F7-08)가 그걸 따른다 |
 | 사유별 소명자료 목록 | `../01-product/reason-type-rules.md` §2 — **금감원 표준은 물품·용역 2종뿐**. F7-03·F3-07이 이 데이터를 공유하며 복사하지 않습니다 |
 | 이름 추출 범위·마스킹 예외 | `../03-infra-ops/privacy-and-safety.md` "추출 범위 예외 — 거래 당사자 표시명"(2026-08-25 확정) — **거래 당사자만 원문, 제3자는 미추출.** `spec.md` F4-03·F3-06이 이 절을 따릅니다 |
 | 구매자–송금인 대조 | `../01-product/reason-type-rules.md` §2-1 — **AI는 추출만, 백엔드가 대조, 프론트는 계산하지 않음.** 불일치는 준비도 신호가 아닙니다 |
