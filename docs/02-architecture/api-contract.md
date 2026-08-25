@@ -1,5 +1,9 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-26 ④, 백엔드)** — 근거: `../02-architecture/internal-api-contract.md` (AI-server 변경, `../request/ai/llm-provider-mismatch.md`)
+> - **`AI_CONFIG_ERROR`(500) 오류 코드 신설** — AI-server 설정 오류(LLM 키 미설정·인증 실패)가 사용자에게 판독 실패로 보이지 않도록 분리. 재시도·텍스트 입력 유도 없음
+> - **`EXTRACTION_FAILED`의 `fallback`이 이미지 경로에만 붙음을 명시** — 텍스트로 이미 보낸 요청에는 텍스트 입력을 다시 안내하지 않는다(메시지도 경로별로 분리)
+
 > **수정 기록 (2026-08-26 ③, 백엔드)** — 근거: `../response/backend/local-integration-findings.md` (프론트 확인 질문)
 > - **`intake` 카드의 `confirmation_status`가 항상 `user_confirmed`임을 명시** — 세션 타임라인에 저장되지 않고 매 조회마다 새로 합성돼 확인·게이팅 대상이 될 수 없다. 코드에도 "여기를 건드리면 이 불변조건을 깨지 않는지 확인하라"는 주석을 남겼다
 
@@ -599,18 +603,20 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 
 | error 코드 | 상황 | 프론트엔드 처리 |
 | --- | --- | --- |
-| `EXTRACTION_FAILED` | 이미지 판독 실패 | 텍스트 입력 경로(`/api/evidence/text`)로 안내 |
+| `EXTRACTION_FAILED` | 판독 실패 (`502`) | **이미지 경로**(`/api/evidence`)만 `fallback: "/api/evidence/text"`로 텍스트 입력을 안내. **텍스트 경로**(`/api/evidence/text`)는 `fallback`이 없다 — 이미 텍스트인 요청에 텍스트 입력을 다시 안내하면 같은 자리를 맴돈다(2026-08-26 ③) |
 | `TIMEOUT` | 20초 초과 | 부분 결과 표시 + "일부 자료를 읽지 못했습니다" |
 | `SESSION_EXPIRED` | TTL 30분 초과 (`410 Gone`) | 세션 재생성 후 처음부터 안내. 원본 이미지는 서버에 없었으므로 재업로드 필요 |
 | `UNCONFIRMED_FIELDS` | 날짜·금액**(값이 `null`이 아닌 경우에 한함)**이 `low` 신뢰도인 미확인 카드가 남은 채 `/api/readiness` 호출 (`409`) | 해당 카드 확인 화면으로 유도 |
 | `INVALID_FORM_FIELD` | `/api/package/text` 요청 바디의 필드가 길이·형식 제한을 위반 (`400`) | 해당 입력 칸에 사유 표시 (빈 값은 위반이 아님) |
 | `QUOTA_EXCEEDED` | LLM API 쿼터 초과 | 오프라인 데모 모드로 전환 (발표 대비, `../04-testing/test-cases-and-demo.md` 참조) |
 | `DRAFT_FAILED` | `/api/draft`가 AI-server 소명서 생성에 실패(내부 재시도 1회 후에도 실패) (`502`, 2026-08-26 신설) | "잠시 후 다시 시도해주세요" 안내. 재시도는 사용자가 다시 `/api/draft`를 호출하는 것으로 |
+| **`AI_CONFIG_ERROR`** | **AI-server 설정 오류(LLM 키 미설정·인증 실패) — 사용자 입력과 무관 (`500`, 2026-08-26 ③ 신설)** | **텍스트 입력으로 유도하지 않는다.** "일시적인 오류" 계열 안내만 표시. `fallback` 없음, 백엔드도 재시도하지 않음 |
 
 ## 변경 이력
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.12 (2026-08-26 ④)**: AI-server 내부 계약 변경 반영. `AI_CONFIG_ERROR`(500) 신설 — 재시도·텍스트 입력 유도 없음. `EXTRACTION_FAILED`의 `fallback`은 이미지 경로에만 붙는 것으로 정정
 - **v1.11 (2026-08-26 ③)**: 프론트 확인 질문 회신. `intake` 카드의 `confirmation_status`가 항상 `user_confirmed`임을 명시(세션 타임라인 미저장 — 게이팅 대상 아님)
 - **v1.10 (2026-08-26 ②)**: 프론트 로컬 연동 회신 반영. `source_type`에 `intake`(7번째 값) 신설 — 3면 포함·4면 제외. `/api/intake` 전체 교체 의미 명시. `excludedSentenceIds`가 PDF 제외의 최종 소스임을 명시. `DRAFT_FAILED` 후 세션·확인 카드 유지 확정. AI-server 연결 실패도 502로 통일(내부 예외 메시지 비노출). CORS 프리플라이트 500·기한 경과 문구는 구현 버그 수정(계약 변경 아님)
 - **v1.9 (2026-08-26)**: Phase 5 구현. `DRAFT_FAILED`(502) 오류 코드 신설. `/api/draft/revise`에서 제외된 문장은 응답 배열에서 빠지는 것으로 명시

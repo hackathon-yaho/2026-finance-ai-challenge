@@ -114,6 +114,37 @@ class AiClientImplTest {
     }
 
     @Test
+    void extract_500_mapsToAiConfigErrorWithoutRetry() {
+        // internal-api-contract.md 2026-08-26 — AI-server 설정 오류(LLM 키 미설정 등). 재시도하지 않는다.
+        server.expect(requestTo("/internal/extract?image_index=0"))
+                .andRespond(withStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                        .contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"AI_CONFIG_ERROR\"}"));
+
+        assertThatThrownBy(() -> client.extractFromImage(new byte[]{1}, 0, "image/png"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AI_CONFIG_ERROR);
+        server.verify(); // 딱 1번만 호출됐어야 한다 (재시도 없음)
+    }
+
+    @Test
+    void extractFromText_502_hasNoFallbackAndPathSpecificMessage() {
+        // 텍스트로 이미 보낸 요청에 "텍스트로 입력하세요"를 다시 안내하면 같은 자리를 맴돈다.
+        server.expect(requestTo("/internal/extract")).andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
+        server.expect(requestTo("/internal/extract")).andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
+
+        assertThatThrownBy(() -> client.extractFromText("텍스트 입력"))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> {
+                    BusinessException be = (BusinessException) e;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.EXTRACTION_FAILED);
+                    assertThat(be.getFallback()).isNull();
+                    assertThat(be.getMessage()).doesNotContain("이미지");
+                });
+        server.verify();
+    }
+
+    @Test
     void aiServerUrlUnconfigured_mapsTo502NotRaw400WithoutLeakingInternalMessage() {
         // AI_SERVER_URL이 빈 값이면 RestClient가 상대 경로만으로 요청을 실행하려다
         // IllegalArgumentException("URI with undefined scheme")을 던진다 (local-integration-findings.md §5).

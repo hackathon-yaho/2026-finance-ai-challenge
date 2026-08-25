@@ -1,5 +1,9 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-26 ②, 백엔드)** — 위 AI-server 변경분 구현 완료
+> - `AiClientImpl`이 HTTP `500`을 별도로 잡아 `BusinessException(AI_CONFIG_ERROR)`를 즉시 던진다. **재시도하지 않는다** — `AiRetryableException`으로 감싸지 않아 `withRetry`의 재시도 루프를 아예 타지 않는다(QUOTA_EXCEEDED와 같은 층위). 공개 계약(`api-contract.md`)에도 같은 코드명·`500`으로 노출
+> - `extractFromText`(텍스트 경로) 실패는 이제 `fallback` 없이, 메시지도 "입력하신 내용에서 사실을 확인하지 못했습니다"로 이미지 경로(`EXTRACTION_FAILED` 기본 메시지)와 분리했다
+
 > **수정 기록 (2026-08-26, AI)** — 프론트 신고 `../request/ai/llm-provider-mismatch.md` 반영
 > - **`AI_CONFIG_ERROR`(500) 신설.** LLM 키 미설정·인증 실패가 `EXTRACTION_FAILED`로 둔갑해 사용자를 텍스트 입력으로 보내던 문제를 분리했습니다. **재시도하지 않습니다**
 > - **`fallback: "text_input"`은 이미지 경로에만** 붙습니다. 텍스트 경로 실패에 텍스트 입력을 대안으로 주면 같은 자리를 맴돕니다
