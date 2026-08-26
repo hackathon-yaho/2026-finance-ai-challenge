@@ -1,8 +1,11 @@
 # [프론트 → 백엔드] 1면을 **원본 법정 서식 PDF 위에** 채워 넣을 수 있는지 검토 부탁드립니다
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/frontend/legal-form-original-pdf.md`에 들어옵니다.
-> **막고 있는 작업**: 없음. 지금 재현본으로도 동작합니다 — **데모 리허설 전에 바꿀 가치가 있는지**를 정하자는 요청입니다.
+> **상태: ✅ 회신 완료 (2026-08-26) — 전부 해결**
+> - 회신: `../../response/frontend/legal-form-original-pdf.md`
+> - **결론 요약**: A안(원본 위에 덧그리기)으로 이미 구현·검증 완료. 별지 원본 사용, `src/main/resources/forms/`로 이동 완료. B안(AcroForm)은 이번엔 초기 비용 이점이 없다고 판단해 보류
+> - **남은 것**: 없음
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 프론트엔드 · 2026-08-26
 - 관련 문서: `../../00-context/spec.md` F8-01 "1면 재현 규칙", `../../../backend/src/main/java/com/haebing/backend/textpackage/service/PdfBuilder.java`
