@@ -85,9 +85,11 @@ interface FieldRowProps {
    */
   settled: boolean
   onEdit?: () => void
+  /** 카드 배경이 `warning-subtle`인가 (차단 카드). 배지 대비를 여기서 뒤집는다. */
+  onWarningBg?: boolean
 }
 
-function FieldRow({ label, value, confidence, hasValue, settled, onEdit }: FieldRowProps) {
+function FieldRow({ label, value, confidence, hasValue, settled, onEdit, onWarningBg }: FieldRowProps) {
   const badge = !settled && hasValue && confidence ? confidenceLabel(confidence) : null
 
   return (
@@ -97,7 +99,13 @@ function FieldRow({ label, value, confidence, hasValue, settled, onEdit }: Field
       {badge && (
         <div
           className={`flex-none rounded-md px-2 text-[11px] font-semibold leading-[22px] ${
-            badge.low ? "bg-warning-subtle text-warning" : "bg-surface text-muted"
+            badge.low
+              ? // 차단 카드는 배경이 이미 `warning-subtle`이라 같은 색 배지가 **통째로 묻힌다**.
+                // 하필 그 배지가 "이 카드가 왜 막혔는지"를 가리키는 표시다. 흰 칩으로 띄운다.
+                onWarningBg
+                ? "bg-bg text-warning"
+                : "bg-warning-subtle text-warning"
+              : "bg-surface text-muted"
           }`}
         >
           {badge.text}
@@ -231,6 +239,7 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
           confidence={card.field_confidence.occurred_at}
           hasValue={card.occurred_at !== null}
           settled={confirmed}
+          onWarningBg={blocking}
           onEdit={() => startEdit("occurred_at", card.occurred_at ?? "")}
         />
         {(card.amount !== null || card.source_type === "bank") && (
@@ -240,6 +249,7 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
             confidence={card.field_confidence.amount}
             hasValue={card.amount !== null}
             settled={confirmed}
+            onWarningBg={blocking}
             onEdit={() => startEdit("amount", card.amount === null ? "" : String(card.amount))}
           />
         )}
@@ -251,6 +261,7 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
             confidence={card.field_confidence.counterparty_name}
             hasValue={card.counterparty_name !== null}
             settled={confirmed}
+            onWarningBg={blocking}
             onEdit={() => startEdit("counterparty_name", card.counterparty_name ?? "")}
           />
         )}
@@ -261,6 +272,7 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
             confidence={card.field_confidence.payer_name}
             hasValue={card.payer_name !== null}
             settled={confirmed}
+            onWarningBg={blocking}
             onEdit={() => startEdit("payer_name", card.payer_name ?? "")}
           />
         )}
