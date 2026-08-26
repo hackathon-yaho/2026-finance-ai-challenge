@@ -725,8 +725,23 @@ export function useHaebingFlow() {
     setReviseWarning(null)
     setExtracting(false)
     sentCount.current = 0
-    // 세션도 새로 판다. 이전 세션에 남은 카드가 다음 사용자의 준비도에 섞이면 안 된다.
-    if (live) void api.createSession().catch(() => null)
+    /**
+     * **이전 세션을 서버에서 지우고** 새로 판다.
+     *
+     * 5단계 완료 시 자동 파기(트리거 ③)는 구현하지 않기로 결정됐다 (2026-08-26) — 다운로드
+     * 직후 지우면 문장을 고쳐 다시 받는 흐름이 막히기 때문이다. 그래서 남는 파기 경로는
+     * 30분 TTL과 **명시적 `DELETE`(트리거 ②)** 뿐이다.
+     *
+     * 여기서 지우지 않으면 `[처음으로]`를 눌러도 앞사람의 카드가 서버에 최대 30분 남는다.
+     * 화면은 "탭을 닫으면 사라져요"라고 말하고 있으므로, 처음으로 돌아가는 것도 같아야 한다.
+     */
+    if (live) {
+      void api
+        .destroySession()
+        .catch(() => null)
+        .then(() => api.createSession())
+        .catch(() => null)
+    }
     window.scrollTo(0, 0)
   }, [live])
 
