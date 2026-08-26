@@ -180,7 +180,8 @@ export interface RevisedSentence {
   sentenceId: string
   text: string
   /**
-   * 편집으로 근거가 끊기면 `evidence` → `user_text`가 되고 **"본인 진술" 배지로 바뀐다.**
+   * `text`를 보내 고쳤으면 **항상** `user_text`가 되고 "본인 진술" 배지로 바뀐다
+   * (2026-08-26 ⑤ 정정). 서버가 재검증하지 않으므로 **오타만 고쳐도 강등된다.**
    * 경고 문구는 읽고 넘기지만 배지가 바뀌는 건 눈에 보인다 — 둘 다 렌더한다.
    */
   sourceType: "evidence" | "intake" | "user_text"
