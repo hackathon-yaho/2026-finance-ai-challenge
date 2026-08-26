@@ -115,6 +115,13 @@ export interface TimelineEvent {
   threat?: boolean
   action?: string
   srcToggle?: EvidenceId
+  /**
+   * 눌렀을 때 **업로드 화면으로 보낼 것**인지 (F5-03 `[추가하기]`).
+   *
+   * 목은 증거 유형 토글(`srcToggle`)로 공백을 메우는 시늉을 했지만, 서버 공백은 실제로
+   * 자료를 더 올리는 것 말고 메울 방법이 없다.
+   */
+  toUpload?: boolean
 }
 
 export interface Criterion {

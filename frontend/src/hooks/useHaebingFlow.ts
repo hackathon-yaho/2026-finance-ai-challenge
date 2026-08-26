@@ -353,10 +353,25 @@ export function useHaebingFlow() {
     [live, runLive, toggle],
   )
 
+  /**
+   * `[협박 문자 캡처 추가하기]`.
+   *
+   * **연결된 상태에서는 업로드 화면으로 보낸다.** 목에서는 증거 유형 토글을 켜는 것으로
+   * 흉내 냈는데, 서버에 붙으면 카드도 타임라인도 서버 값이 우선이라 **이 토글이 화면에
+   * 아무 영향을 주지 않는다** — 눌러도 아무 일이 없으면서 사용자는 첨부됐다고 믿는다.
+   * 협박 대응은 P0(FR-024)라 그런 채로 둘 수 없다.
+   *
+   * 실제로 필요한 동작은 "그 캡처를 올리는 것"이고, 올리면 AI가 `source_type: "threat"`으로
+   * 분류하고 `signals.threat_detected`로 배너까지 이어진다.
+   */
   const addThreat = useCallback(() => {
+    if (live) {
+      setFilesReady(false)
+      return
+    }
     setEvidence((prev) => ({ ...prev, threat: true }))
     setDraftShown(false)
-  }, [])
+  }, [live])
 
   /**
    * 카드 상태를 화면에 **먼저** 반영하고 서버에 보낸다.
