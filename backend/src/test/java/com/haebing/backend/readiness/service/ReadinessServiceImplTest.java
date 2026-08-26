@@ -93,6 +93,27 @@ class ReadinessServiceImplTest {
         assertNoBannedPhrases(response);
     }
 
+    /**
+     * TC-05 — 금액 신뢰도 낮음 / 사유 불명 → 확인 질문 유도, 미확인 상태로 소명서 생성 안 됨.
+     * "미확인 상태로 소명서 생성 안 됨" 절반은 DraftController·ReadinessController가 공유하는
+     * {@code EvidenceServiceImpl.hasBlockingUnconfirmedCards}가 담당하며, 그쪽은
+     * {@code EvidenceServiceImplTest.hasBlockingUnconfirmedCards_lowConfidenceWithValue_blocks}에서
+     * 이미 검증한다. 여기서는 "확인 질문 유도"(준비도 응답에 미확인 신호가 실리는지)만 검증한다.
+     */
+    @Test
+    void tc05_lowAmountConfidenceAndUnclearReason_supplementNeededWithUnconfirmedNotice() {
+        // kind를 안 넣으면 reasonOf()가 "unclear"로 떨어진다 (사유 불명).
+        session.upsertCard(new ExtractedEvent("evt_1", 0, "bank", "2026-09-01T10:00:00+09:00", "self", "요약",
+                1000L, null, null, new Identifiers(null, null),
+                new FieldConfidence("high", "high", "low", null, null), null, ExtractedEvent.PENDING));
+
+        ReadinessResponse response = service.evaluate(session);
+
+        assertThat(response.reason()).isEqualTo("unclear");
+        assertThat(response.readiness()).isEqualTo(ReadinessResponse.SUPPLEMENT_NEEDED);
+        assertThat(response.notices()).contains(NoticeTexts.unconfirmedFieldsExplanation());
+    }
+
     @Test
     void tc06_zeroEvidence_supplementNeeded() {
         session.getIntake().put("kind", "goods");

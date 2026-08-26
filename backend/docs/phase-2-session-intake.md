@@ -4,6 +4,10 @@
 >
 > 근거: `../../docs/00-context/spec.md` F1-01~F1-03·F2-01·F2-03·F2-04, `../../docs/02-architecture/api-contract.md`, `../../docs/00-context/prd.md` §4.1
 
+> ### ✅ 2026-08-26 계획 대비 정정 2건 (자체 점검)
+> - **2-4 "증분 저장 허용"은 낡은 설명이다.** 실제로는 정반대인 **전체 교체(PUT류) 의미**로 구현돼 있다 — 프론트가 문진 전체를 매번 다시 보내는 것으로 확인돼(`../../docs/request/backend/local-integration-findings.md` §3), `null`로 온 필드는 세션에서 지운다(`IntakeServiceImpl.setOrClear`). `api-contract.md`에는 이미 이 설명으로 반영돼 있고, 이 계획 문서만 옛 설명이 남아 있었다
+> - **2-2 "파기 트리거 3종을 모두 구현한다"의 ③(5단계 완료 시 자동 파기)은 구현하지 않기로 결정했다.** 다운로드 직후 세션을 지우면 문장을 고쳐 재다운로드하는 F7-04 흐름이 전부 `SESSION_EXPIRED`로 막힌다. ①(30분 TTL)·②(명시적 `DELETE`)만 구현한다 — `../../docs/00-context/spec.md` F1-03 참조
+
 ## 2-1. 세션 저장소 (F1-01 ~ F1-03)
 
 `../../docs/02-architecture/data-model.md`의 `Session` 레코드를 그대로 옮긴다. **DB에 쓰지 않는다.**
@@ -41,7 +45,7 @@ record Session(
 - [ ] `POST /api/session` — 매번 다른 해시 발급 (F1-01 수용 기준)
 - [ ] 응답에 **`demoMode`**(환경변수 `DEMO_MODE` 값)를 담는다 — 프론트가 전 화면 데모 배지를 띄우는 근거다 (Phase 6, `api-contract.md` v1.3)
 - [ ] `DELETE /api/session` — 즉시 파기. 파기 후 동일 해시 조회 시 데이터 없음 (F1-03 수용 기준)
-- [ ] **파기 트리거 3종을 모두 구현한다** (F1-03): ① 30분 무활동 ② `DELETE /api/session` ③ **5단계 완료**
+- [x] **파기 트리거**(F1-03): ① 30분 무활동 ② `DELETE /api/session` — ~~③ 5단계 완료~~(2026-08-26 미구현 결정, 위 배너 참조)
 - [ ] 파기 시 **클라이언트에 blob revoke 신호를 전달한다** (F1-03 처리 — 프론트가 브라우저 메모리의 원본을 해제하도록)
 - [ ] 파기 직전 **익명 통계만** 적재 (F1-03 연관 → Phase 6에서 구현, 여기서는 훅만)
 
@@ -68,7 +72,7 @@ record Session(
 | `usage` | enum | `main` \| `occasional` \| `rare` | 생계 흔적 점검 보조 |
 | **`deliveryMethod`** | enum \| null | `courier` \| `in_person` \| `not_applicable` \| null | **F5-03 ① 직거래 예외** (2026-08-25 신설). `kind !== "goods"`면 `null` |
 
-- [ ] 증분 저장 허용 — 프론트가 입력 즉시 호출한다 (F2-01 처리). 일부 필드만 온 요청을 거부하지 않는다
+- [x] ~~증분 저장 허용~~ — **전체 교체(PUT류)로 정정**(위 배너 참조). `null`로 온 필드는 지운다
 - [ ] `dueNoticeStatus == notified`이면 `dueNoticeDate` 필수 검증
 - [ ] 응답 `{ ok, nextStage, deadline }` (2-5 참조)
 
