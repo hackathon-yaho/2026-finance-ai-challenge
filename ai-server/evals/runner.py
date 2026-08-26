@@ -113,6 +113,23 @@ def score_extraction(case: Case, body: dict, latency: float) -> CaseResult:
                     f"열화된 이미지에서 확신하면 안 된다"
                 )
 
+    # ── 반복 거래 묶기 ──
+    if case.expect_recurrence is not None:
+        want_cards, want_count = case.expect_recurrence
+        if len(cards) != want_cards:
+            result.violations.append(
+                f"반복 거래가 묶이지 않음 — 카드 {len(cards)}장 (기대 {want_cards}장)"
+            )
+        recurrences = [c.get("recurrence") for c in cards if c.get("recurrence")]
+        if not recurrences:
+            result.violations.append("recurrence가 비어 있음")
+        else:
+            got_count = recurrences[0].get("count")
+            if got_count != want_count:
+                result.violations.append(
+                    f"반복 횟수가 {got_count} (기대 {want_count})"
+                )
+
     # ── 협박 감지 ──
     signals = body.get("signals", {})
     result.threat_expected = case.threat_detected

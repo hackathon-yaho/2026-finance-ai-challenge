@@ -1,5 +1,9 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-26 ③, AI)** — 프론트 요청 `../request/backend/repeated-events-and-irrelevant-cards.md` §4 반영
+> - **카드에 `recurrence` 신설.** 자동이체 12개월 캡처가 카드 12장이 되던 문제를 추출 단계에서 묶어 해결합니다. 반복이 아니면 `null`
+> - `amount`는 **1회분**, `occurred_at`은 **`first`**, `count`는 **AI-server가 개별 일시에서 계산**합니다(LLM이 센 값을 쓰지 않습니다)
+
 > **수정 기록 (2026-08-26 ⑤, 백엔드)** — 근거: `../request/backend/repeated-events-and-irrelevant-cards.md` §7 (프론트 실연동 신고)
 > - **`occurred_at == null`을 `amount == null`과 다르게 취급하도록 해석 규칙 보완.** 연도 없는 은행 캡처가 확인 없이 게이팅을 통과하던 문제 — 아래 "신뢰도의 `null`" 절 참조. AI-server 쪽 변경 없음(백엔드 게이팅 로직만 바뀜)
 
@@ -120,6 +124,7 @@ X-Internal-Token: {INTERNAL_TOKEN}
       "amount": 700000,
       "counterparty_name": "김OO",
       "payer_name": null,
+      "recurrence": null,
       "identifiers": { "tracking_no": null, "account_last4": null },
       "field_confidence": {
         "occurred_at": "high | medium | low",
@@ -147,6 +152,35 @@ X-Internal-Token: {INTERNAL_TOKEN}
 > **`qualityFlags`(카드별)** 는 `api-contract.md`에는 있었으나 이 문서에 빠져 있던 필드입니다 (2026-08-25 보완). `signals.quality_flags`가 **이미지 전체**의 품질이라면, `qualityFlags`는 **`event_id`를 키로 한 카드별** 품질입니다. 두 계약이 같은 형식이어야 백엔드가 변환 코드를 짜지 않으므로 여기에 명시합니다.
 
 `signals.threat_detected: true`는 백엔드가 받는 즉시 프론트엔드에 전달되어야 하는 신호입니다 — 백엔드가 버퍼링하거나 다음 단계까지 지연시키지 않습니다.
+
+#### `recurrence` — 반복 거래를 카드 한 장으로 (2026-08-26 신설)
+
+자동이체 12개월 캡처 한 장이 **카드 12장**이 되던 문제를 해결합니다. 요청: `../request/backend/repeated-events-and-irrelevant-cards.md` §4.
+
+```json
+"recurrence": {
+  "count": 12,
+  "period": "monthly | weekly | daily | other",
+  "first": "2026-01-15T09:00:00+09:00",
+  "last":  "2026-12-15T09:00:00+09:00"
+}
+```
+
+반복이 아니면 **`null`** 입니다. 대부분의 카드는 `null`입니다.
+
+| 규칙 | 내용 |
+| --- | --- |
+| **`amount`는 1회분** | 총액이 아니라 **한 번에 오간 금액**입니다. 총액을 넣으면 백엔드 금액 대조가 어긋납니다 |
+| **`occurred_at`은 `first`** | 타임라인 정렬 기준. `last`는 `recurrence` 안에만 있습니다 |
+| **`count`는 AI-server가 계산합니다** | LLM이 센 값을 그대로 쓰지 않고, LLM이 읽어낸 개별 발생 일시에서 **코드가 셉니다.** "12회"가 사실과 다르면 은행에 가는 문서의 오류가 됩니다 |
+| **묶는 조건** | 같은 `source_type` · **같은 금액** · 같은 내용 · 규칙적 간격. 하나라도 다르면 묶지 않습니다 |
+| **묶지 않는 것** | 금액이 다른 거래, 상대가 다른 거래, 간격이 불규칙한 거래. **애매하면 묶지 않습니다** |
+
+**왜 추출 단계에서 묶는가**: 백엔드가 사후에 묶으면 카드는 줄지만 **LLM 출력은 이미 12건**이라 지연 문제(요청 문서 §3, 실측 15.1초 → `TIMEOUT`)가 그대로 남습니다. 화면에서만 묶으면 **서버가 만드는 PDF와 미리보기가 갈립니다.**
+
+**F4-06 확인 단위**: 묶인 카드 한 장을 확인하는 것은 **"매월 15일 65,890원 · 12회"라는 하나의 사실**을 확인하는 것입니다. 사용자가 개별 내역을 봐야 하면 5면의 원본을 봅니다.
+
+**3면·4면 표기**: 각각 한 줄입니다 — 시간순 사실로도 "매월 15일 65,890원 12회"가 12줄보다 정확합니다.
 
 #### `amount`의 부호 — 항상 **양수(절대값)** 입니다 (2026-08-26 확정)
 

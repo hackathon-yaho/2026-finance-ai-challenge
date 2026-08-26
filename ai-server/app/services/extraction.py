@@ -5,12 +5,14 @@
 
 import base64
 import logging
+from datetime import datetime
 
 from .. import pii
 from ..llm import client as llm_client
 from ..llm import prompts
 from ..schemas.card import (
     Card,
+    Recurrence,
     ExtractResponse,
     FieldConfidence,
     Identifiers,
@@ -20,6 +22,41 @@ from ..schemas.card import (
 )
 
 log = logging.getLogger("ai.extract")
+
+
+def _build_recurrence(raw) -> tuple[Recurrence | None, str | None]:
+    """LLM이 읽은 개별 발생 일시에서 count·first·last를 **코드가** 만든다.
+
+    LLM이 센 count를 그대로 쓰지 않는다 — "12회"가 사실과 다르면 은행에 가는
+    문서의 오류가 된다. 파싱 가능한 일시가 2개 미만이면 반복으로 보지 않는다.
+
+    반환: (recurrence, first_iso) — first_iso는 카드의 occurred_at이 된다.
+    """
+    if raw is None:
+        return None, None
+    parsed: list[str] = []
+    for value in raw.occurrences:
+        try:
+            datetime.fromisoformat(value)
+        except (TypeError, ValueError):
+            continue
+        parsed.append(value)
+    if len(parsed) < 2:
+        # 반복이라 하기에 근거가 부족하다 — 묶지 않는다.
+        return None, None
+    ordered = sorted(parsed, key=datetime.fromisoformat)
+
+    # 같은 날 안에서 반복된 거래는 정기 거래가 아니다 — 개별 입금 3건을
+    # "10,000원 3회"로 묶으면 소명에 필요한 개별 사실이 사라진다.
+    # 평가 세트 ev-bank-02(1분 간격 입금 3건)가 묶이는 것을 보고 넣었다.
+    span = datetime.fromisoformat(ordered[-1]) - datetime.fromisoformat(ordered[0])
+    if span.days < 1:
+        return None, None
+
+    return (
+        Recurrence(count=len(ordered), period=raw.period, first=ordered[0], last=ordered[-1]),
+        ordered[0],
+    )
 
 
 def _to_cards(
@@ -45,6 +82,9 @@ def _to_cards(
         pii_hits += hits
         payer_name, hits = pii.clean_name_field(payer_name)
         pii_hits += hits
+
+        recurrence, first_iso = _build_recurrence(getattr(event, "recurrence", None))
+        occurred_at = first_iso or event.occurred_at
 
         # 흐리다고 **스스로 표기한** 카드의 신뢰도는 low로 내린다.
         # 실측에서 심한 흐림에 틀린 값(김인훈/40000)을 medium으로 낸 일이 반복됐다.
@@ -73,13 +113,14 @@ def _to_cards(
                 event_id=event_id,
                 source_image_index=image_index,
                 source_type=event.source_type,
-                occurred_at=event.occurred_at,
+                occurred_at=occurred_at,
                 actor=event.actor,
                 summary=summary or "",
                 # 부호는 계약상 항상 양수다 — 방향은 source_type·actor·summary가 나타낸다.
                 amount=abs(event.amount) if event.amount is not None else None,
                 counterparty_name=counterparty_name,
                 payer_name=payer_name,
+                recurrence=recurrence,
                 identifiers=Identifiers(
                     tracking_no="MASKED" if event.tracking_no_present else None,
                     account_last4=pii.clean_account_last4(event.account_last4),

@@ -81,6 +81,15 @@ def _event_line(event: Card) -> str:
         parts.append(f"대화상대 표시명={event.counterparty_name}")
     if event.payer_name:
         parts.append(f"입금자 표기={event.payer_name}")
+    if event.recurrence is not None:
+        period = {"monthly": "매월", "weekly": "매주", "daily": "매일"}.get(
+            event.recurrence.period, "반복적으로"
+        )
+        parts.append(
+            f"반복={period} {event.recurrence.count}회 "
+            f"({_format_date_kr(event.recurrence.first)}부터 "
+            f"{_format_date_kr(event.recurrence.last)}까지, 금액은 1회분)"
+        )
     if event.identifiers.tracking_no == "MASKED":
         parts.append("운송장=있음(번호 비공개)")
     parts.append(f"내용={event.summary}")
@@ -121,6 +130,8 @@ def _serialize(req: DraftRequest) -> str:
         "",
         "[지시]",
         "- 위 사실 목록만으로 은행 제출용 사실 진술 문장을 작성하라.",
+        "- '반복='이 있는 사실은 한 문장으로 묶어 쓴다. 횟수와 시작·마지막 날짜를 "
+        "적힌 그대로 쓰고, 금액은 1회분임이 드러나게 쓴다. 개별 회차를 나열하지 않는다.",
         "- 날짜·시각은 사실 목록에 적힌 한국어 표기를 그대로 쓴다. "
         "ISO 8601이나 영문 코드를 문장에 넣지 마라 — 사람이 읽는 문서다.",
         "- 시간 순서로, 사실 하나당 한 문장을 기본으로 하되 같은 흐름의 사실은 한 문장으로 묶어도 된다.",

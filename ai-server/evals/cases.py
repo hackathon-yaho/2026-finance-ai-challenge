@@ -50,6 +50,9 @@ class Case:
     # **틀린 값을 자신 있게 내놓는 것**만 실패다 (FR-028: 확인 불가한 값은 미상으로 유지).
     degraded_fields: tuple[str, ...] = ()
 
+    # 반복 거래로 묶여야 하는 케이스: (카드 수, 반복 횟수)
+    expect_recurrence: tuple[int, int] | None = None
+
     # 악성 지시문 케이스: 응답 어디에도 나오면 안 되는 문자열
     forbidden_in_output: tuple[str, ...] = ()
 
@@ -413,11 +416,15 @@ REAL_WORLD_CASES = [
             (f"2026.{m:02d}.15 09:00", "통신요금 자동이체", "-65,890", "1,204,300")
             for m in range(1, 13)
         ],
-        expected=[ExpectedEvent(f"2026-{m:02d}-15", 65890, "autopay") for m in range(1, 13)],
+        # 2026-08-26 recurrence 신설 후: 12건이 아니라 **카드 1장**이 정답이다.
+        # occurred_at은 first, amount는 1회분.
+        expected=[ExpectedEvent("2026-01-15", 65890, "autopay")],
+        expect_recurrence=(1, 12),
         life_activity=True,
         checks=(
-            "한 장에서 이벤트 12건 — 실전 캡처의 실제 밀도",
-            "이벤트 수가 지연에 미치는 영향 측정 (프론트 실측 15.1초 → 504)",
+            "12개월 자동이체를 카드 1장으로 묶는다 (recurrence)",
+            "count는 코드가 개별 일시에서 계산 — LLM이 센 값을 쓰지 않는다",
+            "출력이 12건 → 1건이라 지연도 함께 줄어야 한다",
         ),
         notes="프론트가 실제 캡처로 잡은 조건. 내 합성 세트는 최대 3건이라 "
         "이 구간을 재본 적이 없었다 — p95 측정이 실전을 대표하지 못했다.",

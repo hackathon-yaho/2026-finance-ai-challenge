@@ -189,3 +189,39 @@ def test_decide_passed_rules():
 
     threat_only = factcheck.build_facts([make_card(source_type="threat")], None)
     assert factcheck.decide_passed(0, 0, 0, threat_only) is True
+
+
+def test_recurrence_count_and_both_dates_are_verifiable():
+    """반복 카드는 first·last 두 날짜가 근거이고, 지어낸 횟수는 걸러진다."""
+    from app.schemas.card import Recurrence
+
+    card = make_card(amount=65890, occurred_at="2026-01-15T09:00:00+09:00")
+    card = card.model_copy(
+        update={
+            "recurrence": Recurrence(
+                count=12,
+                period="monthly",
+                first="2026-01-15T09:00:00+09:00",
+                last="2026-12-15T09:00:00+09:00",
+            )
+        }
+    )
+    facts = factcheck.build_facts([card], None)
+
+    kept, dropped, _ = factcheck.verify(
+        [
+            LLMDraftSentence(
+                text="2026년 1월 15일부터 2026년 12월 15일까지 매월 65,890원이 12회 출금되었습니다.",
+                basis=["evt_1_1"],
+            )
+        ],
+        facts,
+    )
+    assert len(kept) == 1 and dropped == 0
+
+    # 횟수를 부풀린 문장은 걸러진다
+    kept, dropped, _ = factcheck.verify(
+        [LLMDraftSentence(text="매월 65,890원이 24회 출금되었습니다.", basis=["evt_1_1"])],
+        facts,
+    )
+    assert not kept and dropped == 1

@@ -48,10 +48,12 @@ class Fact:
     ref_type: str  # evidence | user_text | intake
     image_index: int | None
     bbox: SourceRegion | None
-    date: tuple[int, int, int] | None
+    # 반복 거래는 first·last 두 날짜가 모두 근거가 된다 → 집합으로 둔다
+    dates: frozenset
     hm: tuple[int, int] | None
     amount: int | None
     source_type: str | None
+    count: int | None = None  # recurrence.count — "12회"를 검증한다
 
 
 def _parse_when(value: str | None) -> tuple[tuple[int, int, int] | None, tuple[int, int] | None]:
@@ -73,27 +75,40 @@ def build_facts(events: list[Card], intake: IntakeFacts | None) -> dict[str, Fac
     facts: dict[str, Fact] = {}
     for event in events:
         date, hm = _parse_when(event.occurred_at)
+        dates = {date} if date else set()
+        count = None
+        if event.recurrence is not None:
+            count = event.recurrence.count
+            for value in (event.recurrence.first, event.recurrence.last):
+                extra, _ = _parse_when(value)
+                if extra:
+                    dates.add(extra)
         ref_type = "user_text" if event.source_image_index is None else "evidence"
         facts[event.event_id] = Fact(
             fact_id=event.event_id,
             ref_type=ref_type,
             image_index=event.source_image_index,
             bbox=event.source_region,
-            date=date,
+            dates=frozenset(dates),
             hm=hm,
             amount=event.amount,
             source_type=event.source_type,
+            count=count,
         )
     if intake is not None:
         if intake.when:
             date, _ = _parse_when(intake.when)
-            facts["intake:when"] = Fact("intake:when", "intake", None, None, date, None, None, None)
+            facts["intake:when"] = Fact(
+                "intake:when", "intake", None, None, frozenset({date} if date else ()), None, None, None
+            )
         if intake.amount is not None:
-            facts["intake:amount"] = Fact("intake:amount", "intake", None, None, None, None, intake.amount, None)
+            facts["intake:amount"] = Fact(
+                "intake:amount", "intake", None, None, frozenset(), None, intake.amount, None
+            )
         if intake.kind:
-            facts["intake:kind"] = Fact("intake:kind", "intake", None, None, None, None, None, None)
+            facts["intake:kind"] = Fact("intake:kind", "intake", None, None, frozenset(), None, None, None)
         if intake.usage:
-            facts["intake:usage"] = Fact("intake:usage", "intake", None, None, None, None, None, None)
+            facts["intake:usage"] = Fact("intake:usage", "intake", None, None, frozenset(), None, None, None)
     return facts
 
 
@@ -137,6 +152,14 @@ def extract_amounts(text: str) -> list[int]:
     for match in _AMOUNT_PLAIN.finditer(work):
         amounts.append(int(match.group(1)))
     return amounts
+
+
+_COUNT = re.compile(r"(\d+)\s*회")
+
+
+def extract_counts(text: str) -> list[int]:
+    """문장 속 '12회' 같은 반복 횟수."""
+    return [int(m.group(1)) for m in _COUNT.finditer(text)]
 
 
 def find_forbidden(text: str) -> str | None:
@@ -191,7 +214,7 @@ def verify(
             dropped += 1
             continue
 
-        fact_dates = {fact.date for fact in basis_facts if fact.date}
+        fact_dates = {date for fact in basis_facts for date in fact.dates}
         fact_md = {(d[1], d[2]) for d in fact_dates}
         if any(
             (year is not None and (year, month, day) not in fact_dates)
@@ -208,6 +231,12 @@ def verify(
 
         fact_amounts = {fact.amount for fact in basis_facts if fact.amount is not None}
         if any(amount not in fact_amounts for amount in extract_amounts(text)):
+            dropped += 1
+            continue
+
+        # "12회" 같은 반복 횟수도 근거와 대조한다 — 지어낸 횟수가 은행에 가면 안 된다
+        fact_counts = {fact.count for fact in basis_facts if fact.count is not None}
+        if any(count not in fact_counts for count in extract_counts(text)):
             dropped += 1
             continue
 

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 Confidence = Literal["high", "medium", "low"]
 SourceType = Literal["chat", "bank", "shipping", "threat", "autopay", "unknown"]
 Actor = Literal["self", "counterparty", "system"]
+Period = Literal["monthly", "weekly", "daily", "other"]
 
 
 class SourceRegion(BaseModel):
@@ -39,6 +40,19 @@ class FieldConfidence(BaseModel):
     payer_name: Confidence | None = None
 
 
+class Recurrence(BaseModel):
+    """반복 거래를 카드 한 장으로 묶을 때의 표현 (계약 `recurrence` 절).
+
+    count는 LLM이 센 값이 아니라 **코드가 개별 발생 일시에서 센 값**이다 —
+    "12회"가 사실과 다르면 은행에 가는 문서의 오류가 된다.
+    """
+
+    count: int
+    period: Period
+    first: str
+    last: str
+
+
 class QualityFlags(BaseModel):
     blurry: bool = False
     missing_date: bool = False
@@ -55,6 +69,8 @@ class Card(BaseModel):
     amount: int | None
     counterparty_name: str | None = None
     payer_name: str | None = None
+    # 반복이 아니면 None. amount는 1회분이고 occurred_at은 first다.
+    recurrence: Recurrence | None = None
     identifiers: Identifiers = Identifiers()
     field_confidence: FieldConfidence
     source_region: SourceRegion | None = None
