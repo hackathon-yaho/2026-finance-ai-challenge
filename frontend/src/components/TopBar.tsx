@@ -1,5 +1,6 @@
 import { STEP_LABELS } from "../data"
 import { Stepper } from "./Stepper"
+import { ChevronLeft } from "./icons"
 
 interface TopBarProps {
   stage: number
@@ -43,9 +44,9 @@ export function TopBar({ stage, width, onBack, onStepClick }: TopBarProps) {
             type="button"
             onClick={onBack}
             aria-label="이전 단계로"
-            className="-ml-2.5 flex h-11 w-11 flex-none items-center justify-center rounded-full text-[22px] leading-none text-ink"
+            className="-ml-2.5 flex h-11 w-11 flex-none items-center justify-center rounded-full text-ink"
           >
-            ‹
+            <ChevronLeft size={24} />
           </button>
         )}
 

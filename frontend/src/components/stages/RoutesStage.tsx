@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { ROUTES } from "../../data"
+import { Check } from "../icons"
 
 interface RoutesStageProps {
   showBizNotice: boolean
@@ -93,7 +94,7 @@ export function RoutesStage({ showBizNotice }: RoutesStageProps) {
                     on ? "border-brand bg-brand text-white" : "border-neutral text-transparent"
                   }`}
                 >
-                  ✓
+                  <Check size={12} />
                 </span>
                 <span className="min-w-0 flex-1 text-[13px] leading-normal">{signal.label}</span>
               </button>

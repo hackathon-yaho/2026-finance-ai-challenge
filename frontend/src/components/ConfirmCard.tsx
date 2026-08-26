@@ -4,6 +4,7 @@ import { formatDot } from "../lib/date"
 import { DateSheet } from "./DateSheet"
 import { useViewportWidth } from "../hooks/useViewportWidth"
 import type { CardEdits, Confidence, ExtractedCard, SourceType, ViewerId } from "../types"
+import { ChevronDown } from "./icons"
 
 interface ConfirmCardProps {
   card: ExtractedCard
@@ -206,22 +207,10 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
          * **방향 표시**이지 버튼처럼 보이는 것이 아니다.
          */}
         {!blocking && (
-          <svg
-            aria-hidden
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            className={`mt-1 flex-none text-neutral transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-          >
-            <path
-              d="M5.75 8.25 10 12.25l4.25-4"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <ChevronDown
+            size={20}
+            className={`mt-1 text-neutral transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          />
         )}
       </button>
 

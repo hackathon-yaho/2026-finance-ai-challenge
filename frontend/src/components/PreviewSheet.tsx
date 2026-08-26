@@ -3,6 +3,7 @@ import { PdfPreview } from "./PdfPreview"
 import { FIELD_LABELS, blankFieldLabels, readField, toPackageRequest } from "../lib/legalForm"
 import type { LegalFormField, LegalFormValues } from "../lib/legalForm"
 import type { ChecklistItem, DraftLine, ExtractedCard, SourceType, TimelineEvent } from "../types"
+import { Close } from "./icons"
 
 interface PreviewSheetProps {
   width: number
@@ -143,8 +144,8 @@ export function PreviewSheet({
           <div className="text-[17px] font-bold tracking-tight">내려받기 전에 확인해주세요</div>
           <div className="mt-0.5 text-xs text-muted">은행에 낼 서류 그대로예요</div>
         </div>
-        <button type="button" onClick={onClose} aria-label="닫기" className="h-11 w-11 flex-none text-xl text-muted">
-          ✕
+        <button type="button" onClick={onClose} aria-label="닫기" className="h-11 w-11 flex-none flex items-center justify-center text-muted">
+          <Close size={20} />
         </button>
       </div>
 

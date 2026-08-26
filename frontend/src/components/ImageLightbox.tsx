@@ -1,4 +1,5 @@
 import type { UploadedFile } from "../types"
+import { Close } from "./icons"
 
 interface ImageLightboxProps {
   file: UploadedFile | null
@@ -26,8 +27,8 @@ export function ImageLightbox({ file, width, onClose }: ImageLightboxProps) {
             <div className="truncate text-lg font-bold tracking-tight">{file.name}</div>
             <div className="mt-0.5 text-xs text-muted">{file.masked ? "마스킹 적용됨" : "원본 그대로 전송됨"}</div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-10 w-10 flex-none items-center justify-center text-xl text-muted">
-            ✕
+          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-10 w-10 flex-none items-center justify-center text-muted">
+            <Close size={20} />
           </button>
         </div>
         <div className="overflow-y-auto p-5">

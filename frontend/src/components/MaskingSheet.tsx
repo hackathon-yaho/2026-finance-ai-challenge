@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { exportMaskedBlob, getDevicePixelRatio, isInsideBox, loadImage, paintImageWithBoxes } from "../lib/mask"
 import { MAX_IMAGE_EDGE } from "../lib/upload"
 import type { MaskBox } from "../types"
+import { Close } from "./icons"
 
 const dpr = getDevicePixelRatio()
 
@@ -187,9 +188,9 @@ export function MaskingSheet({ fileName, url, width, queueLabel, mode = "new", o
             type="button"
             onClick={onCancel}
             aria-label={mode === "edit" ? "편집 취소" : "업로드 취소"}
-            className="flex h-10 w-10 flex-none items-center justify-center text-xl text-muted"
+            className="flex h-10 w-10 flex-none items-center justify-center text-muted"
           >
-            ✕
+            <Close size={20} />
           </button>
         </div>
 
