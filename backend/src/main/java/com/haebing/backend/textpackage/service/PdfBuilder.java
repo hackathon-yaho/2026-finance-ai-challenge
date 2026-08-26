@@ -2,6 +2,8 @@ package com.haebing.backend.textpackage.service;
 
 import com.haebing.backend.textpackage.dto.Account;
 import com.haebing.backend.textpackage.dto.Applicant;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -13,13 +15,20 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * docs/backend/phase-5-draft-package.md 5-4. 표지 + 1~4면을 만든다. 5면(원본 이미지)은 프론트가 만든다(F7-06).
- * 조판 완성도보다 "한글이 정상 렌더되는 PDF"(완료 기준)를 우선한다 — 서식 재디자인은 하지 않되,
- * 원본 스캔 위에 겹치는 대신 같은 표 구조를 새로 그린다(안내 문서 "레이아웃 재디자인 금지"는
- * 칸 구성·순서를 그대로 두라는 취지로 해석했다 — 스캔 오버레이는 좌표 보정 없이는 더 위험하다).
+ *
+ * <p>1면은 실제 법정서식 PDF(docs/00-context/법정서식-별지제4호서식-이의제기신청서.pdf ·
+ * {@code forms/이의제기신청서-별지4호.pdf}로 복사해 둠)를 그대로 불러와 값만 덧그린다(2026-08-26 결정 —
+ * "레이아웃을 새로 그리는 것보다 실물 위에 값만 얹는 쪽이 은행 담당자가 아는 양식과 완전히 같아 반려
+ * 위험이 낮다"는 사용자 판단). 이전 판단("좌표 보정 없는 스캔 오버레이가 더 위험하다")은 좌표를
+ * 실측(PDFTextStripper로 라벨 위치 추출)하면서 해소했다. 2~4면은 정해진 실물 서식이 없어 표를
+ * 직접 그리되, 표 전체 테두리·헤더 음영·페이지 넘침 시 이어그리기를 갖춘다(2026-08-26 개선 —
+ * 종전엔 표 아래 가로선 하나뿐이라 표처럼 안 보였고, 행이 많으면 페이지 밖으로 넘쳐 안 보이는
+ * 카드가 있었다).
  */
 class PdfBuilder implements AutoCloseable {
 
@@ -27,14 +36,26 @@ class PdfBuilder implements AutoCloseable {
     private static final float PAGE_WIDTH = PDRectangle.A4.getWidth();
     private static final float PAGE_HEIGHT = PDRectangle.A4.getHeight();
     private static final float CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
+    private static final float FOOTER_RESERVED = 40; // 표가 이 아래로는 안 내려가게 — 푸터와 겹치지 않도록
+    private static final float HEADER_GRAY = 0.90f;
 
     private final PDDocument document = new PDDocument();
     private final PDFont font;
 
     PdfBuilder() throws IOException {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("fonts/NanumGothic-Regular.ttf")) {
+        this.font = loadFont(document);
+    }
+
+    /**
+     * embedSubset=true로 로드해 고유 서브셋 접두("ABCDEF+NanumGothic")를 강제한다 — 1면은 템플릿
+     * 문서에서 이 폰트를 새로 로드해 쓰고 나중에 {@code document}로 합치는데, 접두 없이 로드하면
+     * 원본 서식이 쓰는 폰트와 BaseFont 이름이 같아져(둘 다 순정 "NanumGothic") 합친 뒤 일부
+     * 뷰어가 폰트를 혼동해 글자가 깨지는 문제가 있었다(2026-08-26 실측으로 발견).
+     */
+    private static PDFont loadFont(PDDocument targetDocument) throws IOException {
+        try (InputStream is = PdfBuilder.class.getClassLoader().getResourceAsStream("fonts/NanumGothic-Regular.ttf")) {
             if (is == null) throw new IOException("나눔고딕 폰트를 찾을 수 없습니다 (fonts/NanumGothic-Regular.ttf)");
-            this.font = PDType0Font.load(document, is);
+            return PDType0Font.load(targetDocument, is, true);
         }
     }
 
@@ -59,50 +80,74 @@ class PdfBuilder implements AutoCloseable {
         }
     }
 
-    /** docs/00-context/법정서식-별지제4호서식-안내.md "서식 실물 구성"을 그대로 옮긴다. */
-    void addPage1(Applicant applicant, Account account, LocalDate downloadDate) throws IOException {
+    /**
+     * 법정서식 실물 위에 값만 덧그린다. 좌표는 원본 PDF를 {@code PDFTextStripper}로 라벨 위치를 실측해
+     * 구했다(단위 pt, PDF 좌하단 원점 기준으로 환산 완료). 서식 자체의 칸·선·문구는 손대지 않는다 —
+     * "접수번호"·"접수일자"·서명란은 원래도 비워두는 자리라 그대로 둔다.
+     */
+    void addPage1(Applicant applicant, Account account, String statementText, LocalDate downloadDate) throws IOException {
         Applicant a = applicant != null ? applicant : new Applicant(null, null, null, null, null, null);
         Account acc = account != null ? account : new Account(null, null, null, null, null);
 
-        try (var page = newPage()) {
-            var cs = page.stream();
-            var w = page.writer();
-            float y = PAGE_HEIGHT - MARGIN;
-            y = w.drawLine("이의제기신청서", MARGIN, y);
-            y -= 10;
+        byte[] templateBytes;
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream("forms/이의제기신청서-별지4호.pdf")) {
+            if (is == null) throw new IOException("법정서식 템플릿을 찾을 수 없습니다 (forms/이의제기신청서-별지4호.pdf)");
+            templateBytes = is.readAllBytes();
+        }
 
-            float tableTop = y;
-            float left = MARGIN;
-            float right = PAGE_WIDTH - MARGIN;
-            float rowH = 26;
-            String[][] rows = {
-                    {"접수번호", "", "접수일자", ""},
-                    {"성명", nz(a.name()), "생년월일", nz(a.birthDate())},
-                    {"주소", nz(a.address())},
-                    {"전화번호", nz(a.phone()), "휴대전화번호", nz(a.mobile()), "전자우편주소", nz(a.email())},
-                    {"금융회사", nz(acc.bank()), "개설점포", nz(acc.branch()), "예금종별", nz(acc.depositType())},
-                    {"계좌번호", nz(acc.accountNumber()), "명의인", nz(acc.holderName())},
-            };
+        // document.importPage()는 이 템플릿의 임베디드 폰트(CID-키 TrueType)를 옮기며 인코딩을 깨뜨렸다
+        // (실측으로 발견 — 원본 라벨 텍스트가 렌더 시 깨진 글자로 나왔다). 대신 템플릿을 별도 PDDocument로
+        // 열어 그 문서 자신의 페이지에 직접 그리고(폰트도 이 문서 전용으로 새로 로드), 완성된 문서를
+        // PDFMergerUtility로 합친다 — 여러 문서를 하나로 합치는 표준 경로라 폰트 보존이 훨씬 안정적이다.
+        try (PDDocument templateDoc = Loader.loadPDF(templateBytes)) {
+            PDFont templateFont = loadFont(templateDoc);
+            PDPage page = templateDoc.getPage(0);
 
-            float rowY = tableTop;
-            for (String[] row : rows) {
-                drawTableRow(cs, w, left, rowY, right, rowH, row);
-                rowY -= rowH;
+            try (PDPageContentStream cs = new PDPageContentStream(templateDoc, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
+                PdfTextWriter w = new PdfTextWriter(cs, templateFont, 10);
+                // 전화번호·휴대전화번호·전자우편주소 3칸은 서식 원래 칸 폭이 좁다(특히 휴대전화번호 칸은
+                // 라벨 뺀 실 너비가 ~60pt) — 10pt로는 "010-1234-1234"조차 다음 칸 라벨과 겹친다(실측 확인).
+                PdfTextWriter wSmall = new PdfTextWriter(cs, templateFont, 7);
+
+                drawValue(w, 150, 665.9f, a.name());
+                drawValue(w, 390, 668.9f, a.birthDate());
+                drawValue(w, 150, 636.8f, a.address());
+                drawValue(wSmall, 148, 609f, a.phone());
+                drawValue(wSmall, 284, 609f, a.mobile());
+                drawValue(wSmall, 402, 609f, a.email());
+                drawValue(w, 160, 570.6f, acc.bank());
+                drawValue(w, 320, 570.6f, acc.branch());
+                drawValue(w, 440, 570.6f, acc.depositType());
+                drawValue(w, 160, 541.4f, acc.accountNumber());
+                drawValue(w, 430, 541.4f, acc.holderName());
+
+                // "이의제기 사유(구체적으로 기재합니다)" 박스 — 소명서 전문 대신 요약 + 참조 안내(안내.md "구현 시 반드시 지킬 것" ④)
+                String summary = (statementText == null || statementText.isBlank())
+                        ? "(확인된 사실관계가 없습니다.)"
+                        : truncate(statementText, 110);
+                float ySummary = w.drawParagraph(summary, 65, 481, CONTENT_WIDTH - 30);
+                w.drawLine("상세 내용은 별지 사실관계 진술서를 참조하시기 바랍니다.", 65, Math.min(ySummary - 10, 440));
+
+                // 작성일자 — 서식이 인쇄해 둔 "년   월   일" 자리를 흰 사각형으로 지우고 실제 값을 다시 쓴다.
+                whiteOut(cs, 422, 210, 85, 16);
+                w.drawLine(downloadDate.getYear() + "년 " + downloadDate.getMonthValue() + "월 " + downloadDate.getDayOfMonth() + "일",
+                        426, 215.6f);
+
+                // "○○○ 금융회사  귀하" — 은행명이 있으면 실제 값으로 교체(은행 배포본과 같은 관행, 안내.md 참조). 없으면 그대로 둔다.
+                if (acc.bank() != null && !acc.bank().isBlank()) {
+                    whiteOut(cs, 64, 152, 150, 16);
+                    w.drawLine(acc.bank() + " 금융회사   귀하", 68, 158.4f);
+                }
             }
-            drawHLine(cs, left, right, rowY);
 
-            y = rowY - 40;
-            y = w.drawParagraph(
-                    "「전기통신금융사기 피해 방지 및 피해금 환급에 관한 특별법」 제7조제1항 및 같은 법 시행령 제7조에 따라 "
-                            + "본인의 계좌에 대한 지급정지, 전자금융거래 제한 또는 채권소멸절차에 대하여 위와 같이 이의제기를 신청합니다.",
-                    left, y, CONTENT_WIDTH);
-            y -= 30;
-            y = w.drawLine("작성일자: " + downloadDate, left, y);
-            y -= 10;
-            y = w.drawLine("신청인  성 명                              (서명 또는 인)", left, y);
-            y -= 40;
-            String bank = (acc.bank() == null || acc.bank().isBlank()) ? "○○○ 금융회사" : acc.bank();
-            w.drawLine(bank + "  귀하", left, y);
+            // PDFMergerUtility가 "방금 값을 그려 넣은, 아직 저장 전인" 문서를 바로 합치면 그 새 글자만
+            // 깨졌다(실측으로 재현·격리 확인 — 서식 원문은 멀쩡한데 우리가 그린 값만 깨지거나 사라짐).
+            // 한 번 저장했다 다시 읽어 들이면(라운드트립) 문서 내부 구조가 온전히 굳어져 정상 합쳐진다.
+            ByteArrayOutputStream drawnOut = new ByteArrayOutputStream();
+            templateDoc.save(drawnOut);
+            try (PDDocument reloaded = Loader.loadPDF(drawnOut.toByteArray())) {
+                new PDFMergerUtility().appendDocument(document, reloaded);
+            }
         }
     }
 
@@ -114,7 +159,7 @@ class PdfBuilder implements AutoCloseable {
             y -= 20;
             w.drawParagraph(statementText == null || statementText.isBlank() ? "(확인된 사실관계가 없습니다.)" : statementText,
                     MARGIN, y, CONTENT_WIDTH);
-            drawFooter(page.stream(), w, footer);
+            drawFooter(page.stream(), page.writer(), footer);
         }
     }
 
@@ -122,41 +167,20 @@ class PdfBuilder implements AutoCloseable {
     private static final float[] PAGE4_WEIGHTS = {0.08f, 0.14f, 0.58f, 0.20f};
 
     void addPage3(List<TimelineRow> rows, String footer) throws IOException {
-        try (var page = newPage()) {
-            var cs = page.stream();
-            var w = page.writer();
-            float y = PAGE_HEIGHT - MARGIN;
-            y = w.drawLine("시간순 거래 타임라인", MARGIN, y);
-            y -= 15;
-            float left = MARGIN, right = PAGE_WIDTH - MARGIN, rowH = 22;
-            y = drawWeightedRow(cs, w, left, y, right, rowH, PAGE3_WEIGHTS, new String[]{"일시", "행위 주체", "요약 · 금액"});
-            for (TimelineRow r : rows) {
-                y = drawWeightedRow(cs, w, left, y, right, rowH, PAGE3_WEIGHTS,
-                        new String[]{r.occurredAt(), r.actor(), r.summary() + " · " + r.amountText()});
-            }
-            drawHLine(cs, left, right, y);
-            drawFooter(cs, w, footer);
+        List<String[]> data = new ArrayList<>();
+        for (TimelineRow r : rows) {
+            data.add(new String[]{r.occurredAt(), r.actor(), r.summary() + " · " + r.amountText()});
         }
+        drawTablePages("시간순 거래 타임라인", new String[]{"일시", "행위 주체", "요약 · 금액"}, PAGE3_WEIGHTS, data, footer);
     }
 
     void addPage4(List<EvidenceRow> rows, String footer) throws IOException {
-        try (var page = newPage()) {
-            var cs = page.stream();
-            var w = page.writer();
-            float y = PAGE_HEIGHT - MARGIN;
-            y = w.drawLine("증빙자료 목록", MARGIN, y);
-            y -= 15;
-            float left = MARGIN, right = PAGE_WIDTH - MARGIN, rowH = 22;
-            y = drawWeightedRow(cs, w, left, y, right, rowH, PAGE4_WEIGHTS,
-                    new String[]{"순번", "자료 유형", "확인된 일시 · 요약", "원본"});
-            for (EvidenceRow r : rows) {
-                y = drawWeightedRow(cs, w, left, y, right, rowH, PAGE4_WEIGHTS,
-                        new String[]{String.valueOf(r.sequence()), r.sourceTypeLabel(),
-                                r.occurredAt() + " · " + r.summary(), r.originLabel()});
-            }
-            drawHLine(cs, left, right, y);
-            drawFooter(cs, w, footer);
+        List<String[]> data = new ArrayList<>();
+        for (EvidenceRow r : rows) {
+            data.add(new String[]{String.valueOf(r.sequence()), r.sourceTypeLabel(),
+                    r.occurredAt() + " · " + r.summary(), r.originLabel()});
         }
+        drawTablePages("증빙자료 목록", new String[]{"순번", "자료 유형", "확인된 일시 · 요약", "원본"}, PAGE4_WEIGHTS, data, footer);
     }
 
     byte[] build() throws IOException {
@@ -170,25 +194,51 @@ class PdfBuilder implements AutoCloseable {
         document.close();
     }
 
+    /**
+     * 표가 한 페이지에 다 안 들어가면 이어서 새 페이지에 헤더를 다시 그리고 계속한다 — 종전엔 행이
+     * 많으면(예: 타임라인 30행 이상) 페이지 아래로 넘쳐 안 보이는 카드가 있었다(2026-08-26 발견).
+     */
+    private void drawTablePages(String title, String[] header, float[] weights, List<String[]> rows, String footer)
+            throws IOException {
+        float rowH = 22;
+        float bottomLimit = MARGIN + FOOTER_RESERVED;
+        int index = 0;
+        int pageNum = 0;
+        do {
+            pageNum++;
+            try (var page = newPage()) {
+                PDPageContentStream cs = page.stream();
+                PdfTextWriter w = page.writer();
+                float left = MARGIN, right = PAGE_WIDTH - MARGIN;
+                float y = PAGE_HEIGHT - MARGIN;
+                y = w.drawLine(pageNum == 1 ? title : title + " (이어서)", MARGIN, y);
+                y -= 15;
+                y = drawHeaderRow(cs, w, left, y, right, rowH, weights, header);
+                while (index < rows.size() && y - rowH > bottomLimit) {
+                    y = drawWeightedRow(cs, w, left, y, right, rowH, weights, rows.get(index));
+                    index++;
+                }
+                drawHLine(cs, left, right, y);
+                drawFooter(cs, w, footer);
+            }
+        } while (index < rows.size());
+    }
+
     private void drawFooter(PDPageContentStream cs, PdfTextWriter w, String footer) throws IOException {
         w.drawLine(footer, MARGIN, MARGIN - 20);
     }
 
-    private void drawTableRow(PDPageContentStream cs, PdfTextWriter w, float left, float y, float right, float rowH,
-                               String[] labelValuePairs) throws IOException {
-        drawHLine(cs, left, right, y);
-        int cols = labelValuePairs.length / 2;
-        float colWidth = (right - left) / Math.max(cols, 1);
-        for (int i = 0; i < cols; i++) {
-            float x = left + i * colWidth;
-            String label = labelValuePairs[i * 2];
-            String value = labelValuePairs[i * 2 + 1];
-            String text = value == null || value.isEmpty() ? label : label + ": " + value;
-            w.drawLine(truncate(text, 24), x + 4, y - rowH + 8);
-        }
+    /** 헤더 행에 옅은 회색 배경을 깔아 데이터 행과 구분한다(나눔고딕엔 볼드가 없어 음영으로 대신한다). */
+    private float drawHeaderRow(PDPageContentStream cs, PdfTextWriter w, float left, float y, float right,
+                                 float rowH, float[] weights, String[] values) throws IOException {
+        cs.setNonStrokingColor(HEADER_GRAY, HEADER_GRAY, HEADER_GRAY);
+        cs.addRect(left, y - rowH, right - left, rowH);
+        cs.fill();
+        cs.setNonStrokingColor(0f, 0f, 0f);
+        return drawWeightedRow(cs, w, left, y, right, rowH, weights, values);
     }
 
-    /** 열 너비를 weights 비율로 나누고, 실제 픽셀 폭으로 잘라 넣는다(고정 글자수 자르기는 좁은 열엔 너무 길고 넓은 열은 낭비였다). */
+    /** 열 너비를 weights 비율로 나누고, 각 행마다 사방 테두리(가로 위·세로 칸 구분선)를 그려 실제 표처럼 보이게 한다. */
     private float drawWeightedRow(PDPageContentStream cs, PdfTextWriter w, float left, float y, float right,
                                    float rowH, float[] weights, String[] values) throws IOException {
         drawHLine(cs, left, right, y);
@@ -196,9 +246,11 @@ class PdfBuilder implements AutoCloseable {
         float x = left;
         for (int i = 0; i < weights.length; i++) {
             float colWidth = tableWidth * weights[i];
+            drawVLine(cs, x, y, y - rowH);
             w.drawLine(fitToWidth(values[i], colWidth - 8), x + 4, y - rowH + 8);
             x += colWidth;
         }
+        drawVLine(cs, right, y, y - rowH);
         return y - rowH;
     }
 
@@ -207,6 +259,26 @@ class PdfBuilder implements AutoCloseable {
         cs.moveTo(left, y);
         cs.lineTo(right, y);
         cs.stroke();
+    }
+
+    private void drawVLine(PDPageContentStream cs, float x, float yTop, float yBottom) throws IOException {
+        cs.setLineWidth(0.5f);
+        cs.moveTo(x, yTop);
+        cs.lineTo(x, yBottom);
+        cs.stroke();
+    }
+
+    /** 서식이 이미 인쇄해 둔 자리(작성일자·수신처)를 지우고 실제 값을 다시 쓸 때만 쓴다. */
+    private void whiteOut(PDPageContentStream cs, float x, float y, float width, float height) throws IOException {
+        cs.setNonStrokingColor(1f, 1f, 1f);
+        cs.addRect(x, y, width, height);
+        cs.fill();
+        cs.setNonStrokingColor(0f, 0f, 0f);
+    }
+
+    private void drawValue(PdfTextWriter w, float x, float y, String value) throws IOException {
+        if (value == null || value.isBlank()) return;
+        w.drawLine(value, x, y);
     }
 
     private String truncate(String text, int maxChars) {
@@ -229,10 +301,6 @@ class PdfBuilder implements AutoCloseable {
 
     private float stringWidth(String text) throws IOException {
         return font.getStringWidth(text) / 1000 * 10; // 표 폰트 크기 10pt (PdfTextWriter와 동일)
-    }
-
-    private String nz(String value) {
-        return value == null ? "" : value;
     }
 
     private PageContext newPage() throws IOException {

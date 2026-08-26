@@ -37,11 +37,12 @@ public class PackageServiceImpl implements PackageService {
         List<ExtractedEvent> confirmed = session.getTimeline().stream().filter(this::isConfirmed).toList();
         String footer = "AI 초안 · 사용자 확인 완료 " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
                 + " · 최종 판단은 금융회사";
+        String statementText = buildStatementText(session, excluded);
 
         try (PdfBuilder builder = new PdfBuilder()) {
             builder.addCoverPage();
-            builder.addPage1(request.applicant(), request.account(), LocalDate.now());
-            builder.addPage2(buildStatementText(session, excluded), footer);
+            builder.addPage1(request.applicant(), request.account(), statementText, LocalDate.now());
+            builder.addPage2(statementText, footer);
             builder.addPage3(buildTimelineRows(withIntakeDueDateEvent(session, confirmed)), footer);
             builder.addPage4(buildEvidenceRows(confirmed), footer);
             return builder.build();
