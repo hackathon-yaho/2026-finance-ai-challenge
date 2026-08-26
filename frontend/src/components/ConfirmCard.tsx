@@ -244,7 +244,9 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
               value={timeBuf}
               onChange={(e) => setTimeBuf(e.target.value)}
               aria-label="시각 (모르면 비워두세요)"
-              className="h-11 w-[124px] flex-none rounded-xl border border-neutral bg-bg px-3 text-[15px]"
+              // 폭을 고정하지 않는다 — 브라우저가 그리는 시각 위젯의 폭이 12/24시간 표기와
+              // 로캘에 따라 달라서, 고정하면 분 자리가 잘린다(실측 124px 지정에 129px 필요).
+              className="h-11 flex-none rounded-xl border border-neutral bg-bg px-3 text-[15px]"
             />
           </div>
           <p className="text-xs leading-normal text-muted">시각을 모르면 비워두세요. 없는 시각을 만들지 않아요.</p>
