@@ -122,6 +122,25 @@ class PackageServiceImplTest {
     }
 
     @Test
+    void evidenceRows_groupedByOrigin_multipleCardsFromSameImageBecomeOneRow() throws java.io.IOException {
+        // 2026-08-26 개선 — 4면은 카드 단위가 아니라 원본(첨부) 단위로 한 줄이어야 한다.
+        Session session = session();
+        session.upsertCard(new ExtractedEvent("evt_1", 0, "chat", "2026-09-01T00:00:00+09:00", "self", "첫번째사실", 1000L,
+                null, null, new Identifiers(null, null),
+                new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.USER_CONFIRMED));
+        session.upsertCard(new ExtractedEvent("evt_2", 0, "chat", "2026-09-01T00:10:00+09:00", "self", "두번째사실", 2000L,
+                null, null, new Identifiers(null, null),
+                new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.USER_CONFIRMED));
+
+        byte[] pdf = service.generate(session, new PackageRequest(null, null, null));
+
+        // 대표 사실 예시("예: ...")는 열 너비상 잘릴 수 있다(fitToWidth) — 건수까지만 보장한다.
+        String text = extractText(pdf);
+        assertThat(text).contains("2건 확인됨");
+        assertThat(text).containsOnlyOnce("첫번째사실"); // 3면엔 그대로, 4면엔 개별 카드로 안 나온다
+    }
+
+    @Test
     void confirmedCardsOnly_pendingCardExcludedFromPackage() {
         Session session = session();
         session.upsertCard(new ExtractedEvent("evt_1", 0, "chat", "2026-09-01T00:00:00+09:00", "self", "확인됨", 1000L,

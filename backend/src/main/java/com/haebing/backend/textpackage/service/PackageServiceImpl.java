@@ -95,19 +95,51 @@ public class PackageServiceImpl implements PackageService {
                 .toList();
     }
 
-    /** 4면 — 카드 단위, source_image_index 오름차순(null은 뒤로). 파일명·보유여부는 넣지 않는다. */
+    /**
+     * 4면 — "올린 자료의 목차"라 카드 단위가 아니라 **첨부(원본) 단위로 한 줄**이다(2026-08-26 개선).
+     * 카드 단위였을 때는 3면(타임라인)과 열만 다를 뿐 사실상 같은 표였다 — 캡처 한 장에서 카드가
+     * 여러 개 나오면(예: 대화 캡처 한 장 → 3장) 3면·4면에 똑같이 여러 줄로 흩어져 "내가 뭘 제출했는지"에
+     * 답이 안 됐다. source_image_index 오름차순(null=본인 입력 텍스트는 맨 뒤)으로 묶는다.
+     */
     private List<EvidenceRow> buildEvidenceRows(List<ExtractedEvent> confirmed) {
-        List<ExtractedEvent> sorted = confirmed.stream()
-                .sorted(Comparator.comparing(ExtractedEvent::sourceImageIndex, Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
+        Map<Integer, List<ExtractedEvent>> byOrigin = new java.util.LinkedHashMap<>();
+        for (ExtractedEvent e : confirmed) {
+            int key = e.sourceImageIndex() == null ? Integer.MAX_VALUE : e.sourceImageIndex();
+            byOrigin.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(e);
+        }
+        List<Integer> keys = new java.util.ArrayList<>(byOrigin.keySet());
+        keys.sort(Comparator.naturalOrder());
+
         List<EvidenceRow> rows = new java.util.ArrayList<>();
         int seq = 1;
-        for (ExtractedEvent e : sorted) {
-            String origin = e.sourceImageIndex() == null ? "본인 서술" : "원본 " + (e.sourceImageIndex() + 1) + "번"; // 0-base → 1-base
-            rows.add(new EvidenceRow(seq++, SOURCE_TYPE_LABELS.getOrDefault(e.sourceType(), "기타"),
-                    formatOccurredAt(e.occurredAt()), e.summary(), origin));
+        for (Integer key : keys) {
+            List<ExtractedEvent> group = byOrigin.get(key);
+            String origin = key == Integer.MAX_VALUE ? "본인 서술" : "원본 " + (key + 1) + "번"; // 0-base → 1-base
+            rows.add(new EvidenceRow(seq++, SOURCE_TYPE_LABELS.getOrDefault(group.get(0).sourceType(), "기타"),
+                    dateRangeLabel(group), summaryLabel(group), origin));
         }
         return rows;
+    }
+
+    /** 같은 원본에서 나온 카드들의 확인된 일시 범위. 전부 시각 미상이면 그대로, 일부만 미상이면 표시해 둔다. */
+    private String dateRangeLabel(List<ExtractedEvent> group) {
+        List<String> known = group.stream().map(ExtractedEvent::occurredAt).filter(java.util.Objects::nonNull).sorted().toList();
+        if (known.isEmpty()) return "시각 미상";
+        String first = formatOccurredAt(known.get(0));
+        String last = formatOccurredAt(known.get(known.size() - 1));
+        String range = first.equals(last) ? first : first + " ~ " + last;
+        int unknown = group.size() - known.size();
+        return unknown == 0 ? range : range + " (시각 미상 " + unknown + "건 포함)";
+    }
+
+    /**
+     * 같은 원본에서 카드가 하나면 그 요약을 그대로, 여럿이면 건수만 보여준다. 대표 사실 예시를 덧붙이는
+     * 안도 시도했지만, 일시 범위와 합치면 열 너비를 넘겨 "예: …"처럼 내용 없이 잘리는 줄이 나왔다
+     * (2026-08-26 실측) — 4면은 목차이고 사실 내용은 3면에 있으니 굳이 욱여넣지 않는다.
+     */
+    private String summaryLabel(List<ExtractedEvent> group) {
+        String first = group.get(0).summary();
+        return group.size() <= 1 ? first : group.size() + "건 확인됨";
     }
 
     /** "2026-09-01T10:00:00+09:00" → "2026-09-01 10:00". 시간대 표기가 표를 넓게 잡아먹어 사람이 읽을 형태로 줄인다. */
