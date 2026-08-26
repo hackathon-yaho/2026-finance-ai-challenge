@@ -303,6 +303,7 @@ Content-Type: application/json
 | cards[].amount | 금액(원 단위 정수) | Integer | Y |
 | cards[].counterparty_name | 대화 상대 표시명 | String | **Y (흔히 `null`)** |
 | cards[].payer_name | 입금 내역의 입금자 표기 | String | **Y (흔히 `null`)** |
+| cards[].recurrence | 반복 거래 정보 `{ count, period, first, last }`. `period`는 `monthly`/`weekly`/`daily`/`other` | object | **Y (반복 아니면 대부분 `null`)** |
 | cards[].identifiers.tracking_no | 운송장 번호 | String | Y |
 | cards[].identifiers.account_last4 | 계좌 뒤 4자리 | String | Y |
 | cards[].field_confidence.occurred_at | `high` / `medium` / `low` | enum | N |
@@ -753,3 +754,4 @@ API를 완료하거나 계약이 바뀔 때마다 한 줄씩 남깁니다. **"�
 | 2026-08-25 ② | `/api/checklist/self-held` | **신설** — 직접 첨부 항목의 보유 여부를 사용자 자가 진술로 수신 |
 | 2026-08-25 ② | `/api/draft/revise` | **신설** — 소명서 문장 수정·제외. 수정 문장은 삭제하지 않고 `user_text` + `warning` |
 | 2026-08-25 ② | `/api/package/text` | **서식 8 → 11필드**(`mobile`·`email`·`holderName`) + **`excludedSentenceIds`**. **면 구성 개정** — 부족자료 체크리스트 제외, 표지 신설, 4면은 "올린 자료의 목차". `{시각}` = 다운로드 시각. 절 번호 6.2 → **6.3** |
+| 2026-08-27 | `/api/evidence`, `/api/package/text` | **`cards[].recurrence` 반영 지연분 수정** — AI-server가 이미 내보내던 필드가 `ExtractedEvent`(record)에 없어 조용히 버려지고 있었음(`docs/request/backend/recurrence-not-reaching-frontend.md`). 필드 추가 + 카드 재조립 경로(`withCorrections`·`DemoFixtures`) 통과 확인, 서버 PDF 3면·4면에 반복 표기 반영 |

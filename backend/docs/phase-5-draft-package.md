@@ -2,6 +2,24 @@
 
 > 목표: 확인된 타임라인 + 준비도 결과로 소명서를 받아오고, 제출 패키지 텍스트 면(표지 + 1~4면)을 만든다.
 >
+> ### ✅ 2026-08-27 ② `recurrence`가 `ExtractedEvent`에서 조용히 유실되던 것 수정
+>
+> 프론트 신고(`../../docs/request/backend/recurrence-not-reaching-frontend.md`) — AI-server가 이미 내보내던 `recurrence`(`internal-api-contract.md` 2026-08-26 ③ 신설)가 `ExtractedEvent`(record)에 선언돼 있지 않아 Jackson 관대 모드로 **에러도 로그도 없이** 버려지고 있었다. 12개월 자동이체 카드가 "1회분 금액·첫 날짜"만 보여, 2면 소명서("매월 12회")와 3면 타임라인(1줄, 1회분 금액)이 어긋나는 상태였다.
+>
+> - **`ExtractedEvent`에 `Recurrence recurrence` 필드 추가.** 기존 13필드 호출부(테스트 다수)는 호환 생성자로 보존, `recurrence`를 안 주면 `null`
+> - **`withCorrections`와 `DemoFixtures.remapIds`도 같은 종류의 버그를 가지고 있었다** — 둘 다 카드를 필드별로 하나하나 다시 조립하는 구조라, `recurrence`를 명시적으로 넘기게 고치지 않았으면 F4-06 수정이나 데모 모드에서 또 조용히 사라졌을 것
+> - **서버 PDF 3면**: 요약 뒤 `"(매월 N회)"`, 금액 뒤 `"(1회분)"`. **4면**: "확인된 일시"가 첫 회차 하나가 아니라 `recurrence.first ~ last` 전체 기간, 요약 뒤 `"(매월 N회, 1회분 65,890원)"`
+> - `count`는 AI-server가 계산한 값을 그대로 신뢰한다 — 백엔드는 재계산하지 않는다 (`period`만 한글 라벨로 매핑: `monthly→매월` 등)
+> - 반복 카드 1건짜리 회귀 테스트 추가 (`recurringCard_showsCountAndFullRange_notJustFirstOccurrence`), `api-contract.md`에 계약 반영 + 프론트에 회신 (`../../docs/response/frontend/recurrence-not-reaching-frontend.md`)
+>
+> ### ✅ 2026-08-27 ① 2면 소명서 문장을 줄바꿈으로 구분
+>
+> 사용자가 실제 PDF(②의 이전 산출물)를 열어보고 지적: 2면 "사실관계 진술서"가 문장을 전부 공백으로 이어붙여 한 덩어리 줄글로 나와 가독성이 떨어졌다.
+>
+> - **`PackageServiceImpl.buildStatementText`의 join 구분자를 `" "` → `"\n"`으로 변경.** `PdfTextWriter.drawParagraph`가 이미 `"\n"` 기준으로 단락을 나눠 그리므로 렌더 쪽(`PdfBuilder`)은 손댈 필요가 없었다 — 문장 하나당 한 줄(긴 문장만 자연스럽게 다음 줄로 이어짐)
+> - 1면 "이의제기 사유" 요약 박스도 같은 `statementText`를 잘라 쓰므로 동일하게 적용됨
+> - 실제 세션 데이터로 PDF를 생성해 2면·1면 육안 확인 완료. 페이지 넘침 처리가 없는 `addPage2`의 기존 한계는 그대로 남겨둠(문장이 아주 많으면 한 페이지를 넘길 수 있음 — 발생 시 `addPage3/4`처럼 페이지 분할 로직 추가 필요)
+>
 > ### ✅ 2026-08-26 ③ 4면을 카드 단위 → 원본(첨부) 단위로 재구성
 >
 > 사용자가 실물 PDF(②)로 육안 검토하던 중 지적: 3면(타임라인)과 4면(증빙목록)이 열 구성만 다를 뿐 사실상 같은 표였다 — 둘 다 카드 단위라, 캡처 한 장에서 카드가 여러 개 나오면 3·4면에 똑같이 흩어져 4면이 "제출한 자료의 목차" 역할을 못 했다.
@@ -169,8 +187,9 @@ F5-01이 타임라인에 삽입하는 "사용자 진술 / 낮은 신뢰도" 지�
 - [x] **자료 유형**: 그 원본 첫 카드의 라벨 (한 원본은 보통 한 유형)
 - [x] **확인된 일시**: 그룹의 `occurred_at` 중 아는 값만으로 범위 표기. 전부 같거나 하나면 그 값만, 전부 모르면 "시각 미상", 일부만 모르면 "(시각 미상 N건 포함)" 접미
 - [x] **요약**: 카드 1장이면 그 요약 그대로, 여러 장이면 **"N건 확인됨"** — 개별 요약은 3면에 있으니 4면엔 다시 안 실음(일시 범위+개수+예시를 한 열에 넣으면 열 너비상 잘려서 실측으로 기각)
+- [x] **반복 카드(`recurrence != null`, 2026-08-27 ② 추가)는 위 규칙의 예외다.** 카드가 1장뿐이어도 "확인된 일시"는 `occurred_at`(첫 회차) 하나가 아니라 `recurrence.first ~ last` 전체 기간, 요약은 원문 뒤에 `"(매월 N회, 1회분 금액)"`을 붙인다 — 안 그러면 12번 있었던 일이 "첫 회차 1번"으로만 보인다
 
-근거: `../../docs/response/frontend/page4-ordering.md`, `../../docs/request/frontend/page4-grouped-by-origin.md`
+근거: `../../docs/response/frontend/page4-ordering.md`, `../../docs/request/frontend/page4-grouped-by-origin.md`, `../../docs/request/backend/recurrence-not-reaching-frontend.md`
 
 **금지 3가지**
 

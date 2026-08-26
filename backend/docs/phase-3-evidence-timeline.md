@@ -130,6 +130,16 @@ F4-07의 담당은 `B`(AI)지만, **처리 절차가 "LLM이 quality_flags 산�
 - [ ] **대조 자체는 Phase 4다.** 여기서는 담기만 한다
 - [ ] 로그에 남기지 않는다 (NFR-08). 개인정보 경계는 `../../docs/03-infra-ops/privacy-and-safety.md` "추출 범위 예외 — 거래 당사자 표시명"이 단일 출처다
 
+### `recurrence`를 세션에 담는다 (2026-08-27 신설 — 반영 지연분)
+
+카드에 `recurrence`(`{ count, period, first, last }`, 반복 아니면 `null`)가 추가됐다. 반복 거래(자동이체 12개월 등)를 카드 한 장으로 묶기 위한 필드다 — `../../docs/02-architecture/internal-api-contract.md` "recurrence" 절 (2026-08-26 ③, AI 신설).
+
+- [x] `ExtractedEvent`에 필드를 **그대로 보관**한다 — 백엔드는 값을 해석하지 않고 통과·표시에만 쓴다
+- [x] **`amount`는 이 카드의 1회분**이지 총액이 아니다. `occurred_at`은 `recurrence.first`와 같다(첫 회차) — 백엔드가 별도로 검증하지 않는다
+- [x] 카드를 필드별로 재조립하는 경로(`ExtractedEvent.withCorrections`, `DemoFixtures.remapIds`)는 **명시적으로 `recurrence`를 넘겨야 한다.** `record`라 빠뜨리면 컴파일 에러 없이 조용히 `null`이 돼 유실된다 — 실제로 `api-contract.md`·`ExtractedEvent` 양쪽에 필드 자체가 없어서 한 번 유실된 적이 있다(`../../docs/request/backend/recurrence-not-reaching-frontend.md`)
+- [x] `count`는 AI-server가 계산한 값을 그대로 신뢰한다 — 백엔드가 재계산하지 않는다
+- [x] 서버 PDF 3면·4면 표기는 `phase-5-draft-package.md` 2026-08-27 ② 참조
+
 ## 3-4. `POST /api/evidence/text` (F3-04)
 
 - [ ] 요청 `{ rawText }` (최대 2000자) → AI-server `/internal/extract`의 텍스트 경로로 전달
