@@ -176,7 +176,14 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
 
   return (
     <div
-      className={`rounded-2xl border p-4 transition-colors duration-200 ${
+      /**
+       * 2열에서 **접힌 카드만 자기 높이로 줄어든다** (`self-start`).
+       *
+       * 그리드 기본값(`stretch`)이면 같은 행이 가장 큰 카드에 맞춰 늘어난다. 펼친 카드끼리는
+       * 그게 맞다 — 좌우 높이가 들쭉날쭉하면 읽기 나쁘다. 반대로 접은 카드까지 늘어나면
+       * **내용만 사라지고 빈 상자가 남아** 접은 보람이 없다. 그래서 접었을 때만 뺀다.
+       */
+      className={`rounded-2xl border p-4 transition-colors duration-200 ${open ? "" : "self-start"} ${
         blocking ? "border-warning bg-warning-subtle" : confirmed ? "border-brand-subtle bg-brand-subtle" : "border-border bg-bg"
       }`}
     >
