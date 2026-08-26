@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { isBlocking } from "../lib/cards"
+import { blockingReason, isBlocking } from "../lib/cards"
 import { formatDot } from "../lib/date"
 import { DateSheet } from "./DateSheet"
 import { useViewportWidth } from "../hooks/useViewportWidth"
@@ -369,9 +369,15 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
         </div>
       ) : null}
 
+      {/* 막힌 이유를 구분해 적는다. 연도 없는 캡처(`occurred_at == null`)는 판독이 틀린 게
+          아니라 **화면에 연도가 없어서** AI가 지어내지 않은 것이라, "신뢰도가 낮다"고 하면
+          사용자가 고칠 데를 못 찾는다. 다만 **날짜를 꼭 채워야 풀리는 건 아니다** — 보고
+          "맞아요"만 눌러도 풀리고 그때는 "시각 미상"으로 남는다 (백엔드 §7과 같은 규칙). */}
       {blocking && (
         <p className="mt-2.5 text-xs leading-normal text-warning">
-          판독 신뢰도가 낮아요. 이 카드를 확인해야 다음 단계로 갈 수 있어요.
+          {blockingReason(card) === "date_missing"
+            ? "언제인지 화면에 안 나와 있어요. 아는 날짜를 넣거나, 모르면 그대로 확인해주세요."
+            : "판독 신뢰도가 낮아요. 이 카드를 확인해야 다음 단계로 갈 수 있어요."}
         </p>
       )}
 

@@ -78,7 +78,7 @@ export const DEFAULT_MESSAGE: Record<ApiErrorCode, string> = {
   EXTRACTION_FAILED: "올려주신 자료에서 거래 정보를 찾지 못했어요.",
   TIMEOUT: "일부 자료를 읽지 못했어요. 읽은 것만 먼저 보여드릴게요.",
   SESSION_EXPIRED: "30분 동안 움직임이 없어 처음부터 다시 해야 해요. 올린 자료는 서버에 없어서 다시 올려주셔야 해요.",
-  UNCONFIRMED_FIELDS: "판독 신뢰도가 낮은 자료를 먼저 확인해주세요.",
+  UNCONFIRMED_FIELDS: "먼저 확인해야 하는 자료가 있어요. 확인하고 다시 시도해주세요.",
   INVALID_FORM_FIELD: "입력한 값의 형식을 확인해주세요.",
   QUOTA_EXCEEDED: "지금은 예시 데이터로 보여드릴게요.",
   // 재시도 외에 할 수 있는 것이 없다. 사용자 탓으로 읽히는 문구를 쓰지 않는다.

@@ -1,12 +1,11 @@
 # [프론트 → 백엔드] 캡처 한 장이 카드 12장이 됩니다 — 반복 항목 묶기와 무관 거래 제외
 
-> **상태: ✅ 회신 완료 (2026-08-26) — AI 소관분(§3·§4·§7)까지 해소**
-> - AI 회신: `../../response/frontend/repeated-events-and-irrelevant-cards.md` — **§4는 A안 채택**, 계약에 `recurrence` 신설·구현·실측 완료. §3 지연은 10.4초 → 5.1~5.4초로 함께 해소. §7은 A안 동의(AI 쪽 변경 없음)
->
-> **상태: ⚠️ 일부 회신 완료 (2026-08-26, 백엔드)**
-> - 회신: `../../response/frontend/repeated-events-and-irrelevant-cards.md`
-> - **결론 요약**: §2(무관 거래) 현행 유지로 결정 — F5-04 생계 흔적 증거와 겹쳐 거르면 안 됨. §7(`occurred_at == null` 게이팅) A안으로 구현·테스트 완료. §4(반복 이벤트 묶기)는 **AI 담당 몫**, 확정되면 계약만 반영
-> - **남은 것**: §4는 AI 설계 대기. §7은 프론트가 F4-06 차단 조건에 `occurred_at == null` 추가해야 짝이 맞음
+> **상태: ⚠️ 일부 회신 완료 (2026-08-26) — §2·§3·§4·§7 해소, `recurrence` 전달 경로만 남음**
+> - 회신: `../../response/frontend/repeated-events-and-irrelevant-cards.md` (**백엔드·AI 두 회신이 한 파일에 있습니다**)
+> - **§2 무관 거래**: 현행 유지 확정 — 급여·월세 카드는 F5-04 "생계 흔적" 공백을 메우는 증거라 거르면 안 됨. 사용자가 F4-06에서 직접 뺌
+> - **§3 지연 · §4 반복 묶기**: AI가 **A안(추출 단계에서 묶기)** 으로 구현·실측 완료. 자동이체 12개월 캡처 10.4초 → 5.1~5.4초, 카드 12장 → 1장. 카드에 `recurrence { count, period, first, last }` 신설(`internal-api-contract.md`)
+> - **§7 `occurred_at == null` 게이팅**: 백엔드 A안 구현 완료 + **프론트 `isBlocking`에도 반영 완료** (2026-08-26)
+> - **남은 것**: `recurrence`가 **프론트까지 오지 않습니다.** 공개 계약(`api-contract.md`)에 없고 `ExtractedEvent`에도 필드가 없어 백엔드에서 끊깁니다 → `recurrence-not-reaching-frontend.md`로 따로 요청했습니다
 >
 > 아래 본문은 **요청 당시 원문**입니다.
 >

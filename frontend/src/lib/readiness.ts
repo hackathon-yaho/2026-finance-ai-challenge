@@ -13,7 +13,7 @@ import type { ChecklistItem, IntakeAnswers, ReadinessResult } from "../types"
 export function computeReadiness(
   intake: IntakeAnswers,
   checklist: ChecklistItem[],
-  /** 아직 확인하지 않은 카드 수 · 그중 판독 신뢰도가 낮아 진행을 막는 카드 수 */
+  /** 아직 확인하지 않은 카드 수 · 그중 진행을 막는 카드 수 (저신뢰 또는 시각 미상) */
   unconfirmed: { pending: number; blocking: number },
   historyOverride: boolean | null,
 ): ReadinessResult {
@@ -53,7 +53,7 @@ export function computeReadiness(
         ok: !hasUnconfirmed,
         desc:
           unconfirmed.blocking > 0
-            ? `판독 신뢰도가 낮은 자료 ${unconfirmed.blocking}건을 확인해야 해요`
+            ? `먼저 확인해야 하는 자료 ${unconfirmed.blocking}건이 있어요`
             : hasUnconfirmed
               ? `확인하지 않은 자료 ${unconfirmed.pending}건은 문서에 들어가지 않아요`
               : "올린 자료를 모두 확인했어요",

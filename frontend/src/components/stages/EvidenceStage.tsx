@@ -200,7 +200,7 @@ export function EvidenceStage({
 
       {blockingCount > 0 && (
         <div className="rounded-2xl bg-warning-subtle px-4 py-3.5 text-[13px] leading-normal text-warning">
-          판독 신뢰도가 낮은 자료 {blockingCount}건을 확인해야 다음 단계로 갈 수 있어요.
+          먼저 확인해야 하는 자료 {blockingCount}건이 있어요. 확인해야 다음 단계로 갈 수 있어요.
         </div>
       )}
 

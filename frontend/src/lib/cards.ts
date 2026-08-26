@@ -181,18 +181,41 @@ export function buildCards(
 /**
  * Stage 3 진입을 막는 카드 (F4-06 게이팅).
  *
- * **날짜 또는 금액이 low 신뢰도인 미확인 카드**만 막는다. 그 외 미확인 카드는 통과시키고
- * "확인하지 않은 자료 n건은 문서에 포함되지 않습니다" 경고만 띄운다.
+ * **날짜 또는 금액이 low 신뢰도이거나, 날짜를 아예 못 읽은 미확인 카드**를 막는다. 그 외
+ * 미확인 카드는 통과시키고 "확인하지 않은 자료 n건은 문서에 포함되지 않습니다" 경고만 띄운다.
  *
  * **값이 `null`인 필드의 신뢰도는 읽지 않는다** — 금액이 없는 대화 캡처의
  * `field_confidence.amount`는 의미 없는 값이다. "금액을 못 읽었다"의 단일 출처는
  * `amount == null`이고, 저신뢰 차단은 **값이 있는 카드**에만 적용한다.
+ *
+ * **`occurred_at == null`은 예외로 차단한다** (2026-08-26 백엔드 §7 확정). 은행 캡처가
+ * `08.19`처럼 연도 없이 찍히면 AI가 **연도를 지어내지 않고 `null`을 낸다** — 원칙대로
+ * 동작한 것이지 판독 실패가 아니다. 그래도 시각 없는 카드가 그대로 은행에 가면 안 되니
+ * 사용자가 한 번은 보게 만든다. `amount == null`은 계속 예외다 — 대화 캡처에 금액이 없는
+ * 것은 정상이고, 날짜만 다르게 취급한다는 것이 백엔드
+ * `EvidenceServiceImpl.hasBlockingUnconfirmedCards`와 맞춘 규칙이다.
+ *
+ * **이 게이팅은 "시각 미상"을 없애주지 않는다.** 사용자가 날짜를 안 채우고 "맞아요"만 눌러도
+ * 차단은 풀리고 3면에는 "시각 미상"이 남는다. 채우는 것은 사용자 선택이다.
  */
 export function isBlocking(card: ExtractedCard): boolean {
   if (card.confirmation_status !== "pending") return false
+  const dateMissing = card.occurred_at === null
   const dateLow = card.occurred_at !== null && card.field_confidence.occurred_at === "low"
   const amountLow = card.amount !== null && card.field_confidence.amount === "low"
-  return dateLow || amountLow
+  return dateMissing || dateLow || amountLow
+}
+
+/**
+ * 왜 막혔는지 (화면 문구용).
+ *
+ * 이유를 구분하지 않으면 시각을 못 읽은 카드에까지 "판독 신뢰도가 낮아요"가 붙는다.
+ * 연도 없는 캡처는 신뢰도 문제가 아니라 **읽을 연도가 화면에 없던 것**이라 사용자가
+ * 무엇을 해야 하는지도 달라진다.
+ */
+export function blockingReason(card: ExtractedCard): "date_missing" | "low_confidence" | null {
+  if (!isBlocking(card)) return null
+  return card.occurred_at === null ? "date_missing" : "low_confidence"
 }
 
 export function blockingCards(cards: ExtractedCard[]): ExtractedCard[] {

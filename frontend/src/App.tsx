@@ -74,7 +74,7 @@ function App() {
   // 단계 인디케이터로 건너뛰는 경로도 같은 조건으로 막는다 (F1-04).
   const handleStepClick = (n: number) => {
     if (n >= 3 && stage < 3 && cardsBlock) {
-      flow.showToast(`판독 신뢰도가 낮은 자료 ${flow.blockingCount}건을 먼저 확인해주세요`)
+      flow.showToast(`먼저 확인해야 하는 자료 ${flow.blockingCount}건이 있어요`)
       return
     }
     flow.go(n)
