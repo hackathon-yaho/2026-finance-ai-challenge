@@ -81,7 +81,7 @@ public class PackageServiceImpl implements PackageService {
         return session.getSentences().stream()
                 .filter(s -> !excludedSentenceIds.contains(s.sentenceId()))
                 .map(StoredSentence::text)
-                .reduce((a, b) -> a + " " + b)
+                .reduce((a, b) -> a + "\n" + b)
                 .orElse("");
     }
 
