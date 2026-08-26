@@ -198,16 +198,30 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
           </div>
           <div className="mt-1.5 text-[15px] leading-normal font-semibold tracking-tight">{card.summary}</div>
         </div>
-        {/* 접힌 카드도 열 수 있다는 것이 보여야 한다. 차단 카드는 접히지 않으므로 표시하지 않는다. */}
+        {/**
+         * 접힌 카드도 열 수 있다는 것이 보여야 한다. 차단 카드는 접히지 않으므로 표시하지 않는다.
+         *
+         * 글자(`▾`)가 아니라 SVG로 그린다 — 글리프는 폰트마다 굵기·중심이 달라 카드 제목 옆에서
+         * 무겁게 튄다. 얇은 선에 둥근 끝으로 두고 배경 상자도 없앤다. 이 자리에서 필요한 것은
+         * **방향 표시**이지 버튼처럼 보이는 것이 아니다.
+         */}
         {!blocking && (
-          <span
+          <svg
             aria-hidden
-            className={`mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-md bg-surface text-[13px] text-muted transition-transform duration-200 ${
-              open ? "rotate-180" : ""
-            }`}
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            className={`mt-1 flex-none text-neutral transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           >
-            ▾
-          </span>
+            <path
+              d="M5.75 8.25 10 12.25l4.25-4"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         )}
       </button>
 
