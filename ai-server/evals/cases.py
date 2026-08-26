@@ -399,6 +399,54 @@ MIXED_CASES = [
     ),
 ]
 
+# ── 실전 캡처에서 드러난 조건 (프론트 로컬 연동 실측, 2026-08-26) ─────────
+# 제가 만든 합성 세트는 한 장에 최대 3건이고 날짜에 연도가 늘 있었다.
+# 실제 캡처는 그렇지 않았고, 그 차이가 타임아웃과 null 날짜로 드러났다.
+# 출처: docs/request/backend/repeated-events-and-irrelevant-cards.md §3·§7
+
+REAL_WORLD_CASES = [
+    Case(
+        case_id="ev-many-01",
+        render="bank",
+        title="자동이체 내역",
+        rows=[
+            (f"2026.{m:02d}.15 09:00", "통신요금 자동이체", "-65,890", "1,204,300")
+            for m in range(1, 13)
+        ],
+        expected=[ExpectedEvent(f"2026-{m:02d}-15", 65890, "autopay") for m in range(1, 13)],
+        life_activity=True,
+        checks=(
+            "한 장에서 이벤트 12건 — 실전 캡처의 실제 밀도",
+            "이벤트 수가 지연에 미치는 영향 측정 (프론트 실측 15.1초 → 504)",
+        ),
+        notes="프론트가 실제 캡처로 잡은 조건. 내 합성 세트는 최대 3건이라 "
+        "이 구간을 재본 적이 없었다 — p95 측정이 실전을 대표하지 못했다.",
+    ),
+    Case(
+        case_id="ev-noyear-01",
+        render="bank",
+        title="입출금내역",
+        rows=[
+            ("08.19  10:07", "김민준", "450,000", "1,204,300"),
+            ("08.19  14:22", "이서연", "120,000", "1,324,300"),
+            ("08.20  09:11", "박서준", "80,000", "1,404,300"),
+        ],
+        # 연도가 화면에 없다 → 지어내지 않는 것이 정답이다(프롬프트 7-1).
+        # 날짜를 채우면 그게 결함이다.
+        expected=[
+            ExpectedEvent(None, 450000, "bank", payer_name="김민준"),
+            ExpectedEvent(None, 120000, "bank", payer_name="이서연"),
+            ExpectedEvent(None, 80000, "bank", payer_name="박서준"),
+        ],
+        checks=(
+            "연도 없는 은행 캡처에서 연도를 지어내지 않는다",
+            "실제 은행 앱은 올해 거래에 연도를 찍지 않는다 — 예외가 아니라 기본값",
+        ),
+        notes="프론트 실측: 이 조건에서 occurred_at 11건 전부 null이 나왔다. "
+        "AI 품질 문제가 아니라 원칙대로 동작한 것이다.",
+    ),
+]
+
 ALL_CASES: list[Case] = (
     BASE_CASES
     + THREAT_CASES
@@ -407,6 +455,7 @@ ALL_CASES: list[Case] = (
     + INJECTION_CASES
     + PRIVACY_CASES
     + MIXED_CASES
+    + REAL_WORLD_CASES
 )
 
 
