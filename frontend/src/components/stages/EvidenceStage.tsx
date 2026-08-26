@@ -205,7 +205,9 @@ export function EvidenceStage({
       )}
 
       {/* F4-06 — 확인 없이 소명서를 만들면 틀린 서류가 은행에 간다. 확인한 카드만 문서에 들어간다. */}
-      <div className={wide ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
+      {/* `items-start` — 그리드 기본값(`stretch`)이면 같은 행의 카드가 가장 큰 것에 맞춰
+          늘어난다. 한쪽만 접었을 때 **내용만 사라지고 빈 상자가 남아** 접은 보람이 없다. */}
+      <div className={wide ? "grid grid-cols-2 items-start gap-3" : "flex flex-col gap-3"}>
         {cards.map((card) => (
           <ConfirmCard
             key={card.event_id}
