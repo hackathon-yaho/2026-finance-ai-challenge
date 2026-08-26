@@ -73,7 +73,7 @@ record Session(
 | **`deliveryMethod`** | enum \| null | `courier` \| `in_person` \| `not_applicable` \| null | **F5-03 ① 직거래 예외** (2026-08-25 신설). `kind !== "goods"`면 `null` |
 
 - [x] ~~증분 저장 허용~~ — **전체 교체(PUT류)로 정정**(위 배너 참조). `null`로 온 필드는 지운다
-- [ ] `dueNoticeStatus == notified`이면 `dueNoticeDate` 필수 검증
+- [x] `dueNoticeStatus == notified`이면 `dueNoticeDate` 필수 + `YYYY-MM-DD` 형식 검증(존재하지 않는 날짜 포함), 위반 시 `400 INVALID_FORM_FIELD` (2026-08-26 형식 검증 추가 — `api-contract.md` v1.14)
 - [ ] 응답 `{ ok, nextStage, deadline }` (2-5 참조)
 
 > **문항 수**: PRD FR-010·spec F2-01 모두 **6문항으로 정정 완료**됐다(2026-08-23 백엔드 / 08-24 프론트). 공고 문항 하나가 `dueNoticeStatus`+`dueNoticeDate` 2필드로 쪼개져 **6문항 = 7필드**다. **계약 문서인 `api-contract.md`를 따른다.**
