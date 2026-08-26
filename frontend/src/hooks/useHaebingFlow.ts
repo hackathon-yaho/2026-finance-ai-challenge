@@ -70,6 +70,8 @@ interface ServerState {
   draftLines: DraftLine[] | null
   /** `/api/evidence/confirm` 응답. 준비도 신호 문구가 이 값을 쓴다. */
   unconfirmedCount: number | null
+  /** `/api/evidence` 응답의 `signals.threat_detected`. 한 번 켜지면 내리지 않는다. */
+  threatDetected: boolean
 }
 
 const EMPTY_SERVER: ServerState = {
@@ -81,6 +83,7 @@ const EMPTY_SERVER: ServerState = {
   readiness: null,
   draftLines: null,
   unconfirmedCount: null,
+  threatDetected: false,
 }
 
 export function useHaebingFlow() {
@@ -353,10 +356,25 @@ export function useHaebingFlow() {
     [live, runLive, toggle],
   )
 
+  /**
+   * `[협박 문자 캡처 추가하기]`.
+   *
+   * **연결된 상태에서는 업로드 화면으로 보낸다.** 목에서는 증거 유형 토글을 켜는 것으로
+   * 흉내 냈는데, 서버에 붙으면 카드도 타임라인도 서버 값이 우선이라 **이 토글이 화면에
+   * 아무 영향을 주지 않는다** — 눌러도 아무 일이 없으면서 사용자는 첨부됐다고 믿는다.
+   * 협박 대응은 P0(FR-024)라 그런 채로 둘 수 없다.
+   *
+   * 실제로 필요한 동작은 "그 캡처를 올리는 것"이고, 올리면 AI가 `source_type: "threat"`으로
+   * 분류하며 `signals.threat_detected`가 켜져 상단 배너로 이어진다 (F10-02).
+   */
   const addThreat = useCallback(() => {
+    if (live) {
+      setFilesReady(false)
+      return
+    }
     setEvidence((prev) => ({ ...prev, threat: true }))
     setDraftShown(false)
-  }, [])
+  }, [live])
 
   /**
    * 카드 상태를 화면에 **먼저** 반영하고 서버에 보낸다.
@@ -651,7 +669,13 @@ export function useHaebingFlow() {
       // **한 장이 실패해도 나머지는 간다** (F4-05). 몇 장을 못 읽었는지는 말해준다.
       if (failed > 0) showToast(`자료 ${failed}장을 읽지 못했어요. 읽은 것만 정리할게요`)
       const fresh = results.flatMap((r) => r.data?.cards ?? [])
-      setServer((prev) => ({ ...prev, cards: [...(prev.cards ?? []), ...fresh] }))
+      // F10-02 — 협박 감지는 **판정과 독립적으로** 산출된다. 한 장이라도 켜지면 켠다.
+      const threat = results.some((r) => r.data?.signals.threat_detected === true)
+      setServer((prev) => ({
+        ...prev,
+        cards: [...(prev.cards ?? []), ...fresh],
+        threatDetected: prev.threatDetected || threat,
+      }))
       return results
     }).finally(() => setExtracting(false))
   }, [live, runLive, showToast, uploadedFiles])
@@ -725,8 +749,23 @@ export function useHaebingFlow() {
     setReviseWarning(null)
     setExtracting(false)
     sentCount.current = 0
-    // 세션도 새로 판다. 이전 세션에 남은 카드가 다음 사용자의 준비도에 섞이면 안 된다.
-    if (live) void api.createSession().catch(() => null)
+    /**
+     * **이전 세션을 서버에서 지우고** 새로 판다.
+     *
+     * 5단계 완료 시 자동 파기(트리거 ③)는 구현하지 않기로 결정됐다 (2026-08-26) — 다운로드
+     * 직후 지우면 문장을 고쳐 다시 받는 흐름이 막히기 때문이다. 그래서 남는 파기 경로는
+     * 30분 TTL과 **명시적 `DELETE`(트리거 ②)** 뿐이다.
+     *
+     * 여기서 지우지 않으면 `[처음으로]`를 눌러도 앞사람의 카드가 서버에 최대 30분 남는다.
+     * 화면은 "탭을 닫으면 사라져요"라고 말하고 있으므로, 처음으로 돌아가는 것도 같아야 한다.
+     */
+    if (live) {
+      void api
+        .destroySession()
+        .catch(() => null)
+        .then(() => api.createSession())
+        .catch(() => null)
+    }
     window.scrollTo(0, 0)
   }, [live])
 
@@ -979,6 +1018,18 @@ export function useHaebingFlow() {
             : buildDraftLines(intake, confirmed, true, documentAmount),
     [server.draftLines, draftShown, entryMode, intake, cards, confirmed, documentAmount],
   )
+  /**
+   * 협박 감지 (F10-02 · FR-024) — **상단 고정 배너**의 조건이다.
+   *
+   * 세 갈래를 함께 본다. ① 서버 `signals.threat_detected` ② 협박 카드가 하나라도 있음
+   * (`/api/evidence/text`는 `signals`를 주지 않아 카드로 판단해야 한다) ③ 목의 증거 토글.
+   *
+   * **한 번 켜지면 내리지 않는다.** 협박을 당하는 중인 사람에게 "돈을 보내지 마세요"를
+   * 화면을 옮겼다고 거두면 안 된다. 명세도 감지 시점부터 상단 고정이라고 정해 두었다.
+   */
+  const threatDetected =
+    server.threatDetected || evidence.threat || cards.some((card) => card.source_type === "threat")
+
   draftLinesRef.current = draftLines
   const confirmedCount = cards.length - unconfirmedCount
   // 확인하지 않아 문서에서 빠진 자료 수. 사용자가 "왜 문장이 적지?"를 알 수 있어야 한다.
@@ -1027,6 +1078,7 @@ export function useHaebingFlow() {
     analyzing,
     analyzed,
     extracting,
+    threatDetected,
     analyze,
     timelineRunId,
     historyOverride,

@@ -249,7 +249,10 @@ export function EvidenceStage({
         </p>
       )}
 
-      {!evidence.threat && (
+      {/* 이미 협박 카드가 있으면 권하지 않는다. 목은 `evidence.threat`가, 연결된 상태에서는
+          AI가 분류한 카드가 그 사실을 알려준다 — 목 플래그만 보면 서버 판독으로 이미 들어온
+          경우에도 계속 권하게 된다. */}
+      {!evidence.threat && !cards.some((card) => card.source_type === "threat") && (
         <button type="button" onClick={onAddThreat} className="h-11 self-start rounded-xl border border-border bg-bg px-4 text-[15px] font-semibold text-ink">
           협박 문자 캡처 추가하기
         </button>
@@ -298,10 +301,12 @@ export function EvidenceStage({
                   >
                     {ev.text}
                   </div>
-                  {ev.action && ev.srcToggle && (
+                  {/* 공백을 메우는 길 (F5-03 `[추가하기]`). 목은 증거 유형 토글로 시늉했고,
+                      연결된 상태에서는 자료를 더 올리는 것 말고 메울 방법이 없다. */}
+                  {ev.action && (ev.srcToggle || ev.toUpload) && (
                     <button
                       type="button"
-                      onClick={() => onToggle(ev.srcToggle as EvidenceId)}
+                      onClick={ev.toUpload ? onBackToUpload : () => onToggle(ev.srcToggle as EvidenceId)}
                       className="h-11 rounded-xl border border-danger px-4 text-[15px] font-semibold text-danger"
                     >
                       {ev.action}

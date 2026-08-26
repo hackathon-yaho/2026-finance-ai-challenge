@@ -39,13 +39,15 @@ function formatWhen(occurredAt: string | null): string {
 /**
  * 증거 공백을 타임라인 노드로 (F5-03).
  *
- * **`action` 버튼을 만들지 않는다.** 목에서는 그 버튼이 증거 토글을 켰지만, 실제로는 자료를
- * 더 올리는 것 말고 할 수 있는 일이 없다. 누르면 아무 일도 안 하는 버튼을 두지 않는다.
+ * **버튼은 업로드 화면으로 보낸다** (F5-03 `[추가하기]`). 목에서는 그 자리가 증거 유형
+ * 토글이었지만, 서버가 찾은 공백은 자료를 더 올리는 것 말고 메울 방법이 없다. 공백만
+ * 보여주고 갈 곳을 안 주면 사용자는 막힌 채로 다음 단계로 간다.
+ *
  * `suggestions`는 **비어 있는 것이 정상**이라(`no_life_activity`) 있을 때만 덧붙인다.
  */
 function gapToEvent(gap: EvidenceGap): TimelineEvent {
   const hint = gap.suggestions.length > 0 ? ` · ${gap.suggestions.join(" · ")}` : ""
-  return { time: "시각 미상", text: `${gap.label}${hint}`, gap: true }
+  return { time: "시각 미상", text: `${gap.label}${hint}`, gap: true, action: "자료 올리기", toUpload: true }
 }
 
 /**

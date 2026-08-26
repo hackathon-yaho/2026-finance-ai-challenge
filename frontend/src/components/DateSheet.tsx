@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   addMonths,
   formatMonth,
@@ -67,7 +68,15 @@ export function DateSheet({ title, hint, value, width, max, min, onSelect, onClo
     { label: "어제", iso: shiftDays(today, -1) },
   ].filter((quick) => quick.iso >= first && quick.iso <= last)
 
-  return (
+  /**
+   * **`document.body`로 포털한다.**
+   *
+   * 이 시트는 `position: fixed`로 화면에 붙는데, 조상 중에 `transform`이 걸린 요소가 있으면
+   * 기준이 그 요소로 바뀌어 **화면 밖에 뜬다.** 실제로 확인 카드 안에서 열었을 때
+   * `.stagger` 애니메이션(transform 포함)이 조상이라 시트가 뷰포트 아래로 나갔다.
+   * 부르는 쪽이 어디에 있든 안전하도록 여기서 한 번에 막는다.
+   */
+  return createPortal(
     <>
       <div onClick={onClose} className="animate-scrim-in fixed inset-0 z-30 cursor-pointer bg-black/56" />
       <div
@@ -194,6 +203,7 @@ export function DateSheet({ title, hint, value, width, max, min, onSelect, onClo
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }

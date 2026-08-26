@@ -18,3 +18,4 @@ AI 개발자에게 요청할 사항을 문서로 정리하는 폴더입니다.
 | [demo-response-set.md](demo-response-set.md) | ✅ 회신 완료 (08-25) | Phase 6 `DEMO_MODE` — v1 납품(`ai-server/demo/`), v2는 리허설 때 |
 | [payer-name-extraction.md](payer-name-extraction.md) | ✅ 회신 완료 (08-25) | Phase 3 구매자–송금인 대조 — §2 절충안에 대한 백엔드 결정 대기 |
 | [llm-provider-mismatch.md](llm-provider-mismatch.md) | ✅ 회신 완료 (08-26) | 해소 — `AI_CONFIG_ERROR`(500) 신설·재시도 제거, 텍스트 경로 `fallback` 정정, 기동 시 키 확인. 회귀 테스트 3건 |
+| ↗ [../backend/repeated-events-and-irrelevant-cards.md](../backend/repeated-events-and-irrelevant-cards.md) | ⏳ 회신 대기 (08-26) | **백엔드 앞으로 쓴 문서지만 §3·§4·§7이 추출 단계 몫입니다.** 반복 항목 12장 → 묶기, 무관 거래 제외, 이벤트 많으면 `TIMEOUT`(15.1초 실측), 연도 없는 캡처의 `occurred_at: null`. **결정이 하나라 문서를 쪼개지 않고 여기에 포인터만 둡니다** |

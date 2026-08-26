@@ -104,6 +104,31 @@ function App() {
     <div className="flex min-h-dvh flex-col font-sans text-ink antialiased" style={{ letterSpacing: "-0.005em" }}>
       <TopBar stage={stage} width={width} onBack={flow.back} onStepClick={handleStepClick} />
 
+      {/**
+       * 협박 대응 배너 (F10-02 · F10-03 · FR-024).
+       *
+       * `signals.threat_detected`가 켜지면 **화면 상단에 고정**한다 — 계약이 "사용자가 다음
+       * 단계로 넘어가길 기다리지 않는다"고 못 박은 자리다. 협박을 받는 사용자는 5단계까지
+       * 가지 않을 수 있고(PRD P-03), **가장 먼저 지우는 것이 가장 중요한 자료**라는 역설이
+       * 이 배너의 존재 이유다.
+       *
+       * 문구는 F10-03의 세 가지를 그대로 쓴다. 줄이거나 순화하지 않는다.
+       */}
+      {flow.threatDetected && (
+        <div className="sticky top-0 z-20 border-b border-danger/30 bg-danger-subtle" style={{ padding: `10px ${pad}px` }}>
+          <div className="mx-auto flex max-w-[720px] items-start gap-3">
+            <div className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md bg-danger text-[13px] font-bold text-white">
+              !
+            </div>
+            <p className="text-[13px] leading-normal">
+              <b>협박 연락을 받고 있다면</b>
+              <br />
+              돈을 보내지 마세요 · 메시지를 지우지 마세요 · 답장하지 마세요
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1">
         <div className="mx-auto max-w-[720px]" style={{ padding: `${pad}px ${pad}px 132px` }}>
           {/* 진행 방향을 자손 .stagger에 공급한다. key로 단계마다 다시 재생시킨다. */}
