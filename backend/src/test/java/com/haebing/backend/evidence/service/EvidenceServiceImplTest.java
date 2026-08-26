@@ -171,6 +171,30 @@ class EvidenceServiceImplTest {
         assertThat(service.hasBlockingUnconfirmedCards(session)).isTrue();
     }
 
+    /**
+     * docs/request/backend/repeated-events-and-irrelevant-cards.md §7 — 은행 캡처는 연도를 안 보여줘
+     * occurred_at이 null로 떨어지는 게 정상 케이스인데, 그동안 이게 게이팅을 그냥 통과했다.
+     * amount == null과 달리(대화 캡처에 금액이 없는 것은 정상) occurred_at == null은 정보 누락이라
+     * high 신뢰도라도(=신뢰도 필드 자체가 의미 없음) 확인 없이는 통과시키지 않는다.
+     */
+    @Test
+    void hasBlockingUnconfirmedCards_nullOccurredAt_blocksEvenWithHighConfidence() {
+        session.upsertCard(new ExtractedEvent("evt_1", 0, "bank", null, "self", "요약", 1000L,
+                null, null, new Identifiers(null, null),
+                new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.PENDING));
+
+        assertThat(service.hasBlockingUnconfirmedCards(session)).isTrue();
+    }
+
+    @Test
+    void hasBlockingUnconfirmedCards_nullOccurredAtButConfirmed_doesNotBlock() {
+        session.upsertCard(new ExtractedEvent("evt_1", 0, "bank", null, "self", "요약", 1000L,
+                null, null, new Identifiers(null, null),
+                new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.USER_CONFIRMED));
+
+        assertThat(service.hasBlockingUnconfirmedCards(session)).isFalse();
+    }
+
     @Test
     void hasBlockingUnconfirmedCards_confirmedCardIgnoredEvenIfLow() {
         session.upsertCard(new ExtractedEvent("evt_1", 0, "chat", "2026-09-01T00:00:00+09:00", "self", "요약", 1000L,

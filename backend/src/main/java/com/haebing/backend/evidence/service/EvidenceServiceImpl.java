@@ -136,7 +136,12 @@ public class EvidenceServiceImpl implements EvidenceService {
             // 계약(internal-api-contract.md)은 field_confidence가 항상 채워진다고 보장하지만, AI-server가
             // 이 계약을 어기면(계약 위반 하나로 게이팅 전체가 NPE→500이 되는 것을 막는다) 값이 있는데
             // 신뢰도를 모르는 상태로 보고 보수적으로 차단한다 — 조용히 통과시키는 쪽이 더 위험하다(F4-06).
-            boolean dateBlocks = card.occurredAt() != null && (fc == null || FieldConfidence.LOW.equals(fc.occurredAt()));
+            //
+            // occurred_at == null은 amount == null과 성격이 다르다(docs/request/backend/
+            // repeated-events-and-irrelevant-cards.md §7). 대화 캡처에 금액이 없는 것은 정상이지만,
+            // 은행 앱이 연도를 안 보여줘 날짜를 못 읽은 것은 정보 누락이다 — amount처럼 "값 없으면
+            // 신뢰도 안 읽고 통과"가 아니라, 값이 없다는 사실 자체가 확인이 필요한 상태다.
+            boolean dateBlocks = card.occurredAt() == null || fc == null || FieldConfidence.LOW.equals(fc.occurredAt());
             boolean amountBlocks = card.amount() != null && (fc == null || FieldConfidence.LOW.equals(fc.amount()));
             if (dateBlocks || amountBlocks) return true;
         }

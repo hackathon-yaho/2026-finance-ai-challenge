@@ -1,5 +1,8 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-26 ⑦, 백엔드)** — 근거: `../request/backend/repeated-events-and-irrelevant-cards.md` §7 (프론트 실연동 신고)
+> - **`occurred_at == null`도 `UNCONFIRMED_FIELDS` 차단 대상으로 확장.** 은행 앱이 연도를 안 보여주는 캡처(`08.19`)는 `occurred_at: null`이 정상 동작인데, 종전 "값이 `null`이면 신뢰도 안 읽는다" 규칙 때문에 확인 없이 그냥 통과했다. `amount == null`은 그대로 둔다(대화 캡처에 금액 없는 것은 정상) — `occurred_at`만 정보 누락으로 취급한다. `/api/readiness`·`/api/draft` 둘 다 적용
+
 > **수정 기록 (2026-08-26 ⑥, 백엔드)** — 문서 반영 누락 자체 점검으로 발견
 > - **`/api/intake`의 `dueNoticeDate` 형식(`YYYY-MM-DD`) 및 위반 시 `400 INVALID_FORM_FIELD`를 명시.** 이 검증은 이전부터 코드에 있었는데(`notified` + 값 없음) 계약서엔 한 번도 반영된 적이 없었고, 오늘 형식 검증(존재하지 않는 날짜 등)까지 추가하면서 갭이 커졌다
 
@@ -268,7 +271,9 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 
 날짜 또는 금액이 `low` 신뢰도인 카드가 `confirmation_status: "pending"`으로 남아 있으면, 프론트엔드는 Stage 3(`/api/readiness`) 진입을 차단하고 확인을 요구합니다(FR-028).
 
-**백엔드도 서버 측에서 같은 조건을 검사해 `/api/readiness`를 거부합니다**(2026-08-23 확정, `409` + `UNCONFIRMED_FIELDS`). 프론트 차단은 사용자 경험, 서버 거부는 데이터 무결성 목적입니다 — 확인되지 않은 low 신뢰도 금액·날짜로 준비도가 산출되면 틀린 서류가 은행에 제출됩니다(F4-06 필요성). 그 외 미확인 카드는 서버도 통과시키며, 준비도 산출 입력에서 제외될 뿐입니다(F6-03).
+**`occurred_at == null`도 같은 차단 대상입니다** (2026-08-26 정정 — `../request/backend/repeated-events-and-irrelevant-cards.md` §7). 은행 앱이 연도를 표시하지 않는 캡처(예: `08.19`)에서는 `occurred_at`이 `null`로 정직하게 내려가는 것이 정상 동작인데, 종전 규칙("값이 `null`인 필드의 신뢰도는 읽지 않는다")을 그대로 적용하면 이 카드가 확인 없이 그냥 통과했습니다. `amount == null`과는 성격이 다릅니다 — 대화 캡처에 금액이 없는 것은 정상이지만, **입출금 카드에 날짜가 없는 것은 정보 누락**이므로 `low` 신뢰도와 동급으로 차단합니다. `amount`는 종전 규칙 그대로입니다(`null`이면 차단 안 함).
+
+**백엔드도 서버 측에서 같은 조건을 검사해 `/api/readiness`·`/api/draft`를 거부합니다**(2026-08-23 확정, `409` + `UNCONFIRMED_FIELDS`; 2026-08-26 `occurred_at == null` 포함하도록 확장). 프론트 차단은 사용자 경험, 서버 거부는 데이터 무결성 목적입니다 — 확인되지 않은 low 신뢰도·누락 날짜로 준비도가 산출되면 틀린 서류가 은행에 제출됩니다(F4-06 필요성). 그 외 미확인 카드는 서버도 통과시키며, 준비도 산출 입력에서 제외될 뿐입니다(F6-03).
 
 ## `/api/evidence/confirm` 요청
 
@@ -624,7 +629,7 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 | `EXTRACTION_FAILED` | 판독 실패 (`502`) | **이미지 경로**(`/api/evidence`)만 `fallback: "/api/evidence/text"`로 텍스트 입력을 안내. **텍스트 경로**(`/api/evidence/text`)는 `fallback`이 없다 — 이미 텍스트인 요청에 텍스트 입력을 다시 안내하면 같은 자리를 맴돈다(2026-08-26 ③) |
 | `TIMEOUT` | 20초 초과 | 부분 결과 표시 + "일부 자료를 읽지 못했습니다" |
 | `SESSION_EXPIRED` | TTL 30분 초과 (`410 Gone`) | 세션 재생성 후 처음부터 안내. 원본 이미지는 서버에 없었으므로 재업로드 필요 |
-| `UNCONFIRMED_FIELDS` | 날짜·금액**(값이 `null`이 아닌 경우에 한함)**이 `low` 신뢰도인 미확인 카드가 남은 채 `/api/readiness` 호출 (`409`) | 해당 카드 확인 화면으로 유도 |
+| `UNCONFIRMED_FIELDS` | 날짜가 `null`이거나(2026-08-26 추가), 날짜·금액**(값이 `null`이 아닌 경우에 한함)**이 `low` 신뢰도인 미확인 카드가 남은 채 `/api/readiness`·`/api/draft` 호출 (`409`) | 해당 카드 확인 화면으로 유도 |
 | `INVALID_FORM_FIELD` | `/api/package/text` 요청 바디의 필드가 길이·형식 제한을 위반, 또는 `/api/intake`의 `dueNoticeDate`가 `notified` 상태인데 없거나 `YYYY-MM-DD`가 아님 (`400`, 후자는 2026-08-26 명시) | 해당 입력 칸에 사유 표시 (빈 값은 위반이 아님) |
 | `QUOTA_EXCEEDED` | LLM API 쿼터 초과 | 오프라인 데모 모드로 전환 (발표 대비, `../04-testing/test-cases-and-demo.md` 참조) |
 | `DRAFT_FAILED` | `/api/draft`가 AI-server 소명서 생성에 실패(내부 재시도 1회 후에도 실패) (`502`, 2026-08-26 신설) | "잠시 후 다시 시도해주세요" 안내. 재시도는 사용자가 다시 `/api/draft`를 호출하는 것으로 |
@@ -634,6 +639,7 @@ PRD §4.4 별지 제4호서식 필드 매핑상 아래 값은 **사용자 직접
 
 이 문서를 수정하면 아래에 한 줄씩 남기세요.
 
+- **v1.15 (2026-08-26 ⑦)**: 프론트 실연동 신고 반영. `occurred_at == null`도 `UNCONFIRMED_FIELDS` 차단 대상으로 확장(연도 없는 은행 캡처가 확인 없이 통과하던 문제) — `amount == null`은 그대로 둠
 - **v1.14 (2026-08-26 ⑥)**: 문서 반영 누락 자체 점검. `/api/intake`의 `dueNoticeDate` 형식(`YYYY-MM-DD`)과 위반 시 `400 INVALID_FORM_FIELD`를 명시 — 검증 자체는 기존 코드에 있었으나 계약서엔 없었음
 - **v1.13 (2026-08-26 ⑤)**: 문서-구현 불일치 자체 점검 반영. `/api/draft/revise`에서 `text` 수정 시 "매칭 여부와 무관하게 항상 `user_text`로 강등"하는 게 실제 동작임을 명시(종전 "여전히 매칭되면 그대로" 표는 구현과 달랐음 — 동작 영향 없음, 프론트는 이미 서버 응답 기준으로 배지를 그림). `/api/draft` 응답의 `checklist` 예시를 8필드 현행 스키마로 정정(구버전 `{ item, have }` 잔존 — 코드는 이미 정상)
 - **v1.12 (2026-08-26 ④)**: AI-server 내부 계약 변경 반영. `AI_CONFIG_ERROR`(500) 신설 — 재시도·텍스트 입력 유도 없음. `EXTRACTION_FAILED`의 `fallback`은 이미지 경로에만 붙는 것으로 정정

@@ -1,5 +1,8 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-26 ⑤, 백엔드)** — 근거: `../request/backend/repeated-events-and-irrelevant-cards.md` §7 (프론트 실연동 신고)
+> - **`occurred_at == null`을 `amount == null`과 다르게 취급하도록 해석 규칙 보완.** 연도 없는 은행 캡처가 확인 없이 게이팅을 통과하던 문제 — 아래 "신뢰도의 `null`" 절 참조. AI-server 쪽 변경 없음(백엔드 게이팅 로직만 바뀜)
+
 > **수정 기록 (2026-08-26 ④, 백엔드)** — 근거: `../request/backend/h2c-upgrade-breaks-ai-call.md` (프론트 로컬 3층 실연동 신고)
 > - **평문 HTTP로 AI-server를 호출할 때 h2c(HTTP/2 cleartext) 업그레이드를 시도하지 않음을 명시.** 종전 `RestClient`가 JDK `HttpClient` 기본 협상에 맡겨 uvicorn(h2c 미지원)과 붙으면 요청 본문이 통째로 유실됐다. `AiServerConfig`가 이제 클라이언트를 **HTTP/1.1로 고정**한다(계약 변경 아님, 구현 버그 수정) — `DEMO_MODE=true`에서는 이 경로 자체가 실행되지 않아 지금까지 드러나지 않았다
 
@@ -202,6 +205,8 @@ AI-server는 **무상태**(세션을 모름)이므로, 호출 간 ID 충돌을 �
 | `occurred_at` · `actor` · `amount` | **불허** (종전대로 3값) | 프론트가 F4-06 카드에서 "높음 / 확인 필요" 배지로 **항상** 렌더하는 값입니다. 세 번째 상태를 만들면 프론트 분기가 늘어납니다 |
 
 > **해석 규칙 — 값이 `null`인 필드의 신뢰도는 읽지 마세요.** `amount`가 `null`인 카드(금액이 없는 대화 캡처, 흐려서 못 읽은 금액)의 `field_confidence.amount`는 의미 없는 값입니다. **"금액을 못 읽었다"의 단일 출처는 `amount == null`** 이고, 날짜는 `occurred_at == null`과 `qualityFlags[event_id].missing_date`입니다. FR-028의 low 신뢰도 차단은 **값이 있는 카드**에만 적용하세요.
+>
+> **단, `occurred_at == null`은 `amount == null`과 다르게 취급합니다** (2026-08-26 ⑦ 정정 — `../request/backend/repeated-events-and-irrelevant-cards.md` §7). 대화 캡처에 금액이 없는 것은 정상이지만, 은행 앱이 연도를 안 보여줘 날짜를 못 읽은 캡처(`08.19`)는 **정보 누락**입니다. 백엔드는 `occurred_at == null`인 `pending` 카드를 `low` 신뢰도와 동급으로 `UNCONFIRMED_FIELDS`(409) 대상에 넣습니다 — "값이 없으면 신뢰도를 안 읽는다"가 여기서는 "확인을 건너뛴다"가 아니라 "신뢰도와 무관하게 확인이 필요하다"로 해석됩니다. `amount`는 이 예외에 해당하지 않습니다.
 
 > **값의 형태 (2026-08-25 확정 — 화면 표시명 그대로)**: 부분 마스킹(`김O수`)은 채택하지 않습니다. ① 동성·동돌림자 오탐(김민수/김영수 → 둘 다 `김O수`)으로 판별력이 떨어지고 ② **마스킹 규칙 자체를 LLM에 시키면 2글자 이름·법인명·외국명에서 비결정적**이 되어, 결정적 대조 로직의 전제가 깨집니다. 대신 **추출 범위를 거래 당사자로 한정**하는 것으로 개인정보 원칙을 지킵니다 — 상세와 근거는 `../03-infra-ops/privacy-and-safety.md` "거래 당사자 표시명 예외" 절. 판단 근거: `../response/backend/payer-name-extraction.md` §2.
 
