@@ -48,8 +48,8 @@
 | [evidence-timeline-schema-additions.md](evidence-timeline-schema-additions.md) | ✅ **완결** (08-26 회신 / 백엔드 답변 완료) | Phase 3 계약 보완 4건 — **전부 수용**. `imageIndex`는 **세션 누적 기준 맞음**(백엔드는 값을 그대로 통과시킬 뿐). 중복 인덱스는 막지 않음 |
 | [readiness-checklist-catalog-diffs.md](readiness-checklist-catalog-diffs.md) | ✅ 회신 완료 (08-26) | Phase 4 체크리스트 차이 2건 — **둘 다 문서가 맞음**. 목 카탈로그 정정 완료, 화면 변경 불필요 |
 | [draft-revise-and-package-notes.md](draft-revise-and-package-notes.md) | ✅ **완결** (08-26 ② 회신 / 백엔드 답변 완료) | Phase 5 — 배열에서 빼는 방식 수용, `DRAFT_FAILED` 반영. **`excludedSentenceIds`가 최종 확정**(순수 제외엔 `revise` 불필요) + `DRAFT_FAILED` 후 세션·확인 카드 유지 확정 |
-| [page4-grouped-by-origin.md](page4-grouped-by-origin.md) | ⏳ 회신 대기 (08-26) | 4면 증빙자료 목록을 **카드 단위 → 원본(첨부) 단위**로 재구성(백엔드 구현·배포 완료). S04-2 "정리해서 보기"가 4면을 별도 렌더링한다면 같은 그룹핑으로 맞춰야 미리보기-실제 파일 불일치 방지 |
+| [page4-grouped-by-origin.md](page4-grouped-by-origin.md) | ✅ 회신 완료 (08-26) | 4면 증빙자료 목록을 **카드 단위 → 원본(첨부) 단위**로 재구성. S04-2 "정리해서 보기"의 4면 렌더링을 **같은 그룹핑으로 맞췄습니다** — 계약 변경 없음, 후속 작업 없음 |
 
-> **2026-08-26 기준 대기 중인 요청 1건** — `page4-grouped-by-origin.md`(S04-2 4면 렌더링 정합성 확인).
+> **2026-08-26 기준 대기 중인 요청 없음.**
 >
 > `local-integration-findings.md`(로컬 연동 버그 6건 + `intake` 카드 확인 질문)는 **프론트가 백엔드에 보낸 요청**이라 `../backend/local-integration-findings.md`·`../backend/README.md`에서 추적합니다 — 이 폴더(프론트에게 보내는 요청)의 목록이 아닙니다.

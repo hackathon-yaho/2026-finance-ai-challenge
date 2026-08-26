@@ -119,23 +119,60 @@ export function PreviewSheet({
   const blanks = blankFieldLabels(form)
   const included = draftLines.filter((line) => !excluded.has(line.id))
   /**
-   * 4면 증빙자료 목록 — 뒤에 붙는 원본 이미지 페이지의 목차다. **A안으로 확정**
+   * 4면 증빙자료 목록 — 뒤에 붙는 원본 이미지 페이지의 **목차**다. **A안으로 확정**
    * (백엔드 회신 2026-08-25). `checklist`가 아니다 — 그건 보유/미보유 표시라 제출본에 넣지 않는다.
    *
-   * **정렬은 카드 단위 + `source_image_index` 오름차순**이다 (B안, 2026-08-25 확정).
-   * 4면은 목차이지 이미지 목록이 아니다 — 이미지 1장에서 카드가 여러 장 나오므로
-   * (`evt_{image_index}_{n}`) 줄 수와 5면 장 수가 다른 것이 정상이고, **"원본 n번"** 으로
-   * 대조한다. 이미지가 없는 텍스트 입력 카드는 뒤로 보낸다.
+   * **묶는 단위는 원본(첨부)이다** (2026-08-26 ② 재정정). 종전에는 카드 단위였는데, 그러면
+   * 3면(타임라인)과 **열만 다를 뿐 같은 표**가 된다. 캡처 한 장에서 카드가 여러 개 나오면
+   * (대화 1장 → 3장) 3·4면에 똑같이 흩어져 "무엇을 제출했는지"에 답이 안 됐다. 백엔드
+   * 실측으로 35줄 → 5줄이 됐다. `source_image_index` 오름차순, 텍스트 입력(`null`)은 맨 뒤.
+   *
+   * **서버 PDF와 같은 규칙으로 묶어야 한다.** 같은 면을 두 곳에서 그리므로, 여기가 어긋나면
+   * 미리보기와 내려받은 파일이 갈린다 — `evt_intake_when`·3면 미확인 카드 때와 같은 유형의
+   * 사고다. 규칙 단일 출처는 `spec.md` F8-01 "원본 단위 한 줄의 구성"이다.
    */
-  const attachments = cards
-    .filter((card) => card.confirmation_status !== "pending")
-    // `intake` 카드(백엔드가 문진 지급정지일로 합성)는 **증빙자료가 아니다.** 3면 타임라인에는
-    // 남지만 이 목록에는 넣지 않는다 — 올린 적 없는 항목이 "올린 자료의 목차"에 실리게 된다.
-    // 계약 v1.10에서 확정. `event_id` 문자열을 파싱하지 말고 이 필드로 거르라고 명시돼 있다.
-    .filter((card) => card.source_type !== "intake")
-    .slice()
-    .sort((a, b) => (a.source_image_index ?? Number.MAX_SAFE_INTEGER) - (b.source_image_index ?? Number.MAX_SAFE_INTEGER))
-  const hasOriginals = attachments.some((card) => card.source_image_index !== null)
+  const attachments = (() => {
+    const usable = cards
+      .filter((card) => card.confirmation_status !== "pending")
+      // `intake` 카드(백엔드가 문진 지급정지일로 합성)는 **증빙자료가 아니다.** 3면에는 남지만
+      // 이 목록에는 넣지 않는다 — 올린 적 없는 항목이 "올린 자료의 목차"에 실리게 된다.
+      .filter((card) => card.source_type !== "intake")
+
+    const groups = new Map<number | null, ExtractedCard[]>()
+    for (const card of usable) {
+      const key = card.source_image_index
+      const bucket = groups.get(key)
+      if (bucket) bucket.push(card)
+      else groups.set(key, [card])
+    }
+
+    // `source_image_index` 오름차순, 이미지가 없는 그룹(F3-04)은 맨 뒤 한 줄.
+    return [...groups.entries()]
+      .sort(([a], [b]) => (a ?? Number.MAX_SAFE_INTEGER) - (b ?? Number.MAX_SAFE_INTEGER))
+      .map(([imageIndex, group]) => {
+        const known = group
+          .map((card) => card.occurred_at)
+          .filter((at): at is string => at !== null)
+          .sort()
+        const unknown = group.length - known.length
+        const fmt = (at: string) =>
+          at.includes("T") ? `${at.slice(0, 10).replace(/-/g, ".")} ${at.slice(11, 16)}` : at.slice(0, 10).replace(/-/g, ".")
+        let when: string
+        if (known.length === 0) when = "시각 미상"
+        else if (known[0] === known[known.length - 1]) when = fmt(known[0])
+        else when = `${fmt(known[0])} ~ ${fmt(known[known.length - 1])}`
+        if (known.length > 0 && unknown > 0) when += ` (시각 미상 ${unknown}건 포함)`
+        return {
+          imageIndex,
+          // 한 원본은 보통 한 유형이라 첫 카드 기준으로 충분하다 (명세 그대로).
+          label: imageIndex === null ? "본인 서술" : SOURCE_LABEL[group[0].source_type],
+          when,
+          // 개별 사실은 이미 3면에 있다. 4면에서 다시 나열하지 않는다.
+          summary: group.length === 1 ? group[0].summary : `${group.length}건 확인됨`,
+        }
+      })
+  })()
+  const hasOriginals = attachments.some((row) => row.imageIndex !== null)
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg">
@@ -370,26 +407,18 @@ export function PreviewSheet({
           <Page no={4} title="증빙자료 목록">
             {attachments.length > 0 ? (
               <ol className="flex flex-col gap-2 text-[15px] leading-normal">
-                {attachments.map((card, i) => (
-                  <li key={card.event_id} className="flex gap-2">
+                {attachments.map((row, i) => (
+                  <li key={row.imageIndex ?? "self"} className="flex gap-2">
                     <span className="flex-none tabular-nums text-muted">{i + 1}.</span>
                     <span className="min-w-0 flex-1">
-                      <span className="font-semibold">
-                        {/* 이미지가 없는 카드(F3-04 텍스트 입력)는 자료 유형 자리에 "본인 서술"을
-                            쓴다 — 소명서 본문의 "본인 진술" 배지와 같은 취급이다. */}
-                        {card.source_image_index === null ? "본인 서술" : SOURCE_LABEL[card.source_type]}
-                      </span>
-                      {card.source_image_index !== null && (
+                      <span className="font-semibold">{row.label}</span>
+                      {row.imageIndex !== null && (
                         // 계약값은 0-base다. **표시할 때만 +1** 한다 — "원본 0번"이라고 쓸 수 없다.
-                        // 백엔드 PDF도 같은 규칙으로 +1 한다 (2026-08-25 확정).
-                        <span className="ml-2 text-[13px] text-muted">원본 {card.source_image_index + 1}번</span>
+                        // 백엔드 PDF도 같은 규칙으로 +1 한다.
+                        <span className="ml-2 text-[13px] text-muted">원본 {row.imageIndex + 1}번</span>
                       )}
-                      {card.occurred_at && (
-                        <span className="ml-2 text-[13px] tabular-nums text-muted">
-                          {card.occurred_at.slice(0, 10).replace(/-/g, ".")}
-                        </span>
-                      )}
-                      <span className="block text-[13px] leading-normal text-muted">{card.summary}</span>
+                      <span className="ml-2 text-[13px] tabular-nums text-muted">{row.when}</span>
+                      <span className="block text-[13px] leading-normal text-muted">{row.summary}</span>
                     </span>
                   </li>
                 ))}
@@ -397,9 +426,9 @@ export function PreviewSheet({
             ) : (
               <p className="text-[13px] leading-normal text-muted">올린 자료가 없어 목록이 비어 있어요.</p>
             )}
-            {/* B안이라 줄 수와 이미지 장 수가 다를 수 있다 — 한 장에서 여러 사실이 나오기 때문이다.
-                "같은 순서로 붙는다"고 쓰면 개수가 맞는다는 뜻으로 읽힌다.
-                텍스트 입력만 한 경우엔 붙을 이미지가 아예 없으므로 이 줄을 쓰지 않는다. */}
+            {/* 원본 단위가 되면서 **한 줄 = 원본 한 장**이 됐다(텍스트 입력 줄은 예외).
+                그래도 "같은 순서"라고 쓰지 않는다 — 확인하지 않은 카드만 있는 원본은 이 목록에
+                없지만 이미지는 5면에 그대로 붙으므로, 개수가 어긋날 수 있다. */}
             {hasOriginals && (
               <p className="mt-3 text-[13px] leading-normal text-muted">
                 뒤에 원본 이미지가 붙어요. <b>"원본 n번"</b>이 몇 번째 이미지인지 가리켜요.
