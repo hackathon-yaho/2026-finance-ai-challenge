@@ -86,8 +86,8 @@ public class DemoFixtures {
             String newId = idPrefix + (seq++);
             idRemap.put(card.eventId(), newId);
             remappedCards.add(new ExtractedEvent(newId, imageIndex, card.sourceType(), card.occurredAt(), card.actor(),
-                    card.summary(), card.amount(), card.counterpartyName(), card.payerName(), card.identifiers(),
-                    card.fieldConfidence(), card.sourceRegion(), card.confirmationStatus()));
+                    card.summary(), card.amount(), card.counterpartyName(), card.payerName(), card.recurrence(),
+                    card.identifiers(), card.fieldConfidence(), card.sourceRegion(), card.confirmationStatus()));
         }
         Map<String, QualityFlags> remappedFlags = new LinkedHashMap<>();
         fixture.qualityFlags().forEach((oldId, flags) -> remappedFlags.put(idRemap.getOrDefault(oldId, oldId), flags));

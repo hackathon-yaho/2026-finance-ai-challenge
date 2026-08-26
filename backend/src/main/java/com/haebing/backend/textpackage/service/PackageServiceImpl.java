@@ -3,6 +3,7 @@ package com.haebing.backend.textpackage.service;
 import com.haebing.backend.common.global.ErrorCode;
 import com.haebing.backend.common.global.exception.BusinessException;
 import com.haebing.backend.session.ExtractedEvent;
+import com.haebing.backend.session.Recurrence;
 import com.haebing.backend.session.Session;
 import com.haebing.backend.session.StoredSentence;
 import com.haebing.backend.textpackage.dto.Account;
@@ -27,6 +28,9 @@ public class PackageServiceImpl implements PackageService {
     private static final Map<String, String> SOURCE_TYPE_LABELS = Map.of(
             "chat", "대화", "bank", "입금 내역", "shipping", "배송", "threat", "협박", "autopay", "자동이체",
             "unknown", "기타", ExtractedEvent.SOURCE_TYPE_INTAKE, "본인 입력"
+    );
+    private static final Map<String, String> RECURRENCE_PERIOD_LABELS = Map.of(
+            "monthly", "매월", "weekly", "매주", "daily", "매일", "other", "주기적으로"
     );
 
     @Override
@@ -90,9 +94,25 @@ public class PackageServiceImpl implements PackageService {
                 .map(e -> new TimelineRow(
                         formatOccurredAt(e.occurredAt()),
                         actorLabel(e.actor()),
-                        e.summary(),
-                        e.amount() == null ? "미상" : String.format("%,d원", e.amount())))
+                        e.recurrence() == null ? e.summary() : e.summary() + " (" + recurrenceCountLabel(e.recurrence()) + ")",
+                        formatAmount(e.amount(), e.recurrence())))
                 .toList();
+    }
+
+    /**
+     * internal-api-contract.md "recurrence" §"3면·4면 표기" — 반복 카드는 `amount`가 1회분이라 그대로
+     * 찍으면 "총액 6만원짜리 거래 1건"으로 읽힌다(요청 문서 실측). "(1회분)"을 붙여 오독을 막는다.
+     */
+    private String formatAmount(Long amount, Recurrence recurrence) {
+        if (amount == null) return "미상";
+        String formatted = String.format("%,d원", amount);
+        return recurrence == null ? formatted : formatted + " (1회분)";
+    }
+
+    /** "매월 12회" — count는 AI-server가 계산한 값을 그대로 신뢰한다(해석하지 않음). 기간(첫~마지막)은 occurredAt 열에 이미 있어 여기서 반복하지 않는다. */
+    private String recurrenceCountLabel(Recurrence r) {
+        String period = RECURRENCE_PERIOD_LABELS.getOrDefault(r.period(), "주기적으로");
+        return period + " " + r.count() + "회";
     }
 
     /**
@@ -121,8 +141,17 @@ public class PackageServiceImpl implements PackageService {
         return rows;
     }
 
-    /** 같은 원본에서 나온 카드들의 확인된 일시 범위. 전부 시각 미상이면 그대로, 일부만 미상이면 표시해 둔다. */
+    /**
+     * 같은 원본에서 나온 카드들의 확인된 일시 범위. 전부 시각 미상이면 그대로, 일부만 미상이면 표시해 둔다.
+     * 카드가 하나뿐이고 그 카드가 반복 카드면, `occurred_at`(= 첫 회차) 대신 `recurrence.first~last`
+     * 전체 기간을 보여준다 — 그러지 않으면 12번 있었던 일이 "첫 회차 1번"으로만 보인다
+     * (docs/request/backend/recurrence-not-reaching-frontend.md §3).
+     */
     private String dateRangeLabel(List<ExtractedEvent> group) {
+        if (group.size() == 1 && group.get(0).recurrence() != null) {
+            Recurrence r = group.get(0).recurrence();
+            return formatOccurredAt(r.first()) + " ~ " + formatOccurredAt(r.last());
+        }
         List<String> known = group.stream().map(ExtractedEvent::occurredAt).filter(java.util.Objects::nonNull).sorted().toList();
         if (known.isEmpty()) return "시각 미상";
         String first = formatOccurredAt(known.get(0));
@@ -138,8 +167,10 @@ public class PackageServiceImpl implements PackageService {
      * (2026-08-26 실측) — 4면은 목차이고 사실 내용은 3면에 있으니 굳이 욱여넣지 않는다.
      */
     private String summaryLabel(List<ExtractedEvent> group) {
-        String first = group.get(0).summary();
-        return group.size() <= 1 ? first : group.size() + "건 확인됨";
+        if (group.size() > 1) return group.size() + "건 확인됨";
+        ExtractedEvent only = group.get(0);
+        if (only.recurrence() == null) return only.summary();
+        return only.summary() + " (" + recurrenceCountLabel(only.recurrence()) + ", 1회분 " + formatAmount(only.amount(), null) + ")";
     }
 
     /** "2026-09-01T10:00:00+09:00" → "2026-09-01 10:00". 시간대 표기가 표를 넓게 잡아먹어 사람이 읽을 형태로 줄인다. */

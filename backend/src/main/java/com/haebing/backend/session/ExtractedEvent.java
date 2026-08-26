@@ -16,11 +16,24 @@ public record ExtractedEvent(
         Long amount,
         @JsonProperty("counterparty_name") String counterpartyName,
         @JsonProperty("payer_name") String payerName,
+        Recurrence recurrence,
         Identifiers identifiers,
         @JsonProperty("field_confidence") FieldConfidence fieldConfidence,
         @JsonProperty("source_region") SourceRegion sourceRegion,
         @JsonProperty("confirmation_status") String confirmationStatus
 ) {
+    /**
+     * recurrence 신설(2026-08-26) 이전의 13필드 호출부(테스트 다수) 호환용. 반복이 아닌 카드가
+     * 대다수라 recurrence=null로 위임한다 — docs/request/backend/recurrence-not-reaching-frontend.md.
+     */
+    public ExtractedEvent(String eventId, Integer sourceImageIndex, String sourceType, String occurredAt,
+                           String actor, String summary, Long amount, String counterpartyName, String payerName,
+                           Identifiers identifiers, FieldConfidence fieldConfidence, SourceRegion sourceRegion,
+                           String confirmationStatus) {
+        this(eventId, sourceImageIndex, sourceType, occurredAt, actor, summary, amount, counterpartyName,
+                payerName, null, identifiers, fieldConfidence, sourceRegion, confirmationStatus);
+    }
+
     public static final String PENDING = "pending";
     public static final String USER_CONFIRMED = "user_confirmed";
     public static final String USER_CORRECTED = "user_corrected";
@@ -71,6 +84,7 @@ public record ExtractedEvent(
                 amount != null ? amount : this.amount,
                 counterpartyName != null ? counterpartyName : this.counterpartyName,
                 payerName != null ? payerName : this.payerName,
+                recurrence,
                 identifiers,
                 fieldConfidence,
                 sourceRegion,

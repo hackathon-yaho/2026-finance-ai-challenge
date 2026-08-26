@@ -1,5 +1,9 @@
 # API 계약 (Frontend ↔ Backend)
 
+> **수정 기록 (2026-08-27, 백엔드)** — 근거: `../request/backend/recurrence-not-reaching-frontend.md` (프론트 실연동 신고)
+> - **`recurrence` 필드를 계약에 반영.** `internal-api-contract.md`에 이미 있던 필드가 이 문서와 `ExtractedEvent`(record)에 빠져 있어 조용히 버려지고 있었다 — record는 미선언 필드를 받을 수 없고 Jackson 관대 모드라 에러도 로그도 없이 `200`이 났다. `ExtractedEvent`에 필드 추가(구 13필드 호출부는 호환 생성자로 유지, `recurrence=null`), `DemoFixtures`의 카드 재구성 경로도 같은 방식으로 값을 흘리고 있어 같이 고쳤다
+> - **서버 PDF 3면·4면에 반복 표기 반영.** 3면은 요약 뒤 `"(매월 12회)"` + 금액 뒤 `"(1회분)"`, 4면은 "확인된 일시" 열이 `recurrence.first ~ last` 전체 기간을 보이도록. 반영 전엔 첫 회차 금액·날짜만 보여 "12번 있었던 일"이 "1건"으로 오독됐다(같은 문서 안 소명서-타임라인 불일치도 있었음)
+
 > **수정 기록 (2026-08-26 ⑦, 백엔드)** — 근거: `../request/backend/repeated-events-and-irrelevant-cards.md` §7 (프론트 실연동 신고)
 > - **`occurred_at == null`도 `UNCONFIRMED_FIELDS` 차단 대상으로 확장.** 은행 앱이 연도를 안 보여주는 캡처(`08.19`)는 `occurred_at: null`이 정상 동작인데, 종전 "값이 `null`이면 신뢰도 안 읽는다" 규칙 때문에 확인 없이 그냥 통과했다. `amount == null`은 그대로 둔다(대화 캡처에 금액 없는 것은 정상) — `occurred_at`만 정보 누락으로 취급한다. `/api/readiness`·`/api/draft` 둘 다 적용
 
@@ -216,6 +220,8 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 
 분기별 문구는 `../00-context/prd.md` §4.1의 의사코드를 그대로 따릅니다. 기한 경과가 확실한 경우에도 "불가능"이라고 단정하지 않습니다.
 
+> **2026-08-26 반영** — 프론트 신고 `../request/backend/recurrence-not-reaching-frontend.md`. `recurrence`는 `internal-api-contract.md`(2026-08-26 ③, AI)에서 AI-server가 이미 내보내고 있었는데, 이 문서와 백엔드 `ExtractedEvent`에 반영이 안 돼 `record`가 조용히 필드를 버렸습니다(에러도 로그도 없이 `200`). 이번에 계약·`ExtractedEvent`·PDF 3면·4면 전부 반영했습니다.
+
 ## `/api/evidence` 응답 — 추출 카드 스키마 (FR-021, FR-028)
 
 ```json
@@ -231,6 +237,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
       "amount": 700000,
       "counterparty_name": "김OO",
       "payer_name": null,
+      "recurrence": null,
       "identifiers": { "tracking_no": null, "account_last4": null },
       "field_confidence": {
         "occurred_at": "high | medium | low",
@@ -264,6 +271,19 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
 | `source_type` | 카드 유형 배지. 값은 `chat / bank / shipping / threat / autopay / unknown / intake` 7종. `unknown`은 정상 값입니다(AI가 추측하지 않고 내린 값) — 오류로 처리하지 마세요. **`intake`는 AI가 아니라 백엔드가 문진 응답(지급정지일)으로 합성한 카드**입니다(`event_id: "evt_intake_when"`, `source_image_index: null`) — `/api/timeline`과 서버 PDF 3면에는 있지만 **4면(증빙목록)에는 없습니다**. `source_type`으로 걸러내세요(`event_id` 문자열 파싱 금지). **`confirmation_status`는 항상 `user_confirmed`로 고정**입니다 — 이 카드는 세션 타임라인에 저장되지 않고 매 조회마다 새로 합성되므로 `/api/evidence/confirm`이나 readiness 게이팅 대상이 될 수 없습니다(2026-08-26 ③ 확정) |
 | `counterparty_name` | 확인 카드(F4-06)에 **수정 가능한 필드로 노출**. 대화 상대 표시명 |
 | `payer_name` | 같음. 입금 내역의 입금자 표기 |
+
+### `recurrence` — 반복 거래를 카드 한 장으로 (2026-08-26 신설, 계약 반영 지연분)
+
+```json
+"recurrence": { "count": 12, "period": "monthly | weekly | daily | other", "first": "2026-01-15T09:00:00+09:00", "last": "2026-12-15T09:00:00+09:00" }
+```
+
+`internal-api-contract.md`와 같은 모양입니다. 반복이 아닌 카드는 `null`(대부분이 `null`)입니다. **`amount`는 총액이 아니라 1회분**이고, `occurred_at`은 `recurrence.first`와 같습니다(첫 회차) — `recurrence.last`가 마지막 회차입니다.
+
+- **F4-06 확인 카드**: 프론트는 이미 반영을 마쳤습니다(칩 "매월 · 12회" 배지, 금액 행을 "금액 (1회분)"으로, "2025.09.15부터 2026.08.15까지 12회예요" 문구). `recurrence`가 `null`이면 지금과 같은 단발성 카드로 그립니다.
+- **서버 PDF 3면(타임라인)**: 요약 뒤에 `"(매월 12회)"`를 붙이고, 금액 뒤에 `"(1회분)"`을 붙입니다 — 12번 있었던 일이 "6만원짜리 거래 1건"으로 안 읽히게 합니다.
+- **서버 PDF 4면(증빙목록)**: "확인된 일시" 열이 첫 회차 하나가 아니라 `recurrence.first ~ recurrence.last` 전체 기간을 보여주고, 요약 뒤에 `"(매월 12회, 1회분 65,890원)"`을 붙입니다.
+- `count`는 **AI-server가 계산한 값을 그대로 신뢰**합니다 — 백엔드·프론트 어느 쪽도 재계산하지 않습니다.
 
 - **두 이름 필드는 `null`이 흔합니다.** 상단바를 자른 캡처, F3-06으로 사용자가 가린 경우 모두 `null`입니다. `null`을 "읽기 실패"로 표시하지 말고 **빈 칸으로 두고 사용자가 채울 수 있게** 해주세요.
 - **대조 결과를 프론트가 계산하지 않습니다.** 이름 일치 여부 판단은 백엔드 몫이고, 그 결과는 `/api/readiness` 응답으로 옵니다. 불일치는 위험 신호가 아니라 "설명이 필요한 항목"이므로 경고색으로 칠하지 마세요 — 닉네임과 실명이 다른 것은 정상입니다.

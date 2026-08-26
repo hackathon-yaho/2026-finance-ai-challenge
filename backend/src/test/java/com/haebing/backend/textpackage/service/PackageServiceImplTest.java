@@ -141,6 +141,24 @@ class PackageServiceImplTest {
     }
 
     @Test
+    void recurringCard_showsCountAndFullRange_notJustFirstOccurrence() throws java.io.IOException {
+        // docs/request/backend/recurrence-not-reaching-frontend.md — recurrence가 유실되면 12개월치가
+        // "1회분 금액 · 첫 날짜"로만 보여 사용자가 오독한다. 통과·3면 카운트 표기·4면 전체 기간 표기를 확인한다.
+        Session session = session();
+        Recurrence recurrence = new Recurrence(12, "monthly", "2025-09-15T00:00:00+09:00", "2026-08-15T00:00:00+09:00");
+        session.upsertCard(new ExtractedEvent("evt_1", 0, "autopay", "2025-09-15T00:00:00+09:00", "self",
+                "SK텔레콤 통신요금이 자동 출금됨", 65890L, null, null, recurrence, new Identifiers(null, null),
+                new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.USER_CONFIRMED));
+
+        byte[] pdf = service.generate(session, new PackageRequest(null, null, null));
+
+        String text = extractText(pdf);
+        assertThat(text).contains("매월 12회"); // 3면·4면 공통 표기
+        assertThat(text).contains("(1회분)"); // 3면 금액 — 65,890원이 총액이 아니라 1회분임을 밝힘
+        assertThat(text).contains("2026-08-15"); // 4면 "확인된 일시"가 첫 회차(2025-09-15)에서 안 멈추고 마지막 회차까지 보임
+    }
+
+    @Test
     void confirmedCardsOnly_pendingCardExcludedFromPackage() {
         Session session = session();
         session.upsertCard(new ExtractedEvent("evt_1", 0, "chat", "2026-09-01T00:00:00+09:00", "self", "확인됨", 1000L,

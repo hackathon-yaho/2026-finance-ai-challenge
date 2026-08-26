@@ -1,8 +1,8 @@
 # [프론트 → 백엔드] `recurrence`가 프론트까지 오지 않습니다 — 지금은 12개월 자동이체가 1회 거래로 보입니다
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-26)
-> 회신은 `../../response/frontend/recurrence-not-reaching-frontend.md`에 들어옵니다.
-> **막고 있는 작업**: 반복 표기 렌더(카드 배지·3면·4면). AI 회신 §7이 프론트에 요청한 항목인데 **값이 도착하지 않아 시작할 수 없습니다.**
+> **상태: ✅ 회신 완료 (2026-08-27, 백엔드)**
+> - 회신: `../../response/frontend/recurrence-not-reaching-frontend.md`
+> - **결론 요약**: 요청 3가지 전부 반영 — `api-contract.md`에 `recurrence` 반영, `ExtractedEvent`에 필드 추가해 통과, 서버 PDF 3면·4면에 반복 표기 반영(문구는 회신 참조)
 
 - 작성: 프론트엔드 · 2026-08-26
 - 관련: `repeated-events-and-irrelevant-cards.md` §4, `../../response/frontend/repeated-events-and-irrelevant-cards.md`(AI 회신 §1·§7), 백엔드 회신 §1·§4 "확정되면 계약 반영하겠습니다"
