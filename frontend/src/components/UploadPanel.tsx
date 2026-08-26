@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { EvidenceGuide } from "./EvidenceGuide"
 import type { UploadedFile } from "../types"
+import { Close, Plus } from "./icons"
 
 interface UploadPanelProps {
   /** 문진의 거래 성격. 사유별 업로드 안내(F3-07)의 입력이다. */
@@ -78,7 +79,9 @@ export function UploadPanel({
           full ? "cursor-not-allowed border-border bg-subtle opacity-60" : "cursor-pointer"
         } ${dragOver ? "border-brand bg-brand-subtle" : full ? "" : "border-neutral bg-subtle"}`}
       >
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-2xl text-brand">＋</div>
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-subtle text-brand">
+          <Plus size={24} />
+        </div>
         <div className="text-[15px] font-semibold">
           {full ? `${maxUploads}장을 모두 채웠어요` : "여기로 끌어다 놓거나 눌러서 선택하세요"}
         </div>
@@ -123,8 +126,8 @@ export function UploadPanel({
               >
                 더 가리기
               </button>
-              <button type="button" onClick={() => onRemoveFile(file.id)} className="flex-none px-1 text-xl text-muted" aria-label="삭제">
-                ✕
+              <button type="button" onClick={() => onRemoveFile(file.id)} className="flex flex-none items-center justify-center px-1 text-muted" aria-label="삭제">
+                <Close size={18} />
               </button>
             </div>
           ))}

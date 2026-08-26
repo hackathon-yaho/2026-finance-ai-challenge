@@ -1,5 +1,6 @@
 import { TIER_SECTIONS } from "../data"
 import type { ChecklistItem, ChecklistStatus, MissingEffect } from "../types"
+import { Check } from "./icons"
 
 interface ChecklistPanelProps {
   checklist: ChecklistItem[]
@@ -64,7 +65,7 @@ function SelfToggle({ held, onClick, label }: { held: boolean; onClick: () => vo
           held ? "border-success bg-success text-white" : "border-neutral text-transparent"
         }`}
       >
-        ✓
+        <Check size={12} />
       </span>
       {label}
     </button>

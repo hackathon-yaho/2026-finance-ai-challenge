@@ -11,6 +11,7 @@ import {
   todayISO,
   WEEKDAYS,
 } from "../lib/date"
+import { ChevronLeft, ChevronRight } from "./icons"
 
 interface DateSheetProps {
   title: string
@@ -122,9 +123,9 @@ export function DateSheet({ title, hint, value, width, max, min, onSelect, onClo
             onClick={() => setView(prev)}
             disabled={prevDisabled}
             aria-label="이전 달"
-            className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-[17px] text-muted transition-colors duration-[120ms] disabled:opacity-25"
+            className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-muted transition-colors duration-[120ms] disabled:opacity-25"
           >
-            ‹
+            <ChevronLeft size={20} />
           </button>
           <div className="flex-1 text-center text-[17px] font-bold tabular-nums tracking-tight">
             {formatMonth(view.year, view.month)}
@@ -134,9 +135,9 @@ export function DateSheet({ title, hint, value, width, max, min, onSelect, onClo
             onClick={() => setView(next)}
             disabled={nextDisabled}
             aria-label="다음 달"
-            className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-[17px] text-muted transition-colors duration-[120ms] disabled:opacity-25"
+            className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-muted transition-colors duration-[120ms] disabled:opacity-25"
           >
-            ›
+            <ChevronRight size={20} />
           </button>
         </div>
 

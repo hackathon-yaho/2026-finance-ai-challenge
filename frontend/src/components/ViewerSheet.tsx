@@ -1,4 +1,5 @@
 import type { AmountInfo, ViewerId } from "../types"
+import { Close } from "./icons"
 
 /**
  * `[원본 보기]`가 여는 화면 — **아직 목이다.** 여기 그리는 대화·거래내역은 사용자가 올린
@@ -78,8 +79,8 @@ export function ViewerSheet({ viewer, note, width, amountInfo, onClose }: Viewer
             <div className="text-lg font-bold tracking-tight">{TITLES[viewer]}</div>
             <div className="mt-0.5 text-xs text-muted">{SUBTITLES[viewer]}</div>
           </div>
-          <button type="button" onClick={onClose} className="flex h-10 w-10 flex-none items-center justify-center text-xl text-muted">
-            ✕
+          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-10 w-10 flex-none items-center justify-center text-muted">
+            <Close size={20} />
           </button>
         </div>
 

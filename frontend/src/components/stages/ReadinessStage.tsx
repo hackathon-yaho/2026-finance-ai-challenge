@@ -1,4 +1,5 @@
 import type { ReadinessResult } from "../../types"
+import { Check, Close } from "../icons"
 
 interface ReadinessStageProps {
   readiness: ReadinessResult
@@ -67,7 +68,7 @@ export function ReadinessStage({ readiness, wide, hasHistory, onToggleHistory }:
                 c.ok ? "bg-success" : "bg-danger"
               }`}
             >
-              {c.ok ? "✓" : "✕"}
+              {c.ok ? <Check size={13} /> : <Close size={13} />}
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[15px] font-semibold tracking-tight">{c.name}</div>

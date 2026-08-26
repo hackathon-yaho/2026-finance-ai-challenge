@@ -1,4 +1,5 @@
 import { STEP_LABELS } from "../data"
+import { Check } from "./icons"
 
 interface StepperProps {
   stage: number
@@ -50,7 +51,7 @@ export function Stepper({ stage, width, onStepClick }: StepperProps) {
                   boxShadow: active ? `0 0 0 ${narrow ? 3 : 4}px var(--color-brand-subtle)` : "none",
                 }}
               >
-                {done ? "✓" : idx}
+                {done ? <Check size={narrow ? 13 : 14} /> : idx}
               </span>
             </button>
             {showLabels && (

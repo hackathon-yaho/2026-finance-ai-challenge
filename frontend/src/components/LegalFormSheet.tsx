@@ -10,6 +10,7 @@ import {
   writeField,
 } from "../lib/legalForm"
 import type { LegalFormField, LegalFormValues } from "../lib/legalForm"
+import { Check, Close } from "./icons"
 
 interface LegalFormSheetProps {
   width: number
@@ -97,8 +98,8 @@ export function LegalFormSheet({ width, initial, onSubmit, onClose }: LegalFormS
           <div className="text-[17px] font-bold tracking-tight">이의제기신청서 작성</div>
           <div className="mt-0.5 text-xs text-muted">시행령 별지 제4호서식</div>
         </div>
-        <button type="button" onClick={onClose} aria-label="닫기" className="h-11 w-11 flex-none text-xl text-muted">
-          ✕
+        <button type="button" onClick={onClose} aria-label="닫기" className="h-11 w-11 flex-none flex items-center justify-center text-muted">
+          <Close size={20} />
         </button>
       </div>
 
@@ -134,7 +135,7 @@ export function LegalFormSheet({ width, initial, onSubmit, onClose }: LegalFormS
                     values.holderSameAsApplicant ? "border-brand bg-brand" : "border-neutral bg-bg"
                   }`}
                 >
-                  ✓
+                  <Check size={13} />
                 </span>
                 <span className="min-w-0 flex-1 text-[15px]">신청인과 같아요</span>
               </button>
