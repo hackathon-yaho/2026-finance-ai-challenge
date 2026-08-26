@@ -94,6 +94,28 @@ export interface ExtractedCard {
   field_confidence: FieldConfidence
   source_region: SourceRegion | null
   confirmation_status: ConfirmationStatus
+  /**
+   * 반복 거래를 카드 한 장으로 묶은 표현. 반복이 아니면 `null`이고 **대부분 `null`이다.**
+   *
+   * **아직 공개 계약(`api-contract.md`)에 없다** — AI-server는 내보내지만 백엔드
+   * `ExtractedEvent`에 필드가 없어 조용히 버려진다(실측 확인, 2026-08-26).
+   * `docs/request/backend/recurrence-not-reaching-frontend.md`로 통과를 요청해뒀고,
+   * 그래서 **선택 필드**로 둔다 — 값이 오기 시작해도 화면이 그대로 받아 그린다.
+   *
+   * 읽을 때 주의: **`amount`는 총액이 아니라 1회분**이고 `occurred_at`은 `first`다.
+   * 이 필드 없이 카드만 보면 12개월 자동이체가 1회 거래와 구분되지 않는다.
+   */
+  recurrence?: Recurrence | null
+}
+
+/** 반복 거래. `count`는 AI-server가 개별 발생 일시를 세어 만든 값이다(LLM이 센 값이 아니다). */
+export interface Recurrence {
+  count: number
+  period: "monthly" | "weekly" | "daily" | "other"
+  /** 첫 회차. 카드의 `occurred_at`과 같다 */
+  first: string
+  /** 마지막 회차 */
+  last: string
 }
 
 /** 사용자가 인라인 수정할 수 있는 필드만. 확인 불가한 값은 임의로 채우지 않고 미상으로 둔다. */

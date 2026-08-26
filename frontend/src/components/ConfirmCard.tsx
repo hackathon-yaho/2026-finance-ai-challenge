@@ -3,7 +3,7 @@ import { blockingReason, isBlocking } from "../lib/cards"
 import { formatDot } from "../lib/date"
 import { DateSheet } from "./DateSheet"
 import { useViewportWidth } from "../hooks/useViewportWidth"
-import type { CardEdits, Confidence, ExtractedCard, SourceType, ViewerId } from "../types"
+import type { CardEdits, Confidence, ExtractedCard, Recurrence, SourceType, ViewerId } from "../types"
 import { ChevronDown } from "./icons"
 
 interface ConfirmCardProps {
@@ -26,6 +26,19 @@ const SOURCE_LABEL: Record<SourceType, string> = {
   unknown: "미분류",
   // 백엔드가 문진 응답으로 만든 카드다. "판독했다"고 읽히면 안 된다.
   intake: "직접 답한 내용",
+}
+
+/**
+ * 반복 주기.
+ *
+ * `other`는 **주기를 특정 못 했다는 정상 값**이다 — "기타"라고 쓰면 분류 실패처럼 읽힌다.
+ * 횟수는 확실하므로 주기만 뭉뚱그린다.
+ */
+const PERIOD_LABEL: Record<Recurrence["period"], string> = {
+  monthly: "매월",
+  weekly: "매주",
+  daily: "매일",
+  other: "반복",
 }
 
 /** autopay는 별도 뷰어가 없어 계좌 화면을 쓴다. */
@@ -152,6 +165,8 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
   const confirmed = card.confirmation_status !== "pending"
   const corrected = card.confirmation_status === "user_corrected"
   const blocking = isBlocking(card)
+  // 계약에 아직 없는 선택 필드라 `?? null`로 받는다 — 안 와도 화면이 그대로 돈다.
+  const recurrence = card.recurrence ?? null
   // 차단 카드는 접지 않는다. 그 외에는 확인된 것이 접히고, 사용자가 누른 값이 우선한다.
   const open = blocking || (manualOpen ?? !confirmed)
 
@@ -211,6 +226,13 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
                 {corrected ? "사용자 수정" : "확인 완료"}
               </div>
             )}
+            {/* 반복 배지. **접어도 보이는 자리에 둔다** — 이게 없으면 12개월 자동이체가
+                1회 거래와 구분되지 않고, 사용자는 1회분 금액을 보고 확인을 눌러버린다. */}
+            {recurrence && (
+              <div className="flex-none rounded-md bg-surface px-2 text-[11px] font-semibold leading-[22px] text-muted">
+                {PERIOD_LABEL[recurrence.period]} · {recurrence.count}회
+              </div>
+            )}
           </div>
           <div className="mt-1.5 text-[15px] leading-normal font-semibold tracking-tight">{card.summary}</div>
         </div>
@@ -244,7 +266,7 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
         />
         {(card.amount !== null || card.source_type === "bank") && (
           <FieldRow
-            label="금액"
+            label={recurrence ? "금액 (1회분)" : "금액"}
             value={formatAmount(card.amount)}
             confidence={card.field_confidence.amount}
             hasValue={card.amount !== null}
@@ -368,6 +390,17 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
           </button>
         </div>
       ) : null}
+
+      {/* 언제부터 언제까지인지. 배지의 "12회"만으로는 12개월인지 12주인지 알 수 없고,
+          카드의 일시는 **첫 회차**라 그것만 보면 마지막 회차가 안 보인다. */}
+      {recurrence && (
+        <p className="mt-2.5 text-xs leading-normal text-muted">
+          {/* 시각을 빼고 날짜만 쓴다 — 자동이체는 `00:00`으로 오는 일이 흔하고, 한 줄에
+              `00:00`이 두 번 들어가면 읽는 사람이 얻는 것 없이 문장만 길어진다. */}
+          {formatDot(recurrence.first.slice(0, 10))}부터 {formatDot(recurrence.last.slice(0, 10))}까지{" "}
+          {recurrence.count}회예요.
+        </p>
+      )}
 
       {/* 막힌 이유를 구분해 적는다. 연도 없는 캡처(`occurred_at == null`)는 판독이 틀린 게
           아니라 **화면에 연도가 없어서** AI가 지어내지 않은 것이라, "신뢰도가 낮다"고 하면
