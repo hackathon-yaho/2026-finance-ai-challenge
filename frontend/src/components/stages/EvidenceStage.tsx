@@ -205,6 +205,8 @@ export function EvidenceStage({
       )}
 
       {/* F4-06 — 확인 없이 소명서를 만들면 틀린 서류가 은행에 간다. 확인한 카드만 문서에 들어간다. */}
+      {/* 정렬은 **카드가 각자 정한다** (`ConfirmCard`의 `self-start`). 펼친 카드는 그리드
+          기본값(`stretch`)대로 같은 행에서 높이를 맞추고, 접은 카드만 자기 높이로 줄어든다. */}
       <div className={wide ? "grid grid-cols-2 gap-3" : "flex flex-col gap-3"}>
         {cards.map((card) => (
           <ConfirmCard
