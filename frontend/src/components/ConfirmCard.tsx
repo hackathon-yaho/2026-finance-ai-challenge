@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { isBlocking } from "../lib/cards"
 import { formatDot } from "../lib/date"
+import { DateSheet } from "./DateSheet"
+import { useViewportWidth } from "../hooks/useViewportWidth"
 import type { CardEdits, Confidence, ExtractedCard, SourceType, ViewerId } from "../types"
 
 interface ConfirmCardProps {
@@ -112,6 +114,20 @@ function FieldRow({ label, value, confidence, hasValue, settled, onEdit }: Field
 export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, findSource, onOpenSource }: ConfirmCardProps) {
   const [editing, setEditing] = useState<keyof CardEdits | null>(null)
   const [buffer, setBuffer] = useState("")
+  /**
+   * 일시 편집 상태 (F4-06 ②).
+   *
+   * **날짜는 타이핑하지 않는다.** 종전에는 `2026-09-01T14:12:00+09:00`을 그대로 치게 했는데,
+   * 실사용자가 칠 수 있는 값이 아니다. 문진에서 쓰는 달력(`DateSheet`)을 그대로 쓴다.
+   *
+   * 시각은 **선택**이다. 은행 캡처는 연도를 안 보여주면서 시각은 보여주는 경우가 흔해
+   * (`08.19 10:07`) 시각만 따로 넣을 수 있어야 하고, 반대로 모르면 **비워둔 채 날짜만**
+   * 저장한다 — 말하지 않은 시각을 만들지 않는다.
+   */
+  const [dateBuf, setDateBuf] = useState<string | null>(null)
+  const [timeBuf, setTimeBuf] = useState("")
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const width = useViewportWidth()
 
   const confirmed = card.confirmation_status !== "pending"
   const corrected = card.confirmation_status === "user_corrected"
@@ -120,6 +136,10 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
   const startEdit = (field: keyof CardEdits, current: string) => {
     setEditing(field)
     setBuffer(current)
+    if (field === "occurred_at") {
+      setDateBuf(current ? current.slice(0, 10) : null)
+      setTimeBuf(current.includes("T") ? current.slice(11, 16) : "")
+    }
   }
 
   const commit = () => {
@@ -130,7 +150,10 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
       // 비우면 "미상"으로 되돌린다. 확인 불가한 값을 임의로 채우지 않는다.
       onEdit(card.event_id, { amount: digits === "" ? null : Number(digits) })
     } else if (editing === "occurred_at") {
-      onEdit(card.event_id, { occurred_at: raw === "" ? null : raw })
+      // 날짜가 없으면 시각만으로 만들 수 있는 값이 없다 — 미상으로 되돌린다.
+      // 시각을 안 골랐으면 **날짜만** 저장한다. KST 오프셋은 계약이 요구하는 형식이다.
+      const next = dateBuf === null ? null : timeBuf ? `${dateBuf}T${timeBuf}:00+09:00` : dateBuf
+      onEdit(card.event_id, { occurred_at: next })
     } else {
       onEdit(card.event_id, { [editing]: raw === "" ? null : raw })
     }
@@ -204,7 +227,66 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
         )}
       </div>
 
-      {editing && (
+      {editing === "occurred_at" ? (
+        <div className="mt-2 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCalendarOpen(true)}
+              className={`h-11 min-w-0 flex-1 rounded-xl border px-3 text-left text-[15px] ${
+                dateBuf ? "border-brand text-ink" : "border-neutral text-muted"
+              }`}
+            >
+              {dateBuf ? dateBuf.replace(/-/g, ".") : "날짜 선택"}
+            </button>
+            <input
+              type="time"
+              value={timeBuf}
+              onChange={(e) => setTimeBuf(e.target.value)}
+              aria-label="시각 (모르면 비워두세요)"
+              className="h-11 w-[124px] flex-none rounded-xl border border-neutral bg-bg px-3 text-[15px]"
+            />
+          </div>
+          <p className="text-xs leading-normal text-muted">시각을 모르면 비워두세요. 없는 시각을 만들지 않아요.</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={commit} className="h-11 flex-none rounded-xl bg-ink px-4 text-[15px] font-semibold text-white">
+              저장
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              className="h-11 flex-none rounded-xl border border-border px-3 text-[15px] text-muted"
+            >
+              취소
+            </button>
+            {card.occurred_at !== null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateBuf(null)
+                  setTimeBuf("")
+                }}
+                className="h-11 flex-none px-2 text-[13px] text-muted underline"
+              >
+                미상으로 두기
+              </button>
+            )}
+          </div>
+          {calendarOpen && (
+            <DateSheet
+              title="이 일이 있었던 날"
+              hint="캡처에 적힌 날짜를 골라주세요."
+              value={dateBuf}
+              width={width}
+              onSelect={(iso) => {
+                setDateBuf(iso)
+                setCalendarOpen(false)
+              }}
+              onClose={() => setCalendarOpen(false)}
+            />
+          )}
+        </div>
+      ) : editing ? (
         <div className="mt-2 flex items-center gap-2">
           <input
             autoFocus
@@ -215,7 +297,7 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
               if (e.key === "Enter") commit()
               if (e.key === "Escape") setEditing(null)
             }}
-            placeholder={editing === "occurred_at" ? "2026-09-01T14:12:00+09:00" : "비우면 미상으로 둬요"}
+            placeholder="비우면 미상으로 둬요"
             className="h-11 min-w-0 flex-1 rounded-xl border border-neutral bg-bg px-3 text-[15px]"
           />
           <button type="button" onClick={commit} className="h-11 flex-none rounded-xl bg-ink px-4 text-[15px] font-semibold text-white">
@@ -229,7 +311,7 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
             취소
           </button>
         </div>
-      )}
+      ) : null}
 
       {blocking && (
         <p className="mt-2.5 text-xs leading-normal text-warning">
