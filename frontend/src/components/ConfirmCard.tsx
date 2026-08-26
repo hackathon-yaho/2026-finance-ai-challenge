@@ -128,10 +128,23 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
   const [timeBuf, setTimeBuf] = useState("")
   const [calendarOpen, setCalendarOpen] = useState(false)
   const width = useViewportWidth()
+  /**
+   * 카드 접기.
+   *
+   * **확인한 카드는 접는다** — 자료를 많이 올리면 화면이 길어지고, 아직 확인하지 않은 카드가
+   * 스크롤 아래로 밀린다. 확인 절차의 목적은 **남은 것을 보게 하는 것**이라 처리한 것이
+   * 자리를 덜 차지해야 한다.
+   *
+   * **차단 카드는 접지 않는다.** 날짜·금액이 저신뢰라 진행을 막고 있는 카드는 접히면
+   * 무엇을 해야 하는지 사라진다. `null`이면 자동(확인됨=접힘), 사용자가 누르면 그 값이 이긴다.
+   */
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null)
 
   const confirmed = card.confirmation_status !== "pending"
   const corrected = card.confirmation_status === "user_corrected"
   const blocking = isBlocking(card)
+  // 차단 카드는 접지 않는다. 그 외에는 확인된 것이 접히고, 사용자가 누른 값이 우선한다.
+  const open = blocking || (manualOpen ?? !confirmed)
 
   const startEdit = (field: keyof CardEdits, current: string) => {
     setEditing(field)
@@ -166,7 +179,12 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
         blocking ? "border-warning bg-warning-subtle" : confirmed ? "border-brand-subtle bg-brand-subtle" : "border-border bg-bg"
       }`}
     >
-      <div className="flex items-start gap-3">
+      <button
+        type="button"
+        onClick={() => setManualOpen(!open)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-3 text-left"
+      >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <div className="flex-none rounded-md bg-surface px-2 text-[11px] font-semibold leading-[22px] text-muted">
@@ -180,8 +198,22 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
           </div>
           <div className="mt-1.5 text-[15px] leading-normal font-semibold tracking-tight">{card.summary}</div>
         </div>
-      </div>
+        {/* 접힌 카드도 열 수 있다는 것이 보여야 한다. 차단 카드는 접히지 않으므로 표시하지 않는다. */}
+        {!blocking && (
+          <span
+            aria-hidden
+            className={`mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-md bg-surface text-[13px] text-muted transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+          >
+            ▾
+          </span>
+        )}
+      </button>
 
+
+      {open && (
+      <>
       <div className="mt-2 divide-y divide-border">
         <FieldRow
           label="일시"
@@ -358,6 +390,8 @@ export function ConfirmCard({ card, onConfirm, onEdit, onRemove, onOpenViewer, f
           이 자료 빼기
         </button>
       </div>
+      </>
+      )}
     </div>
   )
 }
