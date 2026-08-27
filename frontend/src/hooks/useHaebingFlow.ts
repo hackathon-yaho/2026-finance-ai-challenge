@@ -192,17 +192,26 @@ export function useHaebingFlow() {
    * 그 뒤 호출이 전부 같은 오류를 내므로 처음으로 되돌린다. **원본 이미지는 서버에 없었으니
    * 다시 올려야 한다는 것까지 말해준다** — 그걸 모르면 사용자는 자료가 남아 있는 줄 안다.
    */
+  /**
+   * 서버 호출 한 번. 실패하면 토스트를 띄우고 `null`을 돌려준다.
+   *
+   * `failMessage`는 **그 호출에만 맞는 문구**를 쓰고 싶을 때 준다. 기본 문구는 코드 단위라
+   * 여러 호출이 나눠 쓰는데, 같은 `TIMEOUT`이어도 자료 판독 실패와 소명서 생성 실패는
+   * 사용자가 해야 할 일이 다르다. **세션 만료는 예외** — 그때는 화면이 처음으로 돌아가므로
+   * 무슨 일이 일어났는지 말해주는 쪽이 맞다.
+   */
   const runLive = useCallback(
-    async <T,>(call: () => Promise<T>): Promise<T | null> => {
+    async <T,>(call: () => Promise<T>, failMessage?: string): Promise<T | null> => {
       try {
         return await call()
       } catch (error) {
-        const message = api.isApiError(error) ? error.message : api.DEFAULT_MESSAGE.UNKNOWN
-        if (api.isApiError(error) && error.code === "SESSION_EXPIRED") {
+        const expired = api.isApiError(error) && error.code === "SESSION_EXPIRED"
+        const serverMessage = api.isApiError(error) ? error.message : api.DEFAULT_MESSAGE.UNKNOWN
+        if (expired) {
           setServer(EMPTY_SERVER)
           restartRef.current?.()
         }
-        showToast(message)
+        showToast(expired || !failMessage ? serverMessage : failMessage)
         return null
       }
     },
@@ -517,14 +526,19 @@ export function useHaebingFlow() {
   const makeDraft = useCallback(() => {
     setDrafting(true)
     if (live) {
-      void runLive(() => api.generateDraft())
+      // **실패하면 소명서 화면으로 넘기지 않는다.** 넘기면 문장 0개인 화면이 성공한 것처럼
+      // 보이고, 그대로 내보내면 1·2면이 "확인된 사실관계가 없습니다"로 찍힌 서류가 은행에
+      // 간다. `draftShown`을 안 올리면 [초안 만들기] 버튼이 남아 다시 시도할 수 있다.
+      void runLive(
+        () => api.generateDraft(),
+        "소명서를 만들지 못했어요. 잠시 후 다시 시도해주세요.",
+      )
         .then((res) => {
-          if (res) setServer((prev) => ({ ...prev, draftLines: toDraftLines(res), checklist: res.checklist }))
-        })
-        .finally(() => {
-          setDrafting(false)
+          if (!res) return
+          setServer((prev) => ({ ...prev, draftLines: toDraftLines(res), checklist: res.checklist }))
           setDraftShown(true)
         })
+        .finally(() => setDrafting(false))
       return
     }
     setTimeout(() => {
