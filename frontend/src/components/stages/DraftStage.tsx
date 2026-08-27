@@ -159,10 +159,19 @@ export function DraftStage({
             </ul>
           </div>
 
+          {/**
+           * **이 서비스의 산출물이다.** 테두리만 있는 보조 버튼으로 두면, 화면에서 가장 강한
+           * 버튼이 하단 CTA("접수 안내 보기")가 되어 **다음 단계로 가는 길이 결과물보다 무거워
+           * 보인다.** 실제로 파일을 못 받은 채 나가는 경로가 여기서 생긴다.
+           *
+           * 색으로 역할을 나눈다 — **파랑(`bg-brand`)은 하단 CTA 전용**이라 단계 이동만
+           * 뜻하고, **검정(`bg-ink`)은 그 화면에서 하는 일**이다(증거정리의 `자료 조립하기`와
+           * 같은 자리). 여기를 파랑으로 하면 이동과 행동이 같은 색이 되어 규칙이 무너진다.
+           */}
           <button
             type="button"
             onClick={onExportPackage}
-            className="h-12 rounded-2xl border border-border bg-bg text-[17px] font-bold text-ink"
+            className="h-12 rounded-2xl bg-ink text-[17px] font-bold text-white"
           >
             제출 패키지 내보내기
           </button>

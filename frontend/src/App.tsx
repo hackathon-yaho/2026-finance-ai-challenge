@@ -217,7 +217,14 @@ function App() {
               />
             )}
 
-            {stage === 5 && <RoutesStage showBizNotice={flow.intake.usage === "주 거래 계좌예요"} />}
+            {stage === 5 && (
+              <RoutesStage
+                showBizNotice={flow.intake.usage === "주 거래 계좌예요"}
+                // 내려받기에 성공해야만 채워지는 값이다 — 미리보기만 열어본 것과 구분된다.
+                packageDownloaded={flow.packageConfirmedAt !== null}
+                onExportPackage={flow.openLegalForm}
+              />
+            )}
           </div>
         </div>
       </div>

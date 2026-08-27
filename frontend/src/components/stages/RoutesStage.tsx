@@ -4,6 +4,10 @@ import { Check } from "../icons"
 
 interface RoutesStageProps {
   showBizNotice: boolean
+  /** 제출 패키지를 실제로 내려받았는지. `packageConfirmedAt`이 채워지는 시점과 같다. */
+  packageDownloaded: boolean
+  /** 이 화면에서 바로 내보내기를 연다. 4단계로 돌려보내지 않는다. */
+  onExportPackage: () => void
 }
 
 /**
@@ -15,7 +19,7 @@ const CRIMINAL_SIGNALS = [
   { id: "handover", label: "계좌·체크카드·OTP를 다른 사람에게 준 적이 있어요" },
 ]
 
-export function RoutesStage({ showBizNotice }: RoutesStageProps) {
+export function RoutesStage({ showBizNotice, packageDownloaded, onExportPackage }: RoutesStageProps) {
   const [signals, setSignals] = useState<ReadonlySet<string>>(() => new Set())
   const toggle = (id: string) =>
     setSignals((prev) => {
@@ -26,6 +30,30 @@ export function RoutesStage({ showBizNotice }: RoutesStageProps) {
 
   return (
     <div className="stagger flex flex-col gap-6">
+      {/**
+       * **아직 파일을 안 받은 사람을 여기서 잡는다.**
+       *
+       * 파일을 못 받고 나가는 실제 경로는 "접수 안내를 읽고 → 다 했다고 느끼고 → 닫는" 것이다.
+       * 그래서 이 화면에 **도착하기 전**에 묻지 않고 도착한 자리에 둔다 — 사람은 도착한 뒤에
+       * 마음을 정하고, 하단 CTA로 왔든 단계 인디케이터로 건너뛰었든 여기는 똑같이 지난다.
+       *
+       * **막지 않는다.** 확인 대화상자로 세우면 안내를 먼저 읽으려던 사람까지 멈춰 세우게 되고,
+       * 되돌릴 수 있는 행동에 확인을 붙이면 "확인창은 진짜 위험할 때만 뜬다"는 신뢰가 옅어진다.
+       * 되돌아갈 수 있다고 설명하는 대신 **그 자리에서 받게** 한다.
+       */}
+      {!packageDownloaded && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-4 py-3.5">
+          <p className="min-w-0 flex-1 text-[13px] leading-normal">아직 제출 파일을 안 받으셨어요.</p>
+          <button
+            type="button"
+            onClick={onExportPackage}
+            className="h-11 flex-none rounded-xl bg-ink px-4 text-[15px] font-semibold text-white"
+          >
+            지금 받기
+          </button>
+        </div>
+      )}
+
       <div>
         <div className="text-[28px] leading-[1.3] font-bold tracking-tight">어디에 내면 되나요</div>
         <p className="mt-1.5 text-[15px] leading-normal text-muted">이의제기는 그 계좌를 관리하는 금융회사에 내는 절차예요.</p>
