@@ -28,6 +28,14 @@ class TimelineServiceImplTest {
                 new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.PENDING);
     }
 
+    private ExtractedEvent recurringCard(String id, String sourceType, Long amount, String actor,
+                                          String first, String last) {
+        return new ExtractedEvent(id, 0, sourceType, first, actor, "요약", amount, null, null,
+                new Recurrence(2, "monthly", first, last),
+                new Identifiers(null, null),
+                new FieldConfidence("high", "high", "high", null, null), null, ExtractedEvent.PENDING);
+    }
+
     @Test
     void getTimeline_sortsByOccurredAtAscending() {
         session.upsertCard(card("evt_2", "bank", "2026-09-02T10:00:00+09:00", 1000L, "self"));
@@ -89,6 +97,39 @@ class TimelineServiceImplTest {
     void mergeCandidates_differentAmount_notCandidate() {
         session.upsertCard(card("evt_1", "chat", "2026-09-01T10:00:00+09:00", 700_000L, "self"));
         session.upsertCard(card("evt_2", "bank", "2026-09-01T10:01:00+09:00", 650_000L, "self"));
+
+        assertThat(service.getTimeline(session).mergeCandidates()).isEmpty();
+    }
+
+    @Test
+    void mergeCandidates_singleCardWithinRecurrenceRange_isCandidate() {
+        session.upsertCard(recurringCard("evt_recur", "autopay", 128_640L, "self",
+                "2026-01-15T09:00:00+09:00", "2026-12-15T09:00:00+09:00"));
+        session.upsertCard(card("evt_single", "autopay", "2026-07-15T09:00:00+09:00", 128_640L, "self"));
+
+        TimelineResponse response = service.getTimeline(session);
+
+        assertThat(response.mergeCandidates()).hasSize(1);
+        assertThat(response.mergeCandidates().get(0).eventIds())
+                .containsExactlyInAnyOrder("evt_recur", "evt_single");
+        assertThat(response.mergeCandidates().get(0).reason()).contains("반복 구간");
+    }
+
+    @Test
+    void mergeCandidates_singleCardOutsideRecurrenceRange_notCandidate() {
+        session.upsertCard(recurringCard("evt_recur", "autopay", 128_640L, "self",
+                "2026-01-15T09:00:00+09:00", "2026-12-15T09:00:00+09:00"));
+        session.upsertCard(card("evt_single", "autopay", "2027-01-15T09:00:00+09:00", 128_640L, "self"));
+
+        assertThat(service.getTimeline(session).mergeCandidates()).isEmpty();
+    }
+
+    @Test
+    void mergeCandidates_singleCardWithoutOccurredAt_notCandidateEvenWithinRecurrenceWindow() {
+        // 연도 없는 캡처(occurred_at == null)는 포함 관계를 판정할 수 없다 — 말하지 않은 시각을 만들지 않는다.
+        session.upsertCard(recurringCard("evt_recur", "autopay", 128_640L, "self",
+                "2026-01-15T09:00:00+09:00", "2026-12-15T09:00:00+09:00"));
+        session.upsertCard(card("evt_single", "autopay", null, 128_640L, "self"));
 
         assertThat(service.getTimeline(session).mergeCandidates()).isEmpty();
     }

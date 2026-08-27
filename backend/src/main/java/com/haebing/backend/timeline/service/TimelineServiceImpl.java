@@ -100,8 +100,21 @@ public class TimelineServiceImpl implements TimelineService {
         return gaps;
     }
 
-    /** F5-02 — 시각 차 5분 이내 + 금액 일치 + actor 동일. 자동 확정하지 않고 후보만 만든다. */
+    /**
+     * F5-02 — 시각 차 창(window)과 반복 포함(containment) 두 가지 근거로 후보를 만든다. 자동 확정하지
+     * 않고 후보만 만든다. docs/request/backend/cross-image-duplicates-and-extract-anchor.md §1 —
+     * MERGE_WINDOW를 넓히지 않기로 했다(창을 넓히면 실제로 다른 거래까지 후보가 된다). 대신 반복 카드가
+     * 있으면 그 구간에 포함되는 단발 카드를 별도 근거로 잡는다.
+     */
     private List<MergeCandidate> detectMergeCandidates(Session session) {
+        LinkedHashMap<String, MergeCandidate> byGroupId = new LinkedHashMap<>();
+        for (MergeCandidate c : detectTimeWindowMergeCandidates(session)) byGroupId.putIfAbsent(c.groupId(), c);
+        for (MergeCandidate c : detectRecurrenceContainmentCandidates(session)) byGroupId.putIfAbsent(c.groupId(), c);
+        return new ArrayList<>(byGroupId.values());
+    }
+
+    /** 시각 차 5분 이내 + 금액 일치 + actor 동일. */
+    private List<MergeCandidate> detectTimeWindowMergeCandidates(Session session) {
         List<ExtractedEvent> cards = session.getTimeline().stream()
                 .filter(e -> !session.getMergedAwayEventIds().contains(e.eventId()))
                 .filter(e -> e.amount() != null && e.actor() != null && parseInstant(e.occurredAt()) != null)
@@ -117,16 +130,62 @@ public class TimelineServiceImpl implements TimelineService {
                 Duration diff = Duration.between(parseInstant(a.occurredAt()), parseInstant(b.occurredAt())).abs();
                 if (diff.compareTo(MERGE_WINDOW) > 0) continue;
 
-                List<String> pair = new ArrayList<>(List.of(a.eventId(), b.eventId()));
-                Collections.sort(pair);
-                String groupId = "mg_" + pair.get(0) + "_" + pair.get(1);
+                String groupId = mergeGroupId(a.eventId(), b.eventId());
                 if (session.getRejectedMergeGroupIds().contains(groupId)) continue;
 
                 String reason = "시각 차 %d분 · 금액 %,d원 일치 · actor 동일".formatted(diff.toMinutes(), a.amount());
-                candidates.add(new MergeCandidate(groupId, pair, reason));
+                candidates.add(new MergeCandidate(groupId, sortedPair(a.eventId(), b.eventId()), reason));
             }
         }
         return candidates;
+    }
+
+    /**
+     * 반복(recurrence) 카드의 [first, last] 구간에 같은 actor·금액·source_type인 단발 카드가 포함되면
+     * 후보로 잡는다. 시각 차가 아니라 포함 관계라 MERGE_WINDOW와 무관하다. 단발 카드에 occurred_at이
+     * 없으면(연도 미상 캡처) 판정 자체가 불가능해 후보에서 빠진다 — 말하지 않은 시각을 만들지 않는다.
+     */
+    private List<MergeCandidate> detectRecurrenceContainmentCandidates(Session session) {
+        List<ExtractedEvent> visible = session.getTimeline().stream()
+                .filter(e -> !session.getMergedAwayEventIds().contains(e.eventId()))
+                .toList();
+
+        List<MergeCandidate> candidates = new ArrayList<>();
+        for (ExtractedEvent recurring : visible) {
+            if (recurring.recurrence() == null || recurring.amount() == null) continue;
+            java.time.Instant first = parseInstant(recurring.recurrence().first());
+            java.time.Instant last = parseInstant(recurring.recurrence().last());
+            if (first == null || last == null) continue;
+
+            for (ExtractedEvent single : visible) {
+                if (single.recurrence() != null || single.eventId().equals(recurring.eventId())) continue;
+                if (!recurring.amount().equals(single.amount())) continue;
+                if (!Objects.equals(recurring.actor(), single.actor())) continue;
+                if (!Objects.equals(recurring.sourceType(), single.sourceType())) continue;
+
+                java.time.Instant occurredAt = parseInstant(single.occurredAt());
+                if (occurredAt == null || occurredAt.isBefore(first) || occurredAt.isAfter(last)) continue;
+
+                String groupId = mergeGroupId(recurring.eventId(), single.eventId());
+                if (session.getRejectedMergeGroupIds().contains(groupId)) continue;
+
+                String reason = "반복 구간(%s~%s)에 포함 · 금액 %,d원 일치 · actor 동일".formatted(
+                        recurring.recurrence().first(), recurring.recurrence().last(), single.amount());
+                candidates.add(new MergeCandidate(groupId, sortedPair(recurring.eventId(), single.eventId()), reason));
+            }
+        }
+        return candidates;
+    }
+
+    private static List<String> sortedPair(String idA, String idB) {
+        List<String> pair = new ArrayList<>(List.of(idA, idB));
+        Collections.sort(pair);
+        return pair;
+    }
+
+    private static String mergeGroupId(String idA, String idB) {
+        List<String> pair = sortedPair(idA, idB);
+        return "mg_" + pair.get(0) + "_" + pair.get(1);
     }
 
     private java.time.Instant parseInstant(String occurredAt) {

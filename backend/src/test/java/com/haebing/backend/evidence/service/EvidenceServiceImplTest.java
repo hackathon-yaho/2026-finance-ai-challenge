@@ -47,10 +47,10 @@ class EvidenceServiceImplTest {
 
     @Test
     void uploadImages_amountsDiffer_marksAmountMismatchOnAllAmountCards() {
-        when(aiClient.extractFromImage(any(), eq(0), any()))
+        when(aiClient.extractFromImage(any(), eq(0), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_0_1", 0, 700_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of()));
-        when(aiClient.extractFromImage(any(), eq(1), any()))
+        when(aiClient.extractFromImage(any(), eq(1), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_1_1", 1, 650_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of()));
 
@@ -63,10 +63,10 @@ class EvidenceServiceImplTest {
 
     @Test
     void uploadImages_amountsMatch_noMismatch() {
-        when(aiClient.extractFromImage(any(), eq(0), any()))
+        when(aiClient.extractFromImage(any(), eq(0), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_0_1", 0, 700_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of()));
-        when(aiClient.extractFromImage(any(), eq(1), any()))
+        when(aiClient.extractFromImage(any(), eq(1), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_1_1", 1, 700_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of()));
 
@@ -79,12 +79,12 @@ class EvidenceServiceImplTest {
     /** 재계산 전 스냅샷이 아니라 세션에 반영된 최신 값이 이 호출의 응답에도 실려야 한다. */
     @Test
     void uploadImages_amountMismatch_reflectedInThisCallsResponseNotJustSession() {
-        when(aiClient.extractFromImage(any(), eq(0), any()))
+        when(aiClient.extractFromImage(any(), eq(0), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_0_1", 0, 700_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of("evt_0_1", new QualityFlags(false, false, false))));
         service.uploadImages(session, List.of(file("a.png")), List.of(0));
 
-        when(aiClient.extractFromImage(any(), eq(1), any()))
+        when(aiClient.extractFromImage(any(), eq(1), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_1_1", 1, 450_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of("evt_1_1", new QualityFlags(false, false, false))));
         ExtractResult response = service.uploadImages(session, List.of(file("b.png")), List.of(1));
@@ -95,12 +95,12 @@ class EvidenceServiceImplTest {
 
     @Test
     void uploadText_amountMismatch_reflectedInThisCallsResponseNotJustSession() {
-        when(aiClient.extractFromImage(any(), eq(0), any()))
+        when(aiClient.extractFromImage(any(), eq(0), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_0_1", 0, 700_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of("evt_0_1", new QualityFlags(false, false, false))));
         service.uploadImages(session, List.of(file("a.png")), List.of(0));
 
-        when(aiClient.extractFromText(anyString()))
+        when(aiClient.extractFromText(anyString(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_text_1", null, 450_000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of("evt_text_1", new QualityFlags(false, false, false))));
         ExtractResult response = service.uploadText(session, "본문");
@@ -112,14 +112,14 @@ class EvidenceServiceImplTest {
     @Test
     void uploadImages_invalidFileAmongValid_skipsInvalidKeepsValid() {
         when(fileValidator.detectContentType(any())).thenReturn("image/png", (String) null);
-        when(aiClient.extractFromImage(any(), eq(0), any()))
+        when(aiClient.extractFromImage(any(), eq(0), any(), any(), any()))
                 .thenReturn(new ExtractResult(List.of(card("evt_0_1", 0, 1000L, ExtractedEvent.PENDING)),
                         Signals.empty(), Map.of()));
 
         ExtractResult result = service.uploadImages(session, List.of(file("good.png"), file("bad.png")), List.of(0, 1));
 
         assertThat(result.cards()).hasSize(1);
-        verify(aiClient, never()).extractFromImage(any(), eq(1), any());
+        verify(aiClient, never()).extractFromImage(any(), eq(1), any(), any(), any());
     }
 
     @Test
@@ -140,7 +140,7 @@ class EvidenceServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_REQUEST);
-        verify(aiClient, never()).extractFromImage(any(), anyInt(), any());
+        verify(aiClient, never()).extractFromImage(any(), anyInt(), any(), any(), any());
     }
 
     @Test

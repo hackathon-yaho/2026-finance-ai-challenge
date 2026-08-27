@@ -51,11 +51,15 @@ public class AiClientImpl implements AiClient {
     }
 
     @Override
-    public ExtractResult extractFromImage(byte[] imageBytes, int imageIndex, String contentType) {
+    public ExtractResult extractFromImage(byte[] imageBytes, int imageIndex, String contentType, String referenceDate, String intakeWhen) {
         if (demoMode) return demoFixtures.extractForImage(imageIndex);
         try {
             return withRetry(() -> extractRestClient.post()
-                    .uri(uriBuilder -> uriBuilder.path("/internal/extract").queryParam("image_index", imageIndex).build())
+                    .uri(uriBuilder -> {
+                        uriBuilder.path("/internal/extract").queryParam("image_index", imageIndex);
+                        addAnchorParams(uriBuilder, referenceDate, intakeWhen);
+                        return uriBuilder.build();
+                    })
                     .contentType(MediaType.parseMediaType(contentType))
                     .header("X-Internal-Token", internalToken)
                     .body(imageBytes)
@@ -69,11 +73,14 @@ public class AiClientImpl implements AiClient {
     }
 
     @Override
-    public ExtractResult extractFromText(String rawText) {
+    public ExtractResult extractFromText(String rawText, String referenceDate, String intakeWhen) {
         if (demoMode) return demoFixtures.extractForText();
         try {
             return withRetry(() -> extractRestClient.post()
-                    .uri("/internal/extract")
+                    .uri(uriBuilder -> {
+                        addAnchorParams(uriBuilder, referenceDate, intakeWhen);
+                        return uriBuilder.path("/internal/extract").build();
+                    })
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-Internal-Token", internalToken)
                     .body(new TextExtractRequest(rawText))
@@ -83,6 +90,18 @@ public class AiClientImpl implements AiClient {
             if (e.getErrorCode() != ErrorCode.QUOTA_EXCEEDED) throw e;
             log.warn("[AiClient] QUOTA_EXCEEDED — 데모 응답으로 폴백 (F4-05)");
             return demoFixtures.extractForText();
+        }
+    }
+
+    /**
+     * docs/request/backend/cross-image-duplicates-and-extract-anchor.md §2 — 연도 없는 캡처의 연도 추론을
+     * AI-server가 하려면 기준 시점이 필요하다. 오늘 날짜는 항상 싣고, 문진 지급정지일은 사용자가 "모름"으로
+     * 답하면 없을 수 있어 null이면 생략한다.
+     */
+    private static void addAnchorParams(org.springframework.web.util.UriBuilder uriBuilder, String referenceDate, String intakeWhen) {
+        uriBuilder.queryParam("reference_date", referenceDate);
+        if (intakeWhen != null && !intakeWhen.isBlank()) {
+            uriBuilder.queryParam("intake_when", intakeWhen);
         }
     }
 

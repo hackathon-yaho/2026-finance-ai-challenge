@@ -54,7 +54,8 @@ public class EvidenceServiceImpl implements EvidenceService {
 
             try {
                 byte[] bytes = file.getBytes();
-                ExtractResult result = aiClient.extractFromImage(bytes, imageIndex, contentType);
+                ExtractResult result = aiClient.extractFromImage(bytes, imageIndex, contentType,
+                        java.time.LocalDate.now().toString(), session.getIntake().get("when"));
                 accepted++;
                 newCards.addAll(result.cards());
                 newQualityFlags.putAll(result.qualityFlags());
@@ -84,7 +85,8 @@ public class EvidenceServiceImpl implements EvidenceService {
 
     @Override
     public ExtractResult uploadText(Session session, String rawText) {
-        ExtractResult result = aiClient.extractFromText(rawText);
+        ExtractResult result = aiClient.extractFromText(rawText,
+                java.time.LocalDate.now().toString(), session.getIntake().get("when"));
         result.cards().forEach(session::upsertCard);
         result.qualityFlags().forEach(session.getQualityFlags()::put);
         session.setSignals(session.getSignals().mergedWith(result.signals()));

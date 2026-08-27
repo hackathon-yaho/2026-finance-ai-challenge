@@ -1,6 +1,8 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
-> **수정 기록 (2026-08-26 ③, AI)** — 프론트 요청 `../request/backend/repeated-events-and-irrelevant-cards.md` §4 반영
+> **수정 기록 (2026-08-27, 백엔드)** — 프론트 요청 `../request/backend/cross-image-duplicates-and-extract-anchor.md` §2 반영
+> - **`POST /internal/extract`에 기준 시점 쿼리 파라미터 신설.** `reference_date`(오늘 날짜, `YYYY-MM-DD`, 항상 실림)와 `intake_when`(문진 지급정지일, 사용자가 "모름"으로 답하면 생략)을 이미지·텍스트 두 경로 모두에 추가합니다. 연도 없는 캡처의 연도 추론에 쓸지는 **AI-server 쪽 결정**입니다 — `../request/ai/duplicate-cards-and-year-inference.md` §2 참조. AI가 A안(추론하지 않음) 유지로 결론 내도 이 파라미터는 무해하게 무시하면 됩니다
+> - 같은 요청 §1(병합 규칙)은 `api-contract.md` "반복 포함" 규칙으로 반영 완료 — 아래 `recurrence` 절 참조
 > - **카드에 `recurrence` 신설.** 자동이체 12개월 캡처가 카드 12장이 되던 문제를 추출 단계에서 묶어 해결합니다. 반복이 아니면 `null`
 > - `amount`는 **1회분**, `occurred_at`은 **`first`**, `count`는 **AI-server가 개별 일시에서 계산**합니다(LLM이 센 값을 쓰지 않습니다)
 
@@ -78,7 +80,7 @@
 **이미지 경로** — 백엔드가 받은 이미지 바이트를 **그대로 요청 본문(raw body)으로** 전달합니다. 멀티파트 봉투도, base64 인코딩도 쓰지 않습니다. 이미지 1장당 1요청입니다(공개 API `/api/evidence`가 1장씩 병렬 호출되는 구조와 1:1 대응).
 
 ```
-POST /internal/extract?image_index={n}
+POST /internal/extract?image_index={n}&reference_date={yyyy-mm-dd}&intake_when={yyyy-mm-dd}
 Content-Type: image/png          (또는 image/jpeg — 받은 파일의 실제 타입 그대로)
 X-Internal-Token: {INTERNAL_TOKEN}
 
@@ -88,13 +90,15 @@ X-Internal-Token: {INTERNAL_TOKEN}
 | 항목 | 값 |
 | --- | --- |
 | `image_index` (쿼리, 필수) | 이 이미지의 세션 내 순번(0-base). 응답 카드의 `source_image_index`로 그대로 반사됨 — 프론트 blob 배열 인덱스와 일치해야 함 |
+| `reference_date` (쿼리, 항상 실림, 2026-08-27 신설) | 요청 시점의 오늘 날짜(`YYYY-MM-DD`, 백엔드 서버 로컬 날짜). 연도 없는 캡처의 연도 추론에 쓸지는 AI-server 결정 |
+| `intake_when` (쿼리, 선택, 2026-08-27 신설) | 사용자가 입력한 지급정지일(`YYYY-MM-DD`). 문진에서 "모름"으로 답하면 **쿼리 자체가 생략**됩니다(빈 문자열로 오지 않음) |
 | 본문 크기 상한 | 10MB (공개 API와 동일) |
 | Spring 측 호출 예 | `RestClient` — `.contentType(MediaType.IMAGE_PNG).body(bytes)` (멀티파트 빌더 불필요) |
 
-**텍스트 경로 (F3-04)** — 같은 엔드포인트에 `Content-Type: application/json`으로 보냅니다. AI-server는 Content-Type으로 두 경로를 구분합니다.
+**텍스트 경로 (F3-04)** — 같은 엔드포인트에 `Content-Type: application/json`으로 보냅니다. AI-server는 Content-Type으로 두 경로를 구분합니다. `reference_date`·`intake_when`은 이미지 경로와 동일하게 **쿼리 파라미터**로 실립니다(JSON 바디에 넣지 않습니다 — `image_index`가 없다는 점만 다릅니다).
 
 ```json
-POST /internal/extract
+POST /internal/extract?reference_date={yyyy-mm-dd}&intake_when={yyyy-mm-dd}
 Content-Type: application/json
 X-Internal-Token: {INTERNAL_TOKEN}
 

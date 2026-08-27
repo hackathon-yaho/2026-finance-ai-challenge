@@ -1,8 +1,9 @@
 # [프론트 → 백엔드] 이미지 간 중복이 `mergeCandidates`에 안 잡힙니다 + `/internal/extract`에 기준 시점 전달
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-27)
-> 회신은 `../../response/frontend/cross-image-duplicates-and-extract-anchor.md`에 들어옵니다.
-> **막고 있는 작업**: 없음. §2는 **AI에게 보낸 `duplicate-cards-and-year-inference.md` §2의 전제**라, AI가 그 방향을 받아들이면 계약 변경이 필요합니다.
+> **상태: ✅ 회신 완료 (2026-08-27)**
+> 회신: `../../response/frontend/cross-image-duplicates-and-extract-anchor.md`
+> **결론 요약**: §1 `MERGE_WINDOW`는 유지, "반복 포함" 규칙 신설. §2 `/internal/extract`에 `reference_date`·`intake_when` 쿼리 파라미터 신설
+> **남은 것**: 이 문서의 재현 케이스(연도 없는 카드)가 실제로 후보로 잡히려면 AI `duplicate-cards-and-year-inference.md` §2 회신이 먼저 필요 — 백엔드가 추적
 
 - 작성: 프론트엔드 · 2026-08-27
 - 관련: `../ai/duplicate-cards-and-year-inference.md`, `repeated-events-and-irrelevant-cards.md` §2·§7, `TimelineServiceImpl.detectMergeCandidates`

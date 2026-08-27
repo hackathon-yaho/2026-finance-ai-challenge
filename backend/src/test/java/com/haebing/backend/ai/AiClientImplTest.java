@@ -51,13 +51,13 @@ class AiClientImplTest {
 
     @Test
     void extractFromImage_success_parsesCardsSignalsQualityFlags() {
-        server.expect(requestTo("/internal/extract?image_index=2"))
+        server.expect(requestTo("/internal/extract?image_index=2&reference_date=2026-08-27&intake_when=2026-08-15"))
                 .andExpect(method(org.springframework.http.HttpMethod.POST))
                 .andExpect(header("X-Internal-Token", "test-token"))
                 .andExpect(header("Content-Type", "image/png"))
                 .andRespond(withSuccess(CARD_JSON, MediaType.APPLICATION_JSON));
 
-        ExtractResult result = client.extractFromImage(new byte[]{1, 2, 3}, 2, "image/png");
+        ExtractResult result = client.extractFromImage(new byte[]{1, 2, 3}, 2, "image/png", "2026-08-27", "2026-08-15");
 
         assertThat(result.cards()).hasSize(1);
         assertThat(result.cards().get(0).eventId()).isEqualTo("evt_2_1");
@@ -69,14 +69,14 @@ class AiClientImplTest {
 
     @Test
     void extract_502TwiceInARow_throwsBusinessExceptionWithFallback() {
-        server.expect(requestTo("/internal/extract?image_index=0"))
+        server.expect(requestTo("/internal/extract?image_index=0&reference_date=2026-08-27"))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY)
                         .contentType(MediaType.APPLICATION_JSON).body(ERROR_JSON));
-        server.expect(requestTo("/internal/extract?image_index=0"))
+        server.expect(requestTo("/internal/extract?image_index=0&reference_date=2026-08-27"))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY)
                         .contentType(MediaType.APPLICATION_JSON).body(ERROR_JSON));
 
-        assertThatThrownBy(() -> client.extractFromImage(new byte[]{1}, 0, "image/png"))
+        assertThatThrownBy(() -> client.extractFromImage(new byte[]{1}, 0, "image/png", "2026-08-27", null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> {
                     BusinessException be = (BusinessException) e;
@@ -88,13 +88,13 @@ class AiClientImplTest {
 
     @Test
     void extract_502ThenSuccess_retrySucceeds() {
-        server.expect(requestTo("/internal/extract?image_index=0"))
+        server.expect(requestTo("/internal/extract?image_index=0&reference_date=2026-08-27"))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY)
                         .contentType(MediaType.APPLICATION_JSON).body(ERROR_JSON));
-        server.expect(requestTo("/internal/extract?image_index=0"))
+        server.expect(requestTo("/internal/extract?image_index=0&reference_date=2026-08-27"))
                 .andRespond(withSuccess(CARD_JSON, MediaType.APPLICATION_JSON));
 
-        ExtractResult result = client.extractFromImage(new byte[]{1}, 0, "image/png");
+        ExtractResult result = client.extractFromImage(new byte[]{1}, 0, "image/png", "2026-08-27", null);
 
         assertThat(result.cards()).hasSize(1);
         server.verify();
@@ -102,12 +102,12 @@ class AiClientImplTest {
 
     @Test
     void extract_429_fallsBackToDemoFixtureWithoutRetry() {
-        server.expect(requestTo("/internal/extract?image_index=0"))
+        server.expect(requestTo("/internal/extract?image_index=0&reference_date=2026-08-27"))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS)
                         .contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"QUOTA_EXCEEDED\"}"));
 
         // F4-05 — 재시도하지 않고, 예외 대신 데모 응답으로 폴백한다.
-        ExtractResult result = client.extractFromImage(new byte[]{1}, 0, "image/png");
+        ExtractResult result = client.extractFromImage(new byte[]{1}, 0, "image/png", "2026-08-27", null);
 
         assertThat(result.cards().get(0).eventId()).isEqualTo("evt_0_1");
         server.verify(); // 딱 1번만 호출됐어야 한다 (재시도 없음)
@@ -116,11 +116,11 @@ class AiClientImplTest {
     @Test
     void extract_500_mapsToAiConfigErrorWithoutRetry() {
         // internal-api-contract.md 2026-08-26 — AI-server 설정 오류(LLM 키 미설정 등). 재시도하지 않는다.
-        server.expect(requestTo("/internal/extract?image_index=0"))
+        server.expect(requestTo("/internal/extract?image_index=0&reference_date=2026-08-27"))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
                         .contentType(MediaType.APPLICATION_JSON).body("{\"error\":\"AI_CONFIG_ERROR\"}"));
 
-        assertThatThrownBy(() -> client.extractFromImage(new byte[]{1}, 0, "image/png"))
+        assertThatThrownBy(() -> client.extractFromImage(new byte[]{1}, 0, "image/png", "2026-08-27", null))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.AI_CONFIG_ERROR);
@@ -130,10 +130,10 @@ class AiClientImplTest {
     @Test
     void extractFromText_502_hasNoFallbackAndPathSpecificMessage() {
         // 텍스트로 이미 보낸 요청에 "텍스트로 입력하세요"를 다시 안내하면 같은 자리를 맴돈다.
-        server.expect(requestTo("/internal/extract")).andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
-        server.expect(requestTo("/internal/extract")).andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
+        server.expect(requestTo("/internal/extract?reference_date=2026-08-27")).andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
+        server.expect(requestTo("/internal/extract?reference_date=2026-08-27")).andRespond(withStatus(org.springframework.http.HttpStatus.BAD_GATEWAY));
 
-        assertThatThrownBy(() -> client.extractFromText("텍스트 입력"))
+        assertThatThrownBy(() -> client.extractFromText("텍스트 입력", "2026-08-27", null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> {
                     BusinessException be = (BusinessException) e;
@@ -151,7 +151,7 @@ class AiClientImplTest {
         RestClient unconfigured = RestClient.create();
         AiClientImpl badClient = new AiClientImpl(unconfigured, unconfigured, "test-token", demoFixtures, false);
 
-        assertThatThrownBy(() -> badClient.extractFromImage(new byte[]{1}, 0, "image/png"))
+        assertThatThrownBy(() -> badClient.extractFromImage(new byte[]{1}, 0, "image/png", "2026-08-27", null))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> {
                     BusinessException be = (BusinessException) e;
@@ -164,7 +164,7 @@ class AiClientImplTest {
     void demoMode_true_returnsFixtureWithoutCallingNetwork() {
         AiClientImpl demoClient = new AiClientImpl(sharedClient, sharedClient, "test-token", demoFixtures, true);
 
-        ExtractResult result = demoClient.extractFromImage(new byte[]{1}, 0, "image/png");
+        ExtractResult result = demoClient.extractFromImage(new byte[]{1}, 0, "image/png", "2026-08-27", null);
 
         assertThat(result.cards().get(0).eventId()).isEqualTo("evt_0_1");
         server.verify(); // 등록된 기대 요청이 없으므로, 실제로 호출됐다면 이 시점 전에 이미 실패했을 것이다
@@ -172,12 +172,12 @@ class AiClientImplTest {
 
     @Test
     void extractFromText_sendsJsonContentType() {
-        server.expect(requestTo("/internal/extract"))
+        server.expect(requestTo("/internal/extract?reference_date=2026-08-27"))
                 .andExpect(header("Content-Type", "application/json"))
                 .andExpect(jsonPath("$.rawText").value("9월 2일에 45만원 입금받음"))
                 .andRespond(withSuccess(CARD_JSON, MediaType.APPLICATION_JSON));
 
-        ExtractResult result = client.extractFromText("9월 2일에 45만원 입금받음");
+        ExtractResult result = client.extractFromText("9월 2일에 45만원 입금받음", "2026-08-27", null);
 
         assertThat(result.cards()).hasSize(1);
         server.verify();
