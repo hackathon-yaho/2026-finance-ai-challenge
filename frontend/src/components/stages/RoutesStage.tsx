@@ -43,7 +43,7 @@ export function RoutesStage({ showBizNotice, packageDownloaded, onExportPackage 
        */}
       {!packageDownloaded && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface px-4 py-3.5">
-          <p className="min-w-0 flex-1 text-[13px] leading-normal">아직 제출 파일을 안 받으셨어요.</p>
+          <p className="min-w-0 flex-1 text-[15px] leading-normal font-semibold tracking-tight">아직 제출 파일을 안 받으셨어요.</p>
           <button
             type="button"
             onClick={onExportPackage}
