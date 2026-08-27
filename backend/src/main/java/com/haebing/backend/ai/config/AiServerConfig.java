@@ -18,10 +18,13 @@ public class AiServerConfig {
         return buildClient(aiServerUrl, Duration.ofSeconds(20));
     }
 
-    /** docs/02-architecture/internal-api-contract.md "타임아웃 및 재시도" — /internal/draft는 15초. */
+    /**
+     * docs/02-architecture/internal-api-contract.md "타임아웃 및 재시도" — /internal/draft는 30초
+     * (2026-08-27 AI 회신, draft-timeout-needs-headroom.md: AI-server 1회 시도 상한 25초 + 여유).
+     */
     @Bean
     public RestClient draftRestClient(@Value("${app.ai-server-url:}") String aiServerUrl) {
-        return buildClient(aiServerUrl, Duration.ofSeconds(15));
+        return buildClient(aiServerUrl, Duration.ofSeconds(30));
     }
 
     /**

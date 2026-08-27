@@ -1,9 +1,10 @@
 # [백엔드 → AI] 소명서 생성(`/internal/draft`)이 이벤트 많은 케이스에서 100% 타임아웃됩니다 — `llm_timeout_draft` 여유가 필요합니다
 
-> **상태: ✅ 회신 완료 (2026-08-27) — 해소**
+> **상태: ✅ **완결** (2026-08-27 AI 회신 / 2026-08-28 백엔드 반영 완료)**
 > - 회신: `../../response/backend/draft-timeout-needs-headroom.md`
 > - **결론 요약**: 원인은 예산이 아니라 `draft_effort: medium`이었습니다(12건 17.9초). **`low`로 내리고**(12건 10.4초, 품질 동등) 실측 기준으로 `llm_timeout_draft` 10 → **25초**, `handler_budget_draft` 13 → **27초**로 올렸습니다.
-> - **백엔드가 할 것**: 계약값 15초를 넘으므로 `draftRestClient` 타임아웃을 **30초**로, 계약 문서도 함께 갱신해 주세요. 타임아웃은 AI-server 안에서 재시도하지 않습니다(같은 입력이면 같은 시간이므로).
+> - **백엔드 반영 완료**: `draftRestClient` 타임아웃 15 → **30초**, `internal-api-contract.md` 갱신. 재시도 정책은 현행 유지(최악 50초 감수), 데모 픽스처 표식은 로그에만 — 회신: `../../response/ai/draft-timeout-needs-headroom.md`
+> - **남은 것**: 없음
 >
 > 아래 본문은 **요청 당시 원문**입니다.
 
