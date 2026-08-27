@@ -28,11 +28,18 @@ class Settings(BaseSettings):
     ai_model: str = "gpt-5.4-mini"
     draft_model: str = "gpt-5.5"
     extract_effort: str = "low"
-    draft_effort: str = "medium"
+    # 2026-08-27 medium → low. medium은 이벤트 12건에서 이미 17.9초로
+    # 계약 한도(15초)를 넘겼다. low는 같은 조건에서 10.4초이고 문장 품질도
+    # 떨어지지 않는다(사실 문장 조립이라 깊은 추론이 필요한 작업이 아니고,
+    # 검증은 어차피 결정적 FactChecker가 한다). 근거: evals/README.md
+    draft_effort: str = "low"
     llm_timeout_extract: float = 15.0
-    llm_timeout_draft: float = 10.0
+    # 이벤트 수에 거의 선형으로 늘어난다 (gpt-5.5 low 실측):
+    #   12건 10.4s · 20건 13.5s · 30건 18.4s · 40건 23.3s (각 3회 최대값)
+    # 30건까지 여유 있게 덮는 값으로 잡는다. 종전 10.0은 12건에서 100% 실패했다.
+    llm_timeout_draft: float = 25.0
     handler_budget_extract: float = 18.0
-    handler_budget_draft: float = 13.0
+    handler_budget_draft: float = 27.0
     max_concurrency: int = 4
     max_image_bytes: int = 10 * 1024 * 1024
     max_raw_text_chars: int = 2000

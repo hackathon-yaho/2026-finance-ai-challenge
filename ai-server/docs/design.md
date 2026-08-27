@@ -250,6 +250,7 @@ FR-045 ①~⑥을 순수 함수로 구현한다. **검증에 LLM을 쓰지 않�
 | `INTERNAL_TOKEN` | (필수) | 내부 API 공유 시크릿 |
 | `ANTHROPIC_API_KEY` | (필수) | LLM API 키 |
 | `AI_MODEL` | `gpt-5.4-mini` | 추출 모델 |
+| `LLM_TIMEOUT_DRAFT` | `25.0` | 소명서 1회 시도 상한 — 이벤트 수에 선형(`../evals/README.md`) |
 | `DRAFT_MODEL` | `gpt-5.5` | 소명서 모델 |
 | `EXTRACT_EFFORT` / `DRAFT_EFFORT` | `low` / `medium` | 지연·품질 트레이드오프 조정 |
 | `LLM_TIMEOUT_EXTRACT` / `LLM_TIMEOUT_DRAFT` | `12` / `10` (초) | §7 시간 예산 |
