@@ -97,10 +97,9 @@ export interface ExtractedCard {
   /**
    * 반복 거래를 카드 한 장으로 묶은 표현. 반복이 아니면 `null`이고 **대부분 `null`이다.**
    *
-   * **아직 공개 계약(`api-contract.md`)에 없다** — AI-server는 내보내지만 백엔드
-   * `ExtractedEvent`에 필드가 없어 조용히 버려진다(실측 확인, 2026-08-26).
-   * `docs/request/backend/recurrence-not-reaching-frontend.md`로 통과를 요청해뒀고,
-   * 그래서 **선택 필드**로 둔다 — 값이 오기 시작해도 화면이 그대로 받아 그린다.
+   * `api-contract.md`에 있다 (2026-08-27 반영). 한동안 백엔드 `ExtractedEvent`에 필드가 없어
+   * **에러도 로그도 없이 버려지던** 자리다 — `recurrence-not-reaching-frontend.md`. 계약이
+   * `null`을 허용하므로 **선택 필드로 둔다.**
    *
    * 읽을 때 주의: **`amount`는 총액이 아니라 1회분**이고 `occurred_at`은 `first`다.
    * 이 필드 없이 카드만 보면 12개월 자동이체가 1회 거래와 구분되지 않는다.
@@ -133,6 +132,11 @@ export type ViewerId = "chat" | "bank" | "shipping" | "threat"
 export interface TimelineEvent {
   time: string
   text: string
+  /**
+   * 행위 주체 ("본인"·"상대방"·"시스템"). **제출본 3면에서만 쓴다** — 서버 PDF의
+   * `일시 | 행위 주체 | 요약 · 금액` 열을 맞추기 위한 값이라, 화면 타임라인에는 없다.
+   */
+  actor?: string
   gap?: boolean
   threat?: boolean
   action?: string

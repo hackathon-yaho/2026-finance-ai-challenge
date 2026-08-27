@@ -24,5 +24,5 @@
 | [demo-mode-fixture-ids.md](demo-mode-fixture-ids.md) | ✅ 회신 완료 (2026-08-26) | 해소 — 픽스처 반환 시 `event_id`·`source_image_index` 재발급, `evidenceRefs` 범위 초과 시 `user_text`로 하향, `AI_CONFIG_ERROR` 처리 확인 |
 | [h2c-upgrade-breaks-ai-call.md](h2c-upgrade-breaks-ai-call.md) | ✅ 회신 완료 (2026-08-26) | 해소 — `AiServerConfig`가 JDK HttpClient를 HTTP/1.1로 고정. **프론트가 프록시 걷어내고 실연동 200 확인 완료** |
 | [repeated-events-and-irrelevant-cards.md](repeated-events-and-irrelevant-cards.md) | ⚠️ 일부 회신 완료 (2026-08-26) | §2 현행 유지(무관 거래 필터링 안 함, F5-04 생계 흔적과 겹침). §7 `occurred_at == null` 게이팅 **백엔드·프론트 양쪽 구현 완료**. §4는 AI가 A안으로 구현 완료(카드 12장 → 1장, 10.4초 → 5.1초). **남은 것은 `recurrence` 전달 경로** → 아래 새 요청 |
-| [recurrence-not-reaching-frontend.md](recurrence-not-reaching-frontend.md) | ✅ 회신 완료 (2026-08-27) | 해소 — `api-contract.md`에 `recurrence` 반영, `ExtractedEvent`·`DemoFixtures` 통과 경로 수정, 서버 PDF 3면·4면에 반복 표기(문구는 회신 참조) |
+| [recurrence-not-reaching-frontend.md](recurrence-not-reaching-frontend.md) | ✅ **완결** (2026-08-27 회신 / 프론트 확인 완료) | 해소 — `api-contract.md`에 `recurrence` 반영, `ExtractedEvent`·`DemoFixtures` 통과 경로 수정, 서버 PDF 3면·4면에 반복 표기. **프론트도 미리보기 3·4면을 같은 문구로 맞춤** (3면에 주체·금액 열이 빠져 있던 것도 같이 고침) |
 | [legal-form-original-pdf.md](legal-form-original-pdf.md) | ✅ 회신 완료 (2026-08-26) | 해소 — A안(원본 위 덧그리기)으로 구현·검증 완료. 별지 원본 사용, `src/main/resources/forms/`로 이동 |

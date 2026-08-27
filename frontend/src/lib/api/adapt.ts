@@ -7,7 +7,7 @@
  * 계약 위반이 되는 필드(`notice`·`notices`)가 있어서, 옮기기만 하고 고치지 않는다.
  */
 
-import type { DraftLine, ReadinessResult, TimelineEvent } from "../../types"
+import type { DraftLine, ReadinessResult, Recurrence, TimelineEvent } from "../../types"
 import type { DeadlineInfo } from "../deadline"
 import type { DraftResponse, EvidenceGap, IntakeResponse, ReadinessResponse, TimelineResponse } from "./contract"
 
@@ -65,15 +65,51 @@ export function toTimelineEvents(res: TimelineResponse): TimelineEvent[] {
   return [...events, ...res.gaps.map(gapToEvent)]
 }
 
-/** 제출본 3면. 확인된 카드만, 공백 없이. */
+const PERIOD_LABEL: Record<string, string> = {
+  monthly: "매월",
+  weekly: "매주",
+  daily: "매일",
+}
+
+/** "매월 12회". 기간은 일시 열에 이미 있어 여기서 반복하지 않는다(백엔드 PDF와 같은 규칙). */
+export function recurrenceCountLabel(recurrence: Recurrence): string {
+  return `${PERIOD_LABEL[recurrence.period] ?? "주기적으로"} ${recurrence.count}회`
+}
+
+/**
+ * "65,890원 (1회분)".
+ *
+ * 반복 카드의 `amount`는 1회분이라 그냥 찍으면 **총액 6만원짜리 거래 1건**으로 읽힌다.
+ * 백엔드가 PDF에 쓰는 문구를 그대로 쓴다 — 이 함수가 미리보기와 PDF의 유일한 접점이다.
+ */
+export function formatAmountText(amount: number | null, recurrence?: Recurrence | null): string {
+  if (amount === null) return "미상"
+  const formatted = `${amount.toLocaleString("ko-KR")}원`
+  return recurrence ? `${formatted} (1회분)` : formatted
+}
+
+const ACTOR_LABEL: Record<string, string> = { self: "본인", counterparty: "상대방", system: "시스템" }
+
+/**
+ * 제출본 3면. 확인된 카드만, 공백 없이.
+ *
+ * **열 구성을 서버 PDF에 맞춘다** — `일시 | 행위 주체 | 요약 · 금액`(`PdfBuilder.addPage3`).
+ * 한동안 미리보기가 일시·요약 두 개만 그려서, 금액이 아예 안 보이고 반복 카드의 "(1회분)"이
+ * 들어갈 자리도 없었다. 요약과 금액을 잇는 ` · `까지 서버와 같은 자리에 둔다.
+ */
 export function toSubmitTimeline(res: TimelineResponse): TimelineEvent[] {
   return res.events
     .filter((card) => card.confirmation_status !== "pending")
-    .map((card) => ({
-      time: formatWhen(card.occurred_at),
-      text: card.summary,
-      threat: card.source_type === "threat",
-    }))
+    .map((card) => {
+      const recurrence = card.recurrence ?? null
+      const summary = recurrence ? `${card.summary} (${recurrenceCountLabel(recurrence)})` : card.summary
+      return {
+        time: formatWhen(card.occurred_at),
+        text: `${summary} · ${formatAmountText(card.amount, recurrence)}`,
+        actor: ACTOR_LABEL[card.actor] ?? card.actor,
+        threat: card.source_type === "threat",
+      }
+    })
 }
 
 const READINESS_LABEL = {

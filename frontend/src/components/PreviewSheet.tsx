@@ -4,6 +4,8 @@ import { FIELD_LABELS, blankFieldLabels, readField, toPackageRequest } from "../
 import type { LegalFormField, LegalFormValues } from "../lib/legalForm"
 import type { ChecklistItem, DraftLine, ExtractedCard, SourceType, TimelineEvent } from "../types"
 import { Close } from "./icons"
+// 반복 표기는 **서버 PDF와 같은 함수**를 쓴다 — 문구가 갈리면 미리보기와 파일이 어긋난다.
+import { formatAmountText, recurrenceCountLabel } from "../lib/api/adapt"
 
 interface PreviewSheetProps {
   width: number
@@ -150,25 +152,42 @@ export function PreviewSheet({
     return [...groups.entries()]
       .sort(([a], [b]) => (a ?? Number.MAX_SAFE_INTEGER) - (b ?? Number.MAX_SAFE_INTEGER))
       .map(([imageIndex, group]) => {
-        const known = group
-          .map((card) => card.occurred_at)
-          .filter((at): at is string => at !== null)
-          .sort()
-        const unknown = group.length - known.length
         const fmt = (at: string) =>
           at.includes("T") ? `${at.slice(0, 10).replace(/-/g, ".")} ${at.slice(11, 16)}` : at.slice(0, 10).replace(/-/g, ".")
+
+        // 카드 하나짜리 그룹이 반복 카드면 `occurred_at`(= 첫 회차)이 아니라 전체 기간을
+        // 보여준다. 그러지 않으면 12번 있었던 일이 "첫 회차 1번"으로만 보인다.
+        // **여러 장 그룹에는 적용하지 않는다** — 서버(`dateRangeLabel`)도 같은 조건이다.
+        const only = group.length === 1 ? group[0] : null
+        const onlyRecurrence = only?.recurrence ?? null
+
         let when: string
-        if (known.length === 0) when = "시각 미상"
-        else if (known[0] === known[known.length - 1]) when = fmt(known[0])
-        else when = `${fmt(known[0])} ~ ${fmt(known[known.length - 1])}`
-        if (known.length > 0 && unknown > 0) when += ` (시각 미상 ${unknown}건 포함)`
+        if (onlyRecurrence) {
+          when = `${fmt(onlyRecurrence.first)} ~ ${fmt(onlyRecurrence.last)}`
+        } else {
+          const known = group
+            .map((card) => card.occurred_at)
+            .filter((at): at is string => at !== null)
+            .sort()
+          const unknown = group.length - known.length
+          if (known.length === 0) when = "시각 미상"
+          else if (known[0] === known[known.length - 1]) when = fmt(known[0])
+          else when = `${fmt(known[0])} ~ ${fmt(known[known.length - 1])}`
+          if (known.length > 0 && unknown > 0) when += ` (시각 미상 ${unknown}건 포함)`
+        }
+
+        let summary: string
+        if (!only) summary = `${group.length}건 확인됨`
+        else if (!onlyRecurrence) summary = only.summary
+        else summary = `${only.summary} (${recurrenceCountLabel(onlyRecurrence)}, 1회분 ${formatAmountText(only.amount)})`
+
         return {
           imageIndex,
           // 한 원본은 보통 한 유형이라 첫 카드 기준으로 충분하다 (명세 그대로).
           label: imageIndex === null ? "본인 서술" : SOURCE_LABEL[group[0].source_type],
           when,
           // 개별 사실은 이미 3면에 있다. 4면에서 다시 나열하지 않는다.
-          summary: group.length === 1 ? group[0].summary : `${group.length}건 확인됨`,
+          summary,
         }
       })
   })()
@@ -381,6 +400,9 @@ export function PreviewSheet({
                 .map((event, i) => (
                   <li key={`${event.time}-${i}`} className="flex gap-3 text-[15px] leading-normal">
                     <span className="w-[112px] flex-none text-[13px] tabular-nums text-muted">{event.time}</span>
+                    {/* 서버 PDF 3면이 `일시 | 행위 주체 | 요약 · 금액` 세 열이다. 주체를 빼면
+                        같은 면인데 미리보기만 열이 적어진다. */}
+                    <span className="w-[52px] flex-none text-[13px] text-muted">{event.actor}</span>
                     <span className="min-w-0 flex-1">{event.text}</span>
                   </li>
                 ))}

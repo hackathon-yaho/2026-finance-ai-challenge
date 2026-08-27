@@ -3,6 +3,8 @@
 > **상태: ✅ 회신 완료 (2026-08-27, 백엔드)**
 > - 회신: `../../response/frontend/recurrence-not-reaching-frontend.md`
 > - **결론 요약**: 요청 3가지 전부 반영 — `api-contract.md`에 `recurrence` 반영, `ExtractedEvent`에 필드 추가해 통과, 서버 PDF 3면·4면에 반복 표기 반영(문구는 회신 참조)
+> - **프론트 확인 완료 (2026-08-27)**: 필드 도착 실측 확인, 미리보기 3·4면을 서버 문구에 맞춤. 처리 결과: `../../response/backend/recurrence-not-reaching-frontend.md`
+> - **남은 것**: 없음
 
 - 작성: 프론트엔드 · 2026-08-26
 - 관련: `repeated-events-and-irrelevant-cards.md` §4, `../../response/frontend/repeated-events-and-irrelevant-cards.md`(AI 회신 §1·§7), 백엔드 회신 §1·§4 "확정되면 계약 반영하겠습니다"
