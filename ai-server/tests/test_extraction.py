@@ -18,6 +18,7 @@ def make_event(counterparty_name=None, payer_name=None, **kwargs):
         tracking_no_present=False,
         account_last4=None,
         confidence=ALL_HIGH,
+        occurred_at_year_inferred=False,
         recurrence=None,
         source_region=None,
         blurry=False,
@@ -27,7 +28,7 @@ def make_event(counterparty_name=None, payer_name=None, **kwargs):
     return LLMEvent(counterparty_name=counterparty_name, payer_name=payer_name, **defaults)
 
 
-def to_cards(event, force_low_time=False):
+def to_cards(event, force_low_time=False, reference_date=None):
     out = LLMExtraction(
         events=[event],
         threat_detected=False,
@@ -35,7 +36,9 @@ def to_cards(event, force_low_time=False):
         life_activity=False,
         injection_suspected=False,
     )
-    cards, _ = extraction._to_cards(out, 1, "evt_1_", force_low_time=force_low_time)
+    cards, _ = extraction._to_cards(
+        out, 1, "evt_1_", force_low_time=force_low_time, reference_date=reference_date
+    )
     return cards[0]
 
 
@@ -100,3 +103,61 @@ def test_single_occurrence_is_not_recurrence():
         make_event(recurrence=LLMRecurrence(period="monthly", occurrences=["2026-01-15T09:00:00+09:00"]))
     )
     assert card.recurrence is None
+
+
+def test_inferred_year_forces_low_confidence_and_guards_future():
+    """연도 추론은 게이팅을 풀지 않는다 — 신뢰도 low라 사용자가 반드시 확인한다."""
+    card = to_cards(
+        make_event(occurred_at="2026-08-19T10:07:00+09:00", occurred_at_year_inferred=True),
+        reference_date="2026-08-27",
+    )
+    assert card.occurred_at == "2026-08-19T10:07:00+09:00"  # 과거라 그대로
+    assert card.field_confidence.occurred_at == "low"
+
+
+def test_inferred_year_in_the_future_is_rolled_back_one_year():
+    """은행 거래내역은 과거만 찍힌다. 12.28을 1월에 보면 작년이다."""
+    card = to_cards(
+        make_event(occurred_at="2026-12-28T09:00:00+09:00", occurred_at_year_inferred=True),
+        reference_date="2026-01-05",
+    )
+    assert card.occurred_at.startswith("2025-12-28")
+
+
+def test_read_year_is_not_downgraded():
+    """화면에 연도가 보이면 추론이 아니므로 신뢰도를 낮추지 않는다."""
+    card = to_cards(make_event(occurred_at_year_inferred=False), reference_date="2026-08-27")
+    assert card.field_confidence.occurred_at == "high"
+
+
+def test_duplicate_recurrence_cards_are_folded():
+    """같은 반복 시리즈를 두 번 낸 카드는 접는다 (프론트 신고, 3회 중 1회 재현)."""
+    from app.llm.prompts import LLMExtraction, LLMRecurrence
+    from app.services import extraction
+
+    rec = LLMRecurrence(period="monthly", occurrences=["2026-07-15T14:20:00+09:00", "2026-08-15T14:20:00+09:00"])
+    out = LLMExtraction(
+        events=[
+            make_event(amount=128640, source_type="autopay", recurrence=rec),
+            make_event(amount=128640, source_type="autopay", recurrence=rec),
+        ],
+        threat_detected=False, delivery_evidence=False, life_activity=False, injection_suspected=False,
+    )
+    cards, _ = extraction._to_cards(out, 1, "evt_1_", force_low_time=False)
+    assert len(cards) == 1
+
+
+def test_distinct_non_recurrence_cards_are_kept():
+    """반복이 아닌 카드는 값이 같아도 접지 않는다 — 실제로 두 건일 수 있다."""
+    from app.llm.prompts import LLMExtraction
+    from app.services import extraction
+
+    out = LLMExtraction(
+        events=[
+            make_event(occurred_at="2026-08-21T10:11:00+09:00", amount=10000),
+            make_event(occurred_at="2026-08-21T10:11:00+09:00", amount=10000),
+        ],
+        threat_detected=False, delivery_evidence=False, life_activity=False, injection_suspected=False,
+    )
+    cards, _ = extraction._to_cards(out, 1, "evt_1_", force_low_time=False)
+    assert len(cards) == 2

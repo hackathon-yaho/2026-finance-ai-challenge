@@ -78,11 +78,33 @@ class LLMCallFailed(Exception):
 # ── 공급자별 콘텐츠 블록 (밖으로 새지 않게 여기서만 만든다) ──────────────
 
 
-def image_content(encoded: str, media_type: str) -> list[dict]:
+def anchor_block(reference_date: str | None, intake_when: str | None) -> str:
+    """연도 없는 캡처의 연도 추론에 쓸 기준 시점.
+
+    없으면 빈 문자열 — 그 경우 프롬프트 7-2에 따라 연도를 추정하지 않는다.
+    """
+    if not reference_date:
+        return ""
+    parts = ["", "", f"[기준 시점] 오늘은 {reference_date}이다."]
+    if intake_when:
+        parts.append(f"사용자가 밝힌 지급정지일은 {intake_when}이다.")
+    parts.append("화면에 연도가 없는 날짜는 이 기준으로 연도를 정하라.")
+    return chr(10).join(parts[:2]) + " ".join(parts[2:])
+
+
+def image_content(
+    encoded: str,
+    media_type: str,
+    reference_date: str | None = None,
+    intake_when: str | None = None,
+) -> list[dict]:
     """base64 이미지 + 지시문. 원본 바이트는 호출자가 즉시 폐기한다."""
     return [
         {"type": "input_image", "image_url": f"data:{media_type};base64,{encoded}", "detail": "high"},
-        {"type": "input_text", "text": prompts.EXTRACT_IMAGE_INSTRUCTION},
+        {
+            "type": "input_text",
+            "text": prompts.EXTRACT_IMAGE_INSTRUCTION + anchor_block(reference_date, intake_when),
+        },
     ]
 
 

@@ -50,6 +50,11 @@ class Case:
     # **틀린 값을 자신 있게 내놓는 것**만 실패다 (FR-028: 확인 불가한 값은 미상으로 유지).
     degraded_fields: tuple[str, ...] = ()
 
+    # 이 케이스를 넣을 때 함께 보낼 기준 시점 (연도 추론 검증용)
+    reference_date: str | None = None
+    # 연도를 추론했으면 신뢰도가 low여야 한다 (게이팅 유지 확인)
+    expect_year_inferred_low: bool = False
+
     # 반복 거래로 묶여야 하는 케이스: (카드 수, 반복 횟수)
     expect_recurrence: tuple[int, int] | None = None
 
@@ -438,19 +443,39 @@ REAL_WORLD_CASES = [
             ("08.19  14:22", "이서연", "120,000", "1,324,300"),
             ("08.20  09:11", "박서준", "80,000", "1,404,300"),
         ],
-        # 연도가 화면에 없다 → 지어내지 않는 것이 정답이다(프롬프트 7-1).
-        # 날짜를 채우면 그게 결함이다.
+        # 2026-08-27 B안 채택: [기준 시점]을 주면 연도를 추론한다.
+        # 다만 추론값은 신뢰도 low라 게이팅은 그대로 걸린다.
+        reference_date="2026-08-27",
+        expect_year_inferred_low=True,
         expected=[
-            ExpectedEvent(None, 450000, "bank", payer_name="김민준"),
-            ExpectedEvent(None, 120000, "bank", payer_name="이서연"),
-            ExpectedEvent(None, 80000, "bank", payer_name="박서준"),
+            ExpectedEvent("2026-08-19", 450000, "bank", payer_name="김민준"),
+            ExpectedEvent("2026-08-19", 120000, "bank", payer_name="이서연"),
+            ExpectedEvent("2026-08-20", 80000, "bank", payer_name="박서준"),
         ],
         checks=(
-            "연도 없는 은행 캡처에서 연도를 지어내지 않는다",
-            "실제 은행 앱은 올해 거래에 연도를 찍지 않는다 — 예외가 아니라 기본값",
+            "기준 시점이 주어지면 연도를 추론해 채운다",
+            "추론값은 신뢰도 low — 사용자 확인 게이팅이 그대로 걸린다",
         ),
         notes="프론트 실측: 이 조건에서 occurred_at 11건 전부 null이 나왔다. "
-        "AI 품질 문제가 아니라 원칙대로 동작한 것이다.",
+        "기준 시점이 없던 것이 원인이었고, 2026-08-27부터는 주어지면 추론한다.",
+    ),
+
+    Case(
+        case_id="ev-noyear-02",
+        render="bank",
+        title="입출금내역",
+        rows=[
+            ("08.19  10:07", "김민준", "450,000", "1,204,300"),
+            ("08.20  09:11", "박서준", "80,000", "1,284,300"),
+        ],
+        # 기준 시점을 **주지 않는다** → 추론할 재료가 없으므로 null이 정답이다.
+        # "추론이 위험해서 금지"가 아니라 "재료가 없으면 금지"라는 구분이 이 케이스다.
+        reference_date=None,
+        expected=[
+            ExpectedEvent(None, 450000, "bank", payer_name="김민준"),
+            ExpectedEvent(None, 80000, "bank", payer_name="박서준"),
+        ],
+        checks=("기준 시점이 없으면 연도를 지어내지 않는다 — occurred_at은 null",),
     ),
 ]
 

@@ -59,11 +59,55 @@ def _build_recurrence(raw) -> tuple[Recurrence | None, str | None]:
     )
 
 
+def _apply_year_guard(occurred_at: str | None, reference_date: str | None) -> str | None:
+    """추론한 연도가 기준 시점보다 미래면 1년을 뺀다.
+
+    은행 거래내역에는 과거만 찍힌다. 연말연시 경계("12.28"을 1월에 보는 경우)가
+    이 한 줄로 풀린다 — 확률적 판단이 아니라 결정적 가드다.
+    """
+    if not occurred_at or not reference_date:
+        return occurred_at
+    try:
+        parsed = datetime.fromisoformat(occurred_at)
+        anchor = datetime.fromisoformat(reference_date)
+    except ValueError:
+        return occurred_at
+    if parsed.date() <= anchor.date():
+        return occurred_at
+    try:
+        return parsed.replace(year=parsed.year - 1).isoformat()
+    except ValueError:  # 2/29 같은 경우
+        return parsed.replace(year=parsed.year - 1, day=28).isoformat()
+
+
+def _dedupe(cards: list[Card]) -> list[Card]:
+    """같은 반복 거래를 두 번 낸 카드를 접는다 (3회 중 1회 재현, 프론트 신고).
+
+    **반복 카드에만 적용한다.** 반복 카드는 시리즈 전체를 대표하므로 한 이미지에서
+    같은 시리즈가 둘 나오면 정의상 오류다. 반면 반복이 아닌 카드는 같은 시각·같은
+    금액이 실제로 두 건일 수 있어(같은 분에 찍힌 입금 2건) 접으면 사실이 사라진다.
+    """
+    seen: set[tuple] = set()
+    kept: list[Card] = []
+    for card in cards:
+        if card.recurrence is None:
+            kept.append(card)
+            continue
+        key = (card.source_type, card.amount, card.recurrence.first, card.recurrence.last)
+        if key in seen:
+            log.info("duplicate recurrence card folded")
+            continue
+        seen.add(key)
+        kept.append(card)
+    return kept
+
+
 def _to_cards(
     out: prompts.LLMExtraction,
     image_index: int | None,
     id_prefix: str,
     force_low_time: bool,
+    reference_date: str | None = None,
 ) -> tuple[list[Card], dict[str, QualityFlags]]:
     cards: list[Card] = []
     quality: dict[str, QualityFlags] = {}
@@ -85,6 +129,9 @@ def _to_cards(
 
         recurrence, first_iso = _build_recurrence(getattr(event, "recurrence", None))
         occurred_at = first_iso or event.occurred_at
+        year_inferred = getattr(event, "occurred_at_year_inferred", False)
+        if year_inferred:
+            occurred_at = _apply_year_guard(occurred_at, reference_date)
 
         # 흐리다고 **스스로 표기한** 카드의 신뢰도는 low로 내린다.
         # 실측에서 심한 흐림에 틀린 값(김인훈/40000)을 medium으로 낸 일이 반복됐다.
@@ -98,7 +145,11 @@ def _to_cards(
 
         # 값이 없는 이름의 신뢰도는 버린다 — LLM이 뭘 매겼든 null이 계약값이다.
         confidence = FieldConfidence(
-            occurred_at="low" if force_low_time else _cap(event.confidence.occurred_at),
+            # 연도를 추론했으면 low로 낸다 → FR-028 게이팅이 그대로 걸려
+            # 사용자가 반드시 확인하게 된다. 게이팅은 하나도 풀리지 않는다.
+            occurred_at=(
+                "low" if (force_low_time or year_inferred) else _cap(event.confidence.occurred_at)
+            ),
             actor=_cap(event.confidence.actor),
             amount=_cap(event.confidence.amount),
             counterparty_name=_cap(event.confidence.counterparty_name) if counterparty_name else None,
@@ -135,7 +186,7 @@ def _to_cards(
 
     if pii_hits:
         log.info("pii scrubbed fields=%d", pii_hits)
-    return cards, quality
+    return _dedupe(cards), quality
 
 
 def _signals(out: prompts.LLMExtraction, quality: dict[str, QualityFlags]) -> Signals:
@@ -151,11 +202,17 @@ def _signals(out: prompts.LLMExtraction, quality: dict[str, QualityFlags]) -> Si
     )
 
 
-async def extract_image(data: bytes, media_type: str, image_index: int) -> ExtractResponse:
+async def extract_image(
+    data: bytes,
+    media_type: str,
+    image_index: int,
+    reference_date: str | None = None,
+    intake_when: str | None = None,
+) -> ExtractResponse:
     encoded = base64.standard_b64encode(data).decode("ascii")
     del data
 
-    content = llm_client.image_content(encoded, media_type)
+    content = llm_client.image_content(encoded, media_type, reference_date, intake_when)
     try:
         out = await llm_client.extract_structured(content)
     finally:
@@ -164,7 +221,9 @@ async def extract_image(data: bytes, media_type: str, image_index: int) -> Extra
     if out.injection_suspected:
         log.info("injection_suspected image_index=%d", image_index)
 
-    cards, quality = _to_cards(out, image_index, f"evt_{image_index}_", force_low_time=False)
+    cards, quality = _to_cards(
+        out, image_index, f"evt_{image_index}_", force_low_time=False, reference_date=reference_date
+    )
     return ExtractResponse(cards=cards, signals=_signals(out, quality), qualityFlags=quality)
 
 

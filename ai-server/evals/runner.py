@@ -113,6 +113,16 @@ def score_extraction(case: Case, body: dict, latency: float) -> CaseResult:
                     f"열화된 이미지에서 확신하면 안 된다"
                 )
 
+    # ── 연도 추론: 채웠으면 신뢰도가 low여야 한다 (게이팅 유지) ──
+    if case.expect_year_inferred_low:
+        for card in cards:
+            if card.get("occurred_at"):
+                level = (card.get("field_confidence") or {}).get("occurred_at")
+                if level != "low":
+                    result.violations.append(
+                        f"연도를 추론했는데 신뢰도가 {level} — low여야 게이팅이 걸린다"
+                    )
+
     # ── 반복 거래 묶기 ──
     if case.expect_recurrence is not None:
         want_cards, want_count = case.expect_recurrence
@@ -159,7 +169,11 @@ def run_online(base_url: str, token: str) -> list[CaseResult]:
             try:
                 response = client.post(
                     f"{base_url}/internal/extract",
-                    params={"image_index": index},
+                    params=(
+                        {"image_index": index, "reference_date": case.reference_date}
+                        if case.reference_date
+                        else {"image_index": index}
+                    ),
                     content=path.read_bytes(),
                     headers={"Content-Type": "image/png", "X-Internal-Token": token},
                 )

@@ -21,7 +21,14 @@ _MEDIA_ALIASES = {"image/jpg": "image/jpeg"}
 
 
 @router.post("/internal/extract", response_model=ExtractResponse)
-async def extract(request: Request, image_index: int | None = None) -> ExtractResponse:
+async def extract(
+    request: Request,
+    image_index: int | None = None,
+    # 연도 없는 캡처의 연도 추론에 쓰는 기준 시점 (계약 2026-08-27 신설).
+    # 없으면 추론하지 않는다 — 재료 없이 추측하지 않는다는 원칙 그대로다.
+    reference_date: str | None = None,
+    intake_when: str | None = None,
+) -> ExtractResponse:
     content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
     content_type = _MEDIA_ALIASES.get(content_type, content_type)
 
@@ -36,7 +43,9 @@ async def extract(request: Request, image_index: int | None = None) -> ExtractRe
                 raise bad_request("이미지가 10MB 상한을 초과합니다.")
             if not any(body.startswith(magic) for magic in _MAGIC[content_type]):
                 raise bad_request("Content-Type과 파일 시그니처(매직바이트)가 일치하지 않습니다.")
-            return await extraction.extract_image(body, content_type, image_index)
+            return await extraction.extract_image(
+                body, content_type, image_index, reference_date, intake_when
+            )
         finally:
             del body
 

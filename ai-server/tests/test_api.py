@@ -58,14 +58,20 @@ def test_extract_rejects_unknown_content_type(client):
 def test_extract_image_happy_path(client, monkeypatch):
     from app.services import extraction
 
-    async def fake(data, media_type, image_index):
+    async def fake(data, media_type, image_index, reference_date=None, intake_when=None):
         assert data.startswith(b"\x89PNG")
         assert media_type == "image/png"
         assert image_index == 3
+        # 쿼리로 받은 기준 시점이 서비스까지 전달돼야 한다 (계약 2026-08-27)
+        assert reference_date == "2026-08-27"
         return fake_extract_response()
 
     monkeypatch.setattr(extraction, "extract_image", fake)
-    response = client.post("/internal/extract?image_index=3", content=PNG, headers={"Content-Type": "image/png", **AUTH})
+    response = client.post(
+        "/internal/extract?image_index=3&reference_date=2026-08-27",
+        content=PNG,
+        headers={"Content-Type": "image/png", **AUTH},
+    )
     assert response.status_code == 200
     body = response.json()
     assert body["cards"] == []

@@ -98,6 +98,8 @@ raw body 수신 (await request.body() — 디스크 스풀링 없음, 10MB 상�
 
 **응답 스키마** — 공개 API 카드 스키마와 동일 + 회신 3건으로 확정된 확장:
 - 카드별 `source_type` (`chat/bank/shipping/threat/autopay/unknown`)
+- **연도 없는 캡처의 연도 추론** (2026-08-27 B안). `reference_date`가 오면 연도를 채우되 **추론값은 신뢰도 `low`로 강제**해 FR-028 게이팅을 유지한다. 기준 시점이 없으면 추론하지 않는다. 미래 날짜는 코드가 −1년(`_apply_year_guard`)
+- **반복 카드 중복 접기** (`_dedupe`) — 같은 시리즈를 두 번 낸 카드를 접는다. 반복 카드에만 적용(비반복은 실제로 두 건일 수 있다)
 - 카드별 `recurrence` (반복 거래 묶기, 2026-08-26 신설). **`count`는 LLM이 센 값이 아니라 코드가 개별 일시에서 센 값**이고, **같은 날 안의 반복은 묶지 않는다**(정기 거래가 아니다)
 - 카드별 `counterparty_name` / `payer_name` (없으면 `null`, 추측 금지)
 - `field_confidence`에 `counterparty_name`/`payer_name` 키 추가. **이름이 `null`이면 신뢰도도 `null`** — LLM이 매긴 값을 후처리에서 덮어써 결정적으로 보장한다(계약 "신뢰도의 null" 절). `occurred_at`/`actor`/`amount`는 종전대로 3값 유지 — 프론트가 항상 배지로 렌더하므로 세 번째 상태를 만들지 않는다

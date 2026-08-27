@@ -1,8 +1,12 @@
 # [프론트 → AI] 반복을 묶고도 카드를 두 번 냅니다 + 연도 없는 캡처 규칙 재논의
 
-> **상태: ⏳ 회신 대기** (요청 2026-08-27)
-> 회신은 `../../response/frontend/duplicate-cards-and-year-inference.md`에 들어옵니다.
-> **막고 있는 작업**: 없음 — 다만 §2는 **실사용 입력의 대부분**에 걸리는 문제라 데모 전에 결론이 필요합니다.
+> **상태: ✅ 회신 완료 (2026-08-27) — 둘 다 반영**
+> - 회신: `../../response/frontend/duplicate-cards-and-year-inference.md`
+> - **§1**: 제안대로 코드 가드로 접습니다. 키는 `(source_type, amount, recurrence.first, recurrence.last)`, **반복 카드에만** 적용(비반복은 실제로 두 건일 수 있음). 회귀 테스트 2건
+> - **§2**: **A안 → B안 전환.** 세 조건(기준 시점 없으면 추론 안 함 / 미래면 코드가 −1년 / 추론값은 신뢰도 `low`)을 그대로 채택. **게이팅은 하나도 풀리지 않습니다.** 평가 세트 2종 신설·2회 실측으로 날짜 정확도 유지 확인(96.7%)
+> - **프론트가 할 것**: 차단 로직은 그대로. 화면 문구만 "미상" → "2026년 8월 19일 맞나요?"로 바꾸실 수 있습니다
+>
+> 아래 본문은 **요청 당시 원문**입니다.
 
 - 작성: 프론트엔드 · 2026-08-27
 - 관련: `../backend/repeated-events-and-irrelevant-cards.md` §4·§7, `../../response/frontend/repeated-events-and-irrelevant-cards.md`(AI 회신 §2·§3·§6)
