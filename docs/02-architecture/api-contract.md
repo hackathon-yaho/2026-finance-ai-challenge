@@ -238,7 +238,7 @@ F3-02의 검증 4종(확장자 화이트리스트 / 매직바이트 / 파일당 
       "counterparty_name": "김OO",
       "payer_name": null,
       "recurrence": null,
-      "identifiers": { "tracking_no": null, "account_last4": null },
+      "identifiers": { "tracking_no": null, "account_last4": null },   // tracking_no는 null 또는 "MASKED"
       "field_confidence": {
         "occurred_at": "high | medium | low",
         "actor": "high | medium | low",

@@ -1,5 +1,9 @@
 # 내부 API 계약 (Backend ↔ AI-server)
 
+> **수정 기록 (2026-08-28, AI)** — 기획·명세 대조 감사에서 나온 계약 공백 보완
+> - **`identifiers.tracking_no`의 값이 `null` 또는 `"MASKED"`** 라는 규정을 명문화. 예시에 `null`만 있어 백엔드가 `null` 검사만 하면 "송장 있음"을 놓칠 수 있었습니다
+> - 인증 절 체크리스트의 "AI-server 측 401 검증 구현" 완료 처리
+
 > **수정 기록 (2026-08-28, 백엔드)** — AI 회신 `../response/backend/draft-timeout-needs-headroom.md` 반영
 > - **`draftRestClient` 타임아웃 15 → 30초로 상향.** AI-server 1회 시도 상한(25초)에 네트워크·직렬화 여유를 더한 값
 > - **재시도 정책은 현행 유지** (1회 동일 요청 재전송). 최악 50초(25+25)까지 걸릴 수 있음을 감수하기로 결정 — 회신: `../response/ai/draft-timeout-needs-headroom.md`
@@ -138,7 +142,7 @@ X-Internal-Token: {INTERNAL_TOKEN}
       "counterparty_name": "김OO",
       "payer_name": null,
       "recurrence": null,
-      "identifiers": { "tracking_no": null, "account_last4": null },
+      "identifiers": { "tracking_no": null, "account_last4": null },   // tracking_no는 null 또는 "MASKED"
       "field_confidence": {
         "occurred_at": "high | medium | low",
         "actor": "high | medium | low",
@@ -218,6 +222,17 @@ X-Internal-Token: {INTERNAL_TOKEN}
 **F4-06 확인 단위**: 묶인 카드 한 장을 확인하는 것은 **"매월 15일 65,890원 · 12회"라는 하나의 사실**을 확인하는 것입니다. 사용자가 개별 내역을 봐야 하면 5면의 원본을 봅니다.
 
 **3면·4면 표기**: 각각 한 줄입니다 — 시간순 사실로도 "매월 15일 65,890원 12회"가 12줄보다 정확합니다.
+
+#### `identifiers.tracking_no`의 값은 `null` 또는 `"MASKED"` (2026-08-28 명문화)
+
+**송장번호 자체는 어떤 응답에도 실리지 않습니다.** 개인정보 최소 수집 원칙에 따라 AI-server는 번호를 옮기지 않고 **존재 여부만** 표기합니다.
+
+| 값 | 뜻 |
+| --- | --- |
+| `null` | 화면에 송장번호가 보이지 않음 |
+| `"MASKED"` | **송장번호가 있다** (값은 의도적으로 보내지 않음) |
+
+**`null` 여부만 검사하면 "송장 있음"을 놓칩니다.** 예시에 `null`만 있어 지금까지 문서에 드러나지 않았고, 명세(`spec.md` F4-03)에만 적혀 있었습니다. 원본 송장번호가 필요하면 5면의 원본 이미지를 봅니다.
 
 #### `amount`의 부호 — 항상 **양수(절대값)** 입니다 (2026-08-26 확정)
 
