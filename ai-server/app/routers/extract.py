@@ -59,6 +59,6 @@ async def extract(
             raise bad_request("rawText가 비어 있습니다.")
         if len(raw_text) > settings.max_raw_text_chars:
             raise bad_request(f"rawText는 최대 {settings.max_raw_text_chars}자입니다.")
-        return await extraction.extract_text(raw_text)
+        return await extraction.extract_text(raw_text, reference_date, intake_when)
 
     raise bad_request("지원하지 않는 Content-Type입니다 (image/png · image/jpeg · application/json).")

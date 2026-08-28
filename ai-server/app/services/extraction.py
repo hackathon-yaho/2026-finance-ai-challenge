@@ -227,17 +227,26 @@ async def extract_image(
     return ExtractResponse(cards=cards, signals=_signals(out, quality), qualityFlags=quality)
 
 
-async def extract_text(raw_text: str) -> ExtractResponse:
+async def extract_text(
+    raw_text: str,
+    reference_date: str | None = None,
+    intake_when: str | None = None,
+) -> ExtractResponse:
     content = (
         prompts.EXTRACT_TEXT_INSTRUCTION
         + "\n\n----- 사용자 서술 시작 -----\n"
         + raw_text
         + "\n----- 사용자 서술 끝 -----"
     )
-    out = await llm_client.extract_structured(llm_client.text_content(content), is_text=True)
+    out = await llm_client.extract_structured(
+        llm_client.text_content(content + llm_client.anchor_block(reference_date, intake_when)),
+        is_text=True,
+    )
 
     if out.injection_suspected:
         log.info("injection_suspected source=text")
 
-    cards, quality = _to_cards(out, None, "evt_txt_", force_low_time=True)
+    cards, quality = _to_cards(
+        out, None, "evt_txt_", force_low_time=True, reference_date=reference_date
+    )
     return ExtractResponse(cards=cards, signals=_signals(out, quality), qualityFlags=quality)

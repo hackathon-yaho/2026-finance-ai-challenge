@@ -80,7 +80,7 @@
 - **예외: `GET /internal/health`는 토큰 없이 접근 가능해야 합니다.** 외부 헬스체크 도구가 직접 호출하는 킵얼라이브 용도이기 때문입니다(`../03-infra-ops/deployment-and-uptime.md` §3).
 
 - [x] 인증 방식 확정
-- [ ] AI-server 측 401 검증 구현 (AI 담당)
+- [x] AI-server 측 401 검증 구현 (AI 담당) — `app/auth.py`, `hmac.compare_digest` 상수 시간 비교. 회귀 테스트 `tests/test_api.py`
 
 ## `POST /internal/extract`
 

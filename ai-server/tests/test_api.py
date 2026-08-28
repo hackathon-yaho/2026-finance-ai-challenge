@@ -82,7 +82,7 @@ def test_extract_image_happy_path(client, monkeypatch):
 def test_extract_text_path(client, monkeypatch):
     from app.services import extraction
 
-    async def fake(raw_text):
+    async def fake(raw_text, reference_date=None, intake_when=None):
         assert raw_text == "당근에서 아이패드를 팔았습니다"
         return fake_extract_response()
 
