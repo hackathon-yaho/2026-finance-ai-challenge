@@ -49,8 +49,8 @@
 | [readiness-checklist-catalog-diffs.md](readiness-checklist-catalog-diffs.md) | ✅ 회신 완료 (08-26) | Phase 4 체크리스트 차이 2건 — **둘 다 문서가 맞음**. 목 카탈로그 정정 완료, 화면 변경 불필요 |
 | [draft-revise-and-package-notes.md](draft-revise-and-package-notes.md) | ✅ **완결** (08-26 ② 회신 / 백엔드 답변 완료) | Phase 5 — 배열에서 빼는 방식 수용, `DRAFT_FAILED` 반영. **`excludedSentenceIds`가 최종 확정**(순수 제외엔 `revise` 불필요) + `DRAFT_FAILED` 후 세션·확인 카드 유지 확정 |
 | [page4-grouped-by-origin.md](page4-grouped-by-origin.md) | ✅ 회신 완료 (08-26) | 4면 증빙자료 목록을 **카드 단위 → 원본(첨부) 단위**로 재구성. S04-2 "정리해서 보기"의 4면 렌더링을 **같은 그룹핑으로 맞췄습니다** — 계약 변경 없음, 후속 작업 없음 |
-| [submission-docs-drift.md](submission-docs-drift.md) | ⏳ **회신 대기** (08-29) | **제출본 기획서·기능명세서를 현행 구현과 대조 — 32곳.** 치명 5건(「소명 판정」·도장 3값·검증 시나리오가 코드의 **금지어**를 약속 / 「3요건 규칙엔진」 사실 아님 / 기획서 §2·§4 ↔ §7 자기모순 / 문진 5문항→6문항). under-claiming 6건, 수치 11건, 오탈자 13건, **코드 배선 2건**(E-1 텍스트 자동전환 죽은 경로, E-2 병합 API 미호출) |
+| [submission-docs-drift.md](submission-docs-drift.md) | ✅ **회신 완료** (08-29) — 전부 해결 | **제출본 기획서·기능명세서를 현행 구현과 대조 — 32곳.** 치명 5건(「소명 판정」·도장 3값·검증 시나리오가 코드의 **금지어**를 약속 / 「3요건 규칙엔진」 사실 아님 / 기획서 §2·§4 ↔ §7 자기모순 / 문진 5문항→6문항). under-claiming 6건, 수치 11건, 오탈자 13건, **코드 배선 2건**(E-1 텍스트 자동전환 죽은 경로, E-2 병합 API 미호출) |
 
-> **2026-08-29 기준 대기 중인 요청 1건** — `submission-docs-drift.md` (제출본 2종 정정). 제출 마감(9/7 10:00) 전에 반드시 처리되어야 하는 항목이 있습니다.
+> **2026-08-29 기준 대기 중인 요청 없음.** `submission-docs-drift.md`는 회신 완료 — 32곳 전부 반영했고 E-1(텍스트 입력 자동 전환)까지 배선했습니다. **정정 대상은 `../../submit/`의 docx입니다** (`00-context/submission-*.pdf`는 8/24 스냅샷이라 낡았습니다). E-2(병합 후보 UI)만 보류하고 제출본 기능 목록에서 뺐습니다.
 >
 > `local-integration-findings.md`(로컬 연동 버그 6건 + `intake` 카드 확인 질문)는 **프론트가 백엔드에 보낸 요청**이라 `../backend/local-integration-findings.md`·`../backend/README.md`에서 추적합니다 — 이 폴더(프론트에게 보내는 요청)의 목록이 아닙니다.
