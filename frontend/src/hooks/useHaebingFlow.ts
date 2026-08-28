@@ -680,9 +680,36 @@ export function useHaebingFlow() {
       )
       const results = await api.uploadEvidenceBatch(uploads)
       const failed = results.filter((r) => r.status === "failed").length
-      // **한 장이 실패해도 나머지는 간다** (F4-05). 몇 장을 못 읽었는지는 말해준다.
-      if (failed > 0) showToast(`자료 ${failed}장을 읽지 못했어요. 읽은 것만 정리할게요`)
       const fresh = results.flatMap((r) => r.data?.cards ?? [])
+
+      /**
+       * F3-04 진입 경로 ② — **전체 판독 실패 시 텍스트 입력으로 자동 전환**.
+       *
+       * 종전에는 `openTextEntry(true)`를 부르는 곳이 없어 이 경로가 죽어 있었다. 자료를
+       * 한 장도 못 읽은 사용자는 토스트 한 줄만 보고 **다음 단계 버튼이 열리지 않는 화면에
+       * 갇혔다.** 제출본 명세가 약속한 동작이기도 하다.
+       *
+       * **첫 묶음이 통째로 실패했을 때만** 전환한다(`offset === 0`). `[자료 더 올리기]`로
+       * 한 장을 더 올렸다가 그것만 실패한 경우까지 끌고 가면, 이미 읽은 카드를 보고 있던
+       * 사용자를 글쓰기 화면으로 낚아채게 된다.
+       *
+       * **"못 읽은 것"일 때만 전환한다 — 허용 목록으로 좁힌다.** 실패를 싸잡아 넘기면
+       * 세션 만료·설정 오류·서버 다운에도 글쓰기 화면이 뜨는데, 그 셋은 **글을 다 쓴 뒤
+       * 전송도 똑같이 실패**해서 사용자를 두 번 헛수고시킨다. `AI_CONFIG_ERROR`를 텍스트
+       * 입력으로 유도하지 않는다는 `spec.md` F4-05 규정도 같은 취지다.
+       *
+       * 배치 안 업로드는 개별 실패를 삼켜 `status: "failed"`로 내려오므로 코드를 직접 본다.
+       */
+      const unreadable = (r: (typeof results)[number]) =>
+        api.isApiError(r.error) && (r.error.code === "EXTRACTION_FAILED" || r.error.code === "TIMEOUT")
+      const allFailed =
+        offset === 0 && failed === results.length && fresh.length === 0 && results.every(unreadable)
+      if (allFailed) {
+        openTextEntry(true)
+      } else if (failed > 0) {
+        // **한 장이 실패해도 나머지는 간다** (F4-05). 몇 장을 못 읽었는지는 말해준다.
+        showToast(`자료 ${failed}장을 읽지 못했어요. 읽은 것만 정리할게요`)
+      }
       // F10-02 — 협박 감지는 **판정과 독립적으로** 산출된다. 한 장이라도 켜지면 켠다.
       const threat = results.some((r) => r.data?.signals.threat_detected === true)
       setServer((prev) => ({
@@ -692,7 +719,7 @@ export function useHaebingFlow() {
       }))
       return results
     }).finally(() => setExtracting(false))
-  }, [live, runLive, showToast, uploadedFiles])
+  }, [live, runLive, showToast, uploadedFiles, openTextEntry])
 
   const backToUpload = useCallback(() => {
     setFilesReady(false)
