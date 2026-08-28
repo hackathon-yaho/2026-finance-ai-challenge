@@ -82,6 +82,19 @@ PowerShell 없이 직접 등록하려면 `python scripts/set_key.py` (같은 화
 | `scripts/` | `set_key.py` — API 키를 CLI로 입력받아 `.env`에 저장 |
 | `docs/` | [design.md](docs/design.md) 설계 · [plan.md](docs/plan.md) 실행 계획 · [deployment.md](docs/deployment.md) 배포 절차 |
 
+## 기능을 바꿀 때 함께 갱신할 문서
+
+AI-server의 동작을 추가하거나 바꾸면 **코드만 고치고 끝내지 않습니다.** 아래 네 갈래를 같은 변경에서 함께 맞춥니다. 내부 문서만 맞고 제출본이 낡으면, 심사위원이 읽는 내용과 실제로 도는 서비스가 어긋납니다.
+
+| 순서 | 대상 | 무엇을 |
+| --- | --- | --- |
+| 1 | [`../docs/02-architecture/internal-api-contract.md`](../docs/02-architecture/internal-api-contract.md) | 요청·응답 모양이 바뀌면 **코드보다 먼저** 고칩니다 (계약이 단일 출처) |
+| 2 | [`../docs/00-context/prd.md`](../docs/00-context/prd.md) | 요구사항·원칙·AI 파이프라인(§10) |
+| 3 | [`../docs/00-context/spec.md`](../docs/00-context/spec.md) | 해당 기능 항목(F3·F4·F7·F10·F11) |
+| 4 | **제출본** `submission-기획서-해빙.pdf` · `submission-기능명세서-해빙.pdf` | 대회에 실제로 내는 산출물. **직접 수정하지 않습니다** (`../docs/README.md` 규정, 작성 소관은 프론트/팀장) — 바뀐 문장을 `../docs/request/frontend/`에 정정 요청으로 넘깁니다 |
+
+제출본 2종은 코드만큼 중요한 제출물입니다(PRD §12.1). 마감 직전에 몰아서 맞추면 반드시 빠지는 항목이 생기므로, 기능을 건드릴 때마다 그 자리에서 반영합니다.
+
 ## 참고 문서
 
 | 문서 | 내용 |
