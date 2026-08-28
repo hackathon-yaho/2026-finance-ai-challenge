@@ -35,7 +35,11 @@ function baseCards(amount: number | null): Record<EvidenceId, ExtractedCard> {
       payer_name: null,
       identifiers: { tracking_no: null, account_last4: "4412" },
       field_confidence: {
-        occurred_at: "high",
+        // 연도를 추론한 카드. 은행 앱은 올해 거래를 `08.15`처럼 월·일만 찍고, AI는 기준
+        // 시점을 받아 연도를 채우되 신뢰도를 항상 `low`로 강제한다
+        // (`internal-api-contract.md` "연도 없는 캡처의 연도 추론"). 실연동에서 흔한 경로라
+        // 목에도 한 장 둔다 — 목에 없으면 이 문구를 백엔드 없이 볼 방법이 없다.
+        occurred_at: "low",
         actor: "high",
         amount: "high",
         counterparty_name: null,
@@ -212,10 +216,24 @@ export function isBlocking(card: ExtractedCard): boolean {
  * 이유를 구분하지 않으면 시각을 못 읽은 카드에까지 "판독 신뢰도가 낮아요"가 붙는다.
  * 연도 없는 캡처는 신뢰도 문제가 아니라 **읽을 연도가 화면에 없던 것**이라 사용자가
  * 무엇을 해야 하는지도 달라진다.
+ *
+ * **`date_low`를 따로 뺀 이유** (2026-08-28, AI 연도 추론 B안 전환) — 기준 시점이 실리면
+ * AI가 `08.19` 같은 캡처의 연도를 채워 보내되 신뢰도를 항상 `low`로 강제한다
+ * (`internal-api-contract.md` "연도 없는 캡처의 연도 추론"). 그래서 **날짜가 값을 가진 채
+ * 막히는 카드**가 흔해졌는데, 여기에 "판독 신뢰도가 낮아요"만 띄우면 사용자는 이미 화면에
+ * 적힌 날짜를 놔두고 무엇을 봐야 하는지 모른다. 물어볼 값이 있으면 그 값을 그대로 묻는다.
+ *
+ * 연도를 추론한 카드인지 흐려서 못 읽은 카드인지는 계약에 구분이 없다 — 둘 다 값 있는 `low`다.
+ * 어차피 사용자가 할 일은 같으므로(보고 맞으면 확인, 아니면 고침) 한 문구로 묶는다.
  */
-export function blockingReason(card: ExtractedCard): "date_missing" | "low_confidence" | null {
+export function blockingReason(
+  card: ExtractedCard,
+): "date_missing" | "date_low" | "amount_low" | null {
   if (!isBlocking(card)) return null
-  return card.occurred_at === null ? "date_missing" : "low_confidence"
+  if (card.occurred_at === null) return "date_missing"
+  // 날짜와 금액이 함께 낮으면 날짜를 먼저 묻는다 — 3면 정렬과 반복 묶기가 날짜에 달려 있다.
+  if (card.field_confidence.occurred_at === "low") return "date_low"
+  return "amount_low"
 }
 
 export function blockingCards(cards: ExtractedCard[]): ExtractedCard[] {
