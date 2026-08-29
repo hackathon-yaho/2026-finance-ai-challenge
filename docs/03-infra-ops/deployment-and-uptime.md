@@ -46,7 +46,7 @@
 - [x] **Vercel(Hobby)에 배포 완료** (2026-08-25, 기한 9/5보다 앞당김) — 저장소 `frontend/`를 Root Directory로 지정, Vite 프리셋, **main 푸시 시 프로덕션 자동 갱신**. 확정 도메인: `https://2026-finance-ai-challenge-tau.vercel.app` (`../response/backend/deployment-domain.md`)
 - [x] SPA fallback(`vercel.json` rewrites)은 **넣지 않음** — 라우터 없이 단계 상태로만 화면을 바꾸는 구조라 경로가 `/` 하나뿐. 라우터 도입 시 추가
 - [ ] **심사 기간(9/7~9/11)에는 main에 푸시하지 않는다** — 자동 배포가 걸려 있어 푸시하면 심사 중에 화면이 바뀐다
-- [ ] 백엔드 API 엔드포인트 URL을 환경변수로 관리 (하드코딩 금지 — 배포 환경마다 바뀔 수 있음)
+- [x] **백엔드 API 엔드포인트 URL을 환경변수로 관리 — 2026-08-29 등록·확인 완료.** Vercel 프로젝트에 `VITE_API_BASE_URL = https://two026-finance-ai-challenge.onrender.com`을 **Production 범위로만** 등록했다(프리뷰 서브도메인은 CORS 허용 목록에 없어 비워 둔다 — 비어 있으면 목 데이터로 안전하게 동작). Vercel이 `VITE_` 접두사를 두고 "공개 값"이라고 경고하지만 **의도한 것이다** — 정적 SPA라 브라우저가 직접 백엔드를 호출하고, 값 자체가 공개 URL이며 보호는 CORS와 세션 해시가 한다. **접두사를 떼면 Vite가 값을 주입하지 않아 조용히 목 모드가 되므로 이름을 바꾸지 않는다.** 재배포 후 실측: 번들에 URL이 박혔고, 배포 URL에서 세션이 발급되며(`/api/timeline` 200), 자료 없이 진행하면 카드가 **0장**이다(목이면 5장)
 - [x] **백엔드와 CORS 협의 완료 — 2026-08-29 실측 확인.** 배포된 백엔드에 프론트 도메인 origin으로 프리플라이트와 실제 `POST /api/session`을 직접 보내 확인했다: `access-control-allow-origin`에 프론트 도메인이 그대로 돌아오고, `access-control-allow-headers`에 `x-session-hash`가 실려 있으며, 세션 발급이 `200`으로 떨어진다(`demoMode: false`). **프리뷰 서브도메인은 여전히 허용되지 않으므로 프리뷰 확인은 로컬로 대체**한다 (2026-08-24 확정)
 - [ ] 9/7~9/11 매일 아침 URL 직접 접속 확인 (로테이션에 포함)
 
