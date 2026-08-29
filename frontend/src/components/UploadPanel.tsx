@@ -143,6 +143,31 @@ export function UploadPanel({
         </button>
         <span>· 자료가 없어도 문진 응답만으로 진행할 수 있어요.</span>
       </div>
+
+      {/**
+       * 예시 자료 내려받기.
+       *
+       * 기능명세서 §5가 심사위원에게 "샘플 이미지 업로드"를 시키면서 **그 샘플을 어디서
+       * 구하는지는 안 알려줬다.** 배포 URL만 받은 사람은 올릴 것이 없어 [자료 없이
+       * 계속하기]로 빠지고, 판독·타임라인·소명서가 통째로 안 보인다.
+       *
+       * **본문이 아니라 꼬리에 둔다.** 실제 사용자에게는 필요 없는 링크라 업로드 동선을
+       * 가리면 안 된다. "합성 이미지"를 문구에 박아, 자기 자료를 올리러 온 사람이 이걸
+       * 올려야 하는 줄 알고 헷갈리지 않게 한다.
+       *
+       * `download` 속성은 같은 출처에서만 동작한다 — 파일을 `public/`에 두는 이유다.
+       * URL은 ASCII로 두고(한글 경로는 서버·브라우저마다 인코딩이 갈린다) 내려받는
+       * 이름만 한글로 준다.
+       */}
+      <a
+        href="/samples/haebing-sample-evidence.zip"
+        download="해빙-예시자료.zip"
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-normal text-muted"
+      >
+        <span>어떻게 정리되는지 먼저 보고 싶으세요?</span>
+        <span className="font-semibold text-brand underline">예시 자료 내려받기</span>
+        <span>· 실제 인물·계좌가 아닌 합성 이미지예요 (1.2MB)</span>
+      </a>
     </div>
   )
 }
