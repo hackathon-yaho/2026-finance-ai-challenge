@@ -28,7 +28,7 @@
 | 서비스 | 담당 | 권장 호스팅 | 비용 | 스핀다운 리스크 |
 | --- | --- | --- | --- | --- |
 | 프론트엔드 | 프론트 | **Vercel (Hobby) — 배포 완료 2026-08-25**<br>`https://2026-finance-ai-challenge-tau.vercel.app` | $0 | 없음 (정적 파일) |
-| 백엔드 | 백엔드 | **Render Web Service (Free)** + cron-job.org 10분 킵얼라이브 | $0 | 있음 → **10분 핑으로 15분 임계값 이전에 억제** |
+| 백엔드 | 백엔드 | **Render Web Service (Free) — 배포 완료 2026-08-29**<br>`https://two026-finance-ai-challenge.onrender.com`<br>+ cron-job.org 10분 킵얼라이브 | $0 | 있음 → **10분 핑으로 15분 임계값 이전에 억제** |
 | AI-server | AI | **Google Cloud Run** (Always Free 한도) | $0 | 없음 → 요청 시 자동 기동 + 킵얼라이브 |
 | Supabase (백엔드 전용) | 백엔드 | Supabase 무료 플랜 + 킵얼라이브 | $0 | 7일 비활성 시 일시정지 |
 
@@ -47,7 +47,7 @@
 - [x] SPA fallback(`vercel.json` rewrites)은 **넣지 않음** — 라우터 없이 단계 상태로만 화면을 바꾸는 구조라 경로가 `/` 하나뿐. 라우터 도입 시 추가
 - [ ] **심사 기간(9/7~9/11)에는 main에 푸시하지 않는다** — 자동 배포가 걸려 있어 푸시하면 심사 중에 화면이 바뀐다
 - [ ] 백엔드 API 엔드포인트 URL을 환경변수로 관리 (하드코딩 금지 — 배포 환경마다 바뀔 수 있음)
-- [ ] 백엔드와 CORS 협의 완료 (허용 origin에 프론트 배포 도메인 등록 요청). **`localhost:5173`은 이미 등록되어 로컬 연동은 도메인 확정 전에도 가능**하며, **프리뷰 서브도메인은 허용되지 않으므로 프리뷰 확인은 로컬로 대체**한다 (2026-08-24 확정)
+- [x] **백엔드와 CORS 협의 완료 — 2026-08-29 실측 확인.** 배포된 백엔드에 프론트 도메인 origin으로 프리플라이트와 실제 `POST /api/session`을 직접 보내 확인했다: `access-control-allow-origin`에 프론트 도메인이 그대로 돌아오고, `access-control-allow-headers`에 `x-session-hash`가 실려 있으며, 세션 발급이 `200`으로 떨어진다(`demoMode: false`). **프리뷰 서브도메인은 여전히 허용되지 않으므로 프리뷰 확인은 로컬로 대체**한다 (2026-08-24 확정)
 - [ ] 9/7~9/11 매일 아침 URL 직접 접속 확인 (로테이션에 포함)
 
 ## 2. 백엔드 — Render (담당: 백엔드)
