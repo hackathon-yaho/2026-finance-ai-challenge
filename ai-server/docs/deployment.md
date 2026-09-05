@@ -3,6 +3,24 @@
 > 팀 문서 단일 출처: `../../docs/03-infra-ops/deployment-and-uptime.md` §3, `../../docs/00-context/prd.md` §8.3.
 > **2026-08-25 변경**: 종전 지정은 Render Starter($7/월)였습니다. **AI-server 구현은 바뀌지 않습니다** — 같은 `Dockerfile`을 그대로 올리고, **비용은 $0**입니다.
 
+> **배포 완료 (2026-08-29)** — `haebing-ai-server-00001-6jd` 리비전이 트래픽 100%를 받고 있습니다.
+>
+> | 항목 | 값 |
+> | --- | --- |
+> | `AI_SERVER_URL` | `https://haebing-ai-server-355063743758.asia-northeast3.run.app` |
+> | 리전 · 프로젝트 | `asia-northeast3` · `thinking-land-384900` (프로젝트 번호 `355063743758`) |
+> | 시크릿 | `OPENAI_API_KEY` · `INTERNAL_TOKEN` (각 버전 1개, 런타임 SA에 `secretAccessor` 부여) |
+>
+> **배포 후 확인 3종 결과**
+>
+> | 확인 | 결과 |
+> | --- | --- |
+> | ① 헬스체크 무인증 | **200** `{"status":"UP"}` (1.12초, 콜드스타트 포함) |
+> | ② 토큰 없는 요청 | **401** `{"error":"UNAUTHORIZED", ...}` |
+> | ③ 10MB 본문 | **413 아님** — 10,485,760 bytes가 앱 계층까지 도달해 매직바이트 검사에서 400. 인프라가 자르지 않음을 확인 |
+>
+> **실판독 스모크 테스트**: `evals/images/ev-bank-01.png` → **200**, 카드 1건 (`2026-08-19T10:07:00+09:00` / 450,000원), 7.88초(콜드스타트 포함). Secret Manager의 LLM 키가 실제로 붙어 동작합니다.
+
 ## 왜 Cloud Run인가
 
 - **코드 변경 없음.** Dockerfile을 그대로 빌드해 돌립니다. `Dockerfile`이 이미 `${PORT:-8000}`으로 바인딩하므로 Cloud Run이 주입하는 `PORT`(기본 8080)를 그대로 받습니다 — 수정할 것이 없습니다.
@@ -87,12 +105,12 @@ gcloud run deploy haebing-ai-server \
 | `--min-instances 0` | **1로 올리면 유휴 과금이 발생해 무료 한도를 벗어납니다.** 콜드스타트는 킵얼라이브로 막습니다 |
 | `--memory 1Gi` | 10MB 이미지 × 동시 4건(base64 포함 약 13MB씩)을 감당하기 위한 여유 |
 
-배포가 끝나면 `https://haebing-ai-server-<해시>-du.a.run.app` 형태의 URL이 출력됩니다. **이 URL이 백엔드에 전달할 `AI_SERVER_URL`입니다.**
+배포가 끝나면 `https://haebing-ai-server-355063743758.asia-northeast3.run.app` 형태의 URL이 출력됩니다. **이 URL이 백엔드에 전달할 `AI_SERVER_URL`입니다.**
 
 ## 배포 후 확인 (반드시 이 3개)
 
 ```bash
-BASE=https://haebing-ai-server-<해시>-du.a.run.app
+BASE=https://haebing-ai-server-355063743758.asia-northeast3.run.app
 
 # ① 헬스체크가 무인증으로 200 — 킵얼라이브·모니터링이 이걸 씁니다
 curl -i $BASE/internal/health
@@ -117,7 +135,7 @@ curl -i -X POST "$BASE/internal/extract?image_index=0" \
 배포 직후 팀 채널에 이 세 줄이면 됩니다.
 
 ```
-AI_SERVER_URL  = https://haebing-ai-server-<해시>-du.a.run.app
+AI_SERVER_URL  = https://haebing-ai-server-355063743758.asia-northeast3.run.app
 헬스체크        = GET {AI_SERVER_URL}/internal/health  (무인증 200)
 INTERNAL_TOKEN = 공유해 주신 값 그대로 등록 완료
 ```
@@ -134,11 +152,35 @@ INTERNAL_TOKEN = 공유해 주신 값 그대로 등록 완료
 
 ### 콜드스타트 — 킵얼라이브가 유일한 대책입니다
 
-`min-instances=1`은 유휴 과금이 붙어 무료 한도를 벗어나므로 쓰지 않습니다. 대신 **외부 헬스체크를 5~10분 간격**으로 돌려 인스턴스를 살려 둡니다. 심사 기간(9/7 11:00~9/11 23:59) 전에 반드시 동작을 확인하세요.
+`min-instances=1`은 유휴 과금이 붙어 무료 한도를 벗어나므로 쓰지 않습니다. 대신 헬스체크를 주기적으로 돌려 인스턴스를 살려 둡니다.
+
+> **등록 완료 (2026-09-05)** — **Cloud Scheduler** job `haebing-ai-keepalive`가 **10분 주기**로 `/internal/health`를 호출합니다 (`asia-northeast3`, `Asia/Seoul`, `attempt-deadline=60s`).
+>
+> **요금 ₩0** — Cloud Scheduler는 **결제 계정당 job 3개까지 무료**이고 현재 1개만 씁니다. 과금은 **job 단위이지 실행 횟수 단위가 아니어서** 10분 주기여도 값이 같습니다. 월 4,320 요청은 Cloud Run 무료 한도의 0.22%입니다.
+>
+> **왜 필요했나 (실측)** — 킵얼라이브가 없던 2026-09-05 09:53 측정에서 **1회차 8.62초 / 2회차 0.34초**였습니다. 25배 차이이고, 심사위원의 첫 요청이 그 8.6초를 그대로 맞습니다. 판독 요청이면 그 위에 처리 시간이 얹혀 백엔드 타임아웃에 닿을 수 있습니다.
+
+```bash
+# 상태 확인 — status가 {} 로 비어 있으면 정상. code가 있으면 실패
+gcloud scheduler jobs describe haebing-ai-keepalive --location=asia-northeast3   --format="yaml(state,status,lastAttemptTime,scheduleTime)"
+
+# 기다리지 않고 즉시 검증
+gcloud scheduler jobs run haebing-ai-keepalive --location=asia-northeast3
+```
+
+**주의 2가지**
+- `gcloud scheduler jobs list`는 **`--location` 없이는 에러**입니다.
+- 갓 만든 job의 `status.code: -1`은 실패가 아니라 **"아직 실행된 적 없음"** 입니다. 한 번 돌리면 `status: {}` 가 됩니다.
+
+**Cloud Scheduler에는 실패 알림이 기본으로 없습니다.** 심사 기간에는 `../../docs/03-infra-ops/deployment-and-uptime.md`의 일일 URL 접속 점검을 함께 돌리세요.
 
 ### 예산 알림
 
-무료 한도를 넘겼을 때 모르고 지나가지 않도록 GCP **결제 → 예산 및 알림**에서 프로젝트 `thinking-land-384900`에 **$1 임계값 알림**을 걸어 두세요. 정상 사용량이면 알림이 올 일이 없고, 오면 뭔가 잘못된 것입니다.
+> **등록 완료 (2026-08-29)** — 예산 `haebing-1usd`, **₩1,400** (약 $1), 임계값 50 / 90 / 100%, 대상 프로젝트 `thinking-land-384900`. 정상 사용량이면 알림이 올 일이 없고, 오면 뭔가 잘못된 것입니다.
+>
+> **함정**: `--budget-amount=1USD`로 넣으면 결제 계정 통화가 원화라 **1 KRW로 들어갑니다.** 금액은 원 단위 숫자로 넣으세요. 임계값 옵션도 `create`는 `--threshold-rule`, `update`는 `--add-threshold-rule`로 이름이 다릅니다.
+
+**이 예산은 GCP 지출만 봅니다 — LLM API 비용은 잡지 못합니다.** 청구 주체가 다릅니다. OpenAI 대시보드 **Settings → Limits**에서 따로 한도를 거세요. 실측 단가는 이미지 판독 1장 약 ₩7(프롬프트 캐시 적용), 소명서 1건 약 ₩28입니다.
 
 ### 재배포
 
